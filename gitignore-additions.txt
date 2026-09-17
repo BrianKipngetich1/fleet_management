@@ -1,0 +1,16 @@
+# Append to the project's .gitignore:  cat gitignore-additions.txt >> .gitignore
+
+# Planning docs kept local
+plans/
+
+# Playwright UI regression suite
+/test-results/
+/playwright-report/
+/blob-report/
+# Live session cookies — never commit
+/e2e/.auth/
+
+# agent-browser phase evidence (kept local; pull requests reference the paths).
+# The example spec's directory is committed on purpose: it documents the convention.
+specs/*/verification/screenshots/
+!specs/000-example-spec/verification/screenshots/

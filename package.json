@@ -1,0 +1,13 @@
+{
+	"name": "[app_name]",
+	"private": true,
+	"description": "Root UI regression suite for the [app_name] Desk surface.",
+	"scripts": {
+		"test:ui": "playwright test",
+		"test:ui:headed": "playwright test --headed",
+		"test:ui:report": "playwright show-report"
+	},
+	"devDependencies": {
+		"@playwright/test": "^1.56.0"
+	}
+}
