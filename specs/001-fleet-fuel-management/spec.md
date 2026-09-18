@@ -21,94 +21,114 @@ Keep the whole file under ~400 lines for its entire life.
 
 ## Problem
 
-Fuel activity is currently spread across printed fuel-order sheets, receipts, and an Excel
-register. The organisation cannot reliably connect an approved request to the fuel actually
-dispensed, detect abnormal mileage or consumption, or explain discrepancies during review.
+Fuel activity is spread across printed fuel-order sheets, receipts, and an Excel register.
+The organisation cannot reliably connect an approved request to the fuel dispensed, measure
+consumption, or explain discrepancies during review.
 
-The process also lacks a dependable record of who requested, approved, carried out, entered,
-and physically signed each fueling event.
+The process also lacks a dependable record of the actual requester, system user, approver,
+driver, custodian, company representative, and physical evidence for each fueling event.
 
 ## Goal
 
-Requesters can submit a fuel request for an authorised vehicle or generator, the correct
-location approver can approve or reject it, and the Fleet Manager can issue an approved
-printed slip to the driver. After fueling, the Data Entry User records the signed invoice and
-signed slip, and the organisation can trace the event to the asset, people, readings, station,
-and source documents without maintaining a parallel operational register.
+A Fleet User can enter a request for a driver or custodian, an authorised location Approver
+can approve it without self-approval, and an approved slip can be printed and signed before
+fueling. A Fleet User then records the invoice-authoritative event and evidence.
 
-Vehicle efficiency is calculated only from valid full-to-full intervals. Generator consumption
-uses measured tank balances and operating hours. Suspicious but documentable discrepancies
-remain visible in reports without altering source values.
+The organisation can trace every event to the asset, assignment, people, readings, approved
+station, invoice, and signed documents. Vehicle efficiency uses valid full-to-full intervals;
+generator consumption uses measured tank balances and operating hours. Documentable
+discrepancies remain visible without silently changing source values.
 
 ## Non-Goals
 
-- ERPNext integration, accounting, stock ledgers, payments, or fuel-station integrations.
-- A station-price master or pre-fueling KES estimate. Release 1 estimates vehicle litres only;
-  the invoice price is used for retrospective cost comparison after fueling.
-- Historical Excel migration at go-live. The existing register remains an archive.
-- OCR implementation in Release 1. OCR is a separate evaluation and approval workstream.
-- Electronic signatures. The approver signs the printed slip before fueling; the Company
-  Representative/Data Entry User and fuel attendant sign the invoice physically.
-- More than one active fueling transaction or more than one fueling cycle per Fuel Order.
+- ERPNext integration, accounting, stock ledgers, payments, or station integrations.
+- A fuel-price master or pre-fueling KES estimate. Release 1 estimates litres only; the actual
+  invoice price supports arithmetic and retrospective comparisons after fueling.
+- Historical Excel migration or OCR in Release 1; each is a later approved workstream.
+- Electronic signatures; the approval and fueling evidence remain physically signed.
+- Fueling without an approved Fuel Order, or more than one active transaction per order.
+- Routine exception paths for unapproved stations, wrong fuel, or out-of-window fueling.
 
 ## Decisions (locked)
 
-- D-1 — The app is standalone on Frappe 16.22.0; no ERPNext dependency.
-- D-2 — Vehicles default to full-tank authorization; partial fills require an exact pre-authorised target and reason. Generators authorize maximum litres and need no full-fill flag.
-- D-3 — Full means attendant confirmation plus attendant name, backed by the signed invoice, which is authoritative for actual datetime, litres, amount, price, numbers, and station.
-- D-4 — Requesters choose an operational location and planned station from masters; stations are location-scoped and actual station must match. Approval follows asset assigned location; requester and approver differ.
-- D-5 — There is one pre-fueling approval gate. Rejection requires a new order. Approved orders last three days from approval; the assigned approver may extend or expire with reason.
-- D-6 — Fueling must occur within the approval window. Entry is due within 48 hours excluding Sundays/public holidays; late entry is allowed with explanation and flag.
-- D-7 — Both signed invoice and signed order slip are mandatory; PDF/JPG/PNG are accepted and renamed with transaction number and document type.
-- D-8 — Submitted transactions are immutable. The approver or System Manager may cancel with reason; cancellation reopens the order for one new active transaction.
-- D-9 — Quantity, amount, arithmetic, capacity, and generator-balance discrepancies are flagged with explanations, retained unchanged, and need no post-fueling approval. Invoice numbers are unique per station; CU numbers are globally unique and hard-blocked.
-- D-10 — Fuel type, target, custodian, and assigned location are effective-dated and snapshotted. System Manager alone changes targets and authorises documented meter resets.
-- D-11 — First transactions have no metric. Expected distance is target km/L × capacity; green is within ±10%, orange ±10–20%, and red beyond ±20% in either direction.
-- D-12 — Generator consumption uses physical pre-/post-levels in litres or percentage and inventory changes; no fuel is added outside this workflow.
-- D-13 — Reports use actual fueling date and may use the previous qualifying record outside the selected range. Internal actors link to Frappe Users; attendants are named.
+- D-1 — The app is standalone on Frappe 16.22.0 with no ERPNext dependency.
+- D-2 — Vehicles default to full-tank authorization. A partial fill requires an exact approved
+  target and reason. Generators authorize a maximum quantity.
+- D-3 — Asset fuel type and tank capacity are controlled master facts. Station, fuel type,
+  asset, fill mode, and validity must match the approved order; mismatches are blocked.
+- D-4 — The actual requester, driver, custodian, and company representative are people, not
+  necessarily system users. Frappe records the users who enter, submit, approve, and cancel.
+- D-5 — Operational access uses Fleet User, Fleet Approver, and Fleet Admin roles. Users may
+  hold several roles, but no user may approve an order they entered or requested.
+- D-6 — Approval and fulfillment are separate. Workflow authorizes the order; fulfillment is
+  derived from validity and its active Fueling Transaction.
+- D-7 — Default validity is configurable and initially 3 days (72 hours) from approval. An
+  Approver may extend only the validity, with reason and audit history; the slip is reprinted.
+- D-8 — The printed slip shows the exact valid-until timestamp and a configurable instruction
+  telling the attendant not to dispense after it expires.
+- D-9 — Both signed invoice and signed order slip are mandatory private PDF/JPG/PNG files.
+  Submitted transactions are immutable; controlled cancellation allows one replacement.
+- D-10 — Invoice/quantity discrepancies are retained and flagged with explanations. Invoice
+  numbers are unique per station and CU numbers are globally unique.
+- D-11 — Custodian and assigned location use non-overlapping effective-dated assignments.
+  Stable asset facts and the current target remain on the asset; approved records snapshot all.
+- D-12 — Vehicle km/L is distance divided by qualifying litres. First fills establish a
+  baseline; partial litres accumulate until the next full fill.
+- D-13 — Reports use actual fueling date, apply location permissions, and may use the previous
+  qualifying record outside the selected range.
 
 ## Current state
 
-The repository contains a scaffolded fleet_management app with no application DocTypes or business controllers; hooks and tests/specs are generated scaffolding. Frappe source is tagged v16.22.0, the app is on branch version-16, and sites/ has no development or test site. The app declares Python >=3.14 and no dependency beyond bench-managed Frappe.
+The repository contains a scaffolded fleet_management app with no application DocTypes or
+business controllers. Frappe source is tagged v16.22.0, the app is on branch version-16, and
+there is no development or test site. The app declares Python >=3.14 and only bench-managed
+Frappe as a dependency.
 
 ## Design
 
 ~~~mermaid
 stateDiagram-v2
     [*] --> Draft
-    Draft --> PendingApproval: requester submits
-    PendingApproval --> Approved: assigned approver approves
-    PendingApproval --> Rejected: assigned approver rejects
-    Approved --> Cancelled: approver cancels before transaction
-    Approved --> Expired: window ends or approver expires
-    Expired --> Approved: approver extends validity
-    Approved --> Completed: valid transaction submitted
-    Expired --> Completed: late entry for fueling inside window
-    Completed --> Approved: active transaction cancelled
+    Draft --> PendingApproval: Fleet User submits
+    PendingApproval --> Approved: location Approver approves
+    PendingApproval --> Rejected: location Approver rejects
+    Approved --> Cancelled: Approver cancels authorization
+    state Approved {
+        [*] --> AwaitingTransaction
+        AwaitingTransaction --> Expired: valid-until passes
+        Expired --> AwaitingTransaction: Approver extends and slip is reprinted
+        AwaitingTransaction --> Completed: active transaction submitted
+        Expired --> Completed: late entry proves fueling occurred in-window
+        Completed --> AwaitingTransaction: active transaction cancelled in-window
+        Completed --> Expired: active transaction cancelled after expiry
+    }
     Rejected --> [*]
     Cancelled --> [*]
-    Completed --> [*]
 ~~~
 
-The Fuel Order is the authorisation record; the separate submitted Fueling Transaction links to it. A valid transaction completes the order, flags do not create another approval state, and cancelling the active transaction reopens one slot while preserving the cancelled record.
+Fuel Order workflow records authorization. Approval submits and freezes the order; rejection is
+terminal, and cancelling an approved order uses standard cancellation. Awaiting, Expired, and
+Completed are fulfillment conditions, not approval workflow states. Expiry derives from
+`valid_until`; the scheduler sends notifications but is not the source of truth.
 
-Expired orders cannot authorize new fueling, but may accept a late transaction when its invoice proves fueling occurred by the original valid-until timestamp. This separates authorization expiry from data-entry lateness.
+A late entry may complete an expired order only when the invoice-authoritative fueling time was
+inside the historical authorization window. Extending an unused order records old/new validity,
+actor, timestamp, and reason, and cannot change asset, station, fuel, or quantity authorization.
+The extension must precede fueling and cannot retroactively authorize an expired slip.
 
 ## Frappe-first
 
-| What we need | Native Frappe mechanism | Custom code, and why it is unavoidable |
+| Need | Native Frappe mechanism | Minimum custom rule |
 |---|---|---|
-| Forms, lists, links, attachments, naming series, print | DocTypes, Link/Attach fields, Print Format, naming series | None |
-| Approval and terminal states | Workflow, docstatus, workflow transition roles | State-specific guards for expiry and reopening |
-| Audit history | track_changes, Version/timeline, docstatus cancellation | Structured approval, expiry, and cancellation reasons |
-| Role permissions and asset/location scoping | Role permissions, User Permission, permission query conditions, has_permission | Asset-effective-date and self-approval guards |
-| Notifications | Notification, Notification Log, scheduler | Due-window and late-entry event calculation |
-| Background work | scheduler events and frappe.enqueue | Expiry/reminder checks; OCR later if approved |
-| Aggregated reports | Query Report/Script Report and Query Builder | Full-to-full and inventory interval algorithms |
-| Server authority | Document controllers and lifecycle hooks | Cross-document validation, snapshots, scoped uniqueness |
-| Files | Private File records and Attach fields | Deterministic post-submit file naming |
+| Forms, links, files, naming, print | DocTypes, Attach, naming series, Print Format | Private-file validation and optional deterministic names |
+| Approval and immutability | Workflow and docstatus | Self-approval, validity extension, fulfillment derivation |
+| Audit | owner/timestamps, workflow comments, Version, cancellation | Structured repeated extension/cancellation reasons |
+| Access | Role Permission, User Permission, query conditions, has_permission | Location scope and direct-document guards |
+| Notifications | Notification, Notification Log, scheduler | Validity and working-deadline recipients |
+| Reports | Query/Script Report and Query Builder | Shared interval calculations and explicit location filters |
+| Integrity | Validation, database constraints, transactions | Scoped uniqueness and active-order locking |
 
-No custom API, cache, microservice, external OCR service, or price dependency is planned for Release 1.
+No custom API, cache, microservice, external OCR service, or price dependency is planned.
 
 ## Data Model
 
@@ -116,248 +136,218 @@ No custom API, cache, microservice, external OCR service, or price dependency is
 
 | DocType | Key data and rules |
 |---|---|
-| Fleet Location | Name, active flag, and one designated approver User. |
-| Fuel Station | Name, operational location Link, active flag. No price history. |
+| Fleet Person | Name, active flag, and optional User link; represents custodians, drivers, requesters, and representatives without requiring login. |
+| Fleet Location | Name and active flag; User Permissions determine which Fleet Users and Approvers may act there. |
+| Fuel Station | Name, active/approved flag, and operational location; a location may define a default station. |
 | Fuel Type | Name and active flag. |
-| Vehicle Model | Make, model, and engine capacity in CC. CC is descriptive only. |
-| Vehicle | Unique registration, model Link, active flag, and Asset Configuration history. |
-| Generator | Unique identifier, active flag, and Asset Configuration history. |
-| Asset Configuration | Child history with effective dates, tank capacity, permitted fuel type, target, custodian User, and assigned Fleet Location. Overlapping periods are rejected. |
-| Fleet Management Settings | Single record containing default tolerance 2%, green/orange bands 10%/20%, three-day validity, 48-hour late-entry SLA, selected public-holiday calendar, and reminder settings. |
-| Meter Reset | Asset, reset date, old reading, new baseline, reason, evidence attachment, and System Manager authorisation. |
+| Vehicle Model | Make, model, and descriptive engine capacity in CC. |
+| Fleet Asset | Vehicle/Generator type, unique identifier, active flag, stable fuel type and tank capacity, current target, optional model, and tolerance override. |
+| Asset Assignment | Child history with custodian, assigned location, effective-from/until, optional primary driver, and reason; periods cannot overlap. |
+| Fleet Management Settings | Defaults for 2% tolerance, 10%/20% bands, 3-day validity, print instruction, 48-hour entry SLA, Holiday List, and reminders. |
+| Meter Reset | Asset, reset date, old reading, new baseline, reason, evidence, and Fleet Admin authorization. |
 
-The current effective Asset Configuration is copied into transaction snapshots; master changes do not rewrite historical reports.
+Stable asset changes require Fleet Admin and a reason. `track_changes` records them; Fuel Order
+and transaction snapshots preserve history. A separate target-history engine is deferred unless
+future-dated targets become a real requirement.
 
 ### Fuel Order
 
-The submittable document uses FO-.YYYY.-.##### and contains one asset only:
+The submittable document uses FO-.YYYY.-.##### and contains:
 
-- Request datetime, requester, asset type, vehicle or generator, request-time odometer or
-  hour-meter reading, and vehicle gauge percentage as an integer from 0 to 100.
-- Operational location, planned station, derived approver, and read-only asset snapshots for
-  assigned location, custodian, fuel type, tank capacity, and target.
-- Vehicle fill mode: Full or Partial. Partial requires an exact litres target and reason.
-  Full computes estimated litres from capacity and gauge. Generator orders contain maximum
-  litres and no fixed KES amount.
-- Approval, rejection, expiry, extension, and cancellation timestamps/reasons; valid-until
-  timestamp; workflow state.
+- Request datetime and actual requester Fleet Person; owner identifies the entering User and a
+  server snapshot identifies who submitted it for approval.
+- One Fleet Asset, request-time odometer/hour-meter, and whole-number vehicle gauge from 0–100.
+- Operational location, approved planned station, and assignment snapshot: custodian, assigned
+  location, fuel type, tank capacity, target, and tolerance.
+- Vehicle Full/Partial mode. Partial requires exact litres and reason; Full estimates missing
+  litres from capacity and gauge. Generator orders contain maximum litres.
+- Approval actor/time, valid-until, rejection/cancellation/extension reasons, workflow state,
+  and derived fulfillment status.
 
-The approved record freezes authorisation and estimate snapshots and contains no pre-fueling price or KES top-up estimate.
+Approval freezes the authorization snapshot. The print shows exact validity, approved station,
+asset, fuel, quantity basis, signatures, and configurable attendant instruction.
 
 ### Fueling Transaction
 
-The submittable document uses FT-.YYYY.-.##### and links to exactly one Fuel Order:
+The submittable document uses FT-.YYYY.-.##### and links to one Fuel Order:
 
-- Invoice-authoritative fueling datetime, Data Entry User/Company Representative, driver,
-  actual station, invoice/receipt number, CU number, and external attendant name.
-- Read-only asset, custodian, fuel type, planned station, and order references.
-- Vehicle odometer or generator hour-meter. Vehicles also capture actual pre-fueling gauge,
-  full-tank confirmation, and attendant identity. Generators capture pre- and post-fueling
-  tank level plus unit (litres or percentage) and normalized litre values.
-- Invoice litres, total KES amount, printed unit price, and calculated unit price snapshot.
-- Two mandatory Attach fields: signed tax invoice and signed Fuel Order slip.
-- Late-entry flag/explanation and a child table of system/manual discrepancy flags.
-
-The server renames attachments to the transaction number plus invoice or signed-slip type,
-preserving the extension and keeping files private.
+- Invoice-authoritative fueling datetime, driver and company representative Fleet Persons,
+  external attendant name, invoice number, CU number, and read-only approved station.
+- Read-only order/asset/fuel/assignment snapshots; owner and a server snapshot identify the
+  creating and submitting Users.
+- Vehicle odometer, pre-fueling gauge, full confirmation, and attendant identity; or generator
+  hour-meter and pre/post tank levels with one selected unit and normalized litres.
+- Invoice litres, total KES, printed unit price, and calculated unit-price snapshot.
+- Mandatory private signed-invoice and signed-order attachments.
+- Late-entry explanation and system-generated discrepancy rows with user explanations.
 
 ### Snapshot and derived-data policy
 
 | Data | Treatment |
 |---|---|
-| Asset configuration, target, capacity, fuel type, custodian, assigned location | Store immutable request/transaction snapshots |
-| Approval timestamp and valid-until | Store as audit facts |
-| Request estimated litres | Store on approved Fuel Order |
-| Invoice amount, litres, printed unit price, calculated unit price | Store source values and calculated unit-price snapshot |
-| Vehicle efficiency, variance, generator litres/hour, cost per km/hour | Calculate in reports from submitted non-cancelled transactions |
-| Exception flags | Store as auditable child rows; never rewrite source values |
+| Asset, assignment, target, capacity, fuel type, station, tolerance | Immutable order and transaction snapshots |
+| Approval, validity, extension, rejection, cancellation | Audit facts; repeated actions never overwrite prior history |
+| Request gauge and estimated litres | Approved-order snapshot |
+| Invoice amount, litres, printed/calculated price | Immutable source/calculated snapshots |
+| Efficiency, variance, generator litres/hour, cost per km/hour | Shared server calculation used by reports |
+| Discrepancies | Auditable system rows; source values are never rewritten |
 
 ## Workflow and Permissions
 
-The requester selects only an active asset assigned to them or to an authorised location. The station selector is limited to active stations in the operational location. The approver is derived from the asset’s assigned location and cannot self-approve.
+Authorization requires both role and permitted Fleet Location. List queries, direct document
+access, linked-document actions, reports, print, export, and cancellation enforce the same scope.
+Query Builder report code applies location filters explicitly rather than assuming row permissions.
 
-| Role | Allowed behaviour |
+| Role | Capability |
 |---|---|
-| Fuel Requester | Create and submit own Fuel Orders for authorised assets; view own order history; no approval or post-submit edits. |
-| Fuel Approver | Approve/reject/cancel orders for assigned locations; extend or expire them with reasons; print approved slips; cannot approve own request. |
-| Driver/Fuel Collector | Read approved slip information where granted; no transaction submission. |
-| Company Representative/Data Entry User | Enter and submit transactions after fueling for permitted orders; attach both signed documents; record the driver and attendant; cannot approve orders. |
-| Fleet Manager | Read all operational orders, transactions, flags, and reports; receive notifications; issue printed slips; no post-fueling approval. |
-| Auditor | Read, print, export, and reconcile records and audit history; no mutation. |
-| System Manager | Configure masters, roles, settings, effective-dated targets/assignments, meter resets, and cancel submitted transactions. |
+| Fleet User | Create requests for permitted assets/locations, record actual requester and participants, submit transactions, and read permitted operational history. |
+| Fleet Approver | Approve/reject/cancel orders, extend validity, print slips, and view reports for permitted locations. May also hold Fleet User, but cannot self-approve. |
+| Fleet Admin | Maintain masters/settings/assignments/targets, authorize resets, cancel transactions, and access all operational and audit records. |
+| Fleet Auditor (optional) | Read, print, report, and export without mutation; create only if direct auditor login is required. |
 
-Submitted orders and transactions are not directly edited. Approval, rejection, extension,
-expiry, and cancellation use workflow or controlled server actions. The approver and
-System Manager checks are enforced server-side as well as in Desk permissions.
+Self-approval checks both the entering/submitting User and the linked actual requester's User.
+System Manager remains a platform role and is not required for routine fleet administration.
+Submitted records cannot be deleted or directly edited; draft deletion, sharing, importing,
+exporting, printing, cancelling, and reporting are granted only where required.
 
-Notifications:
-
-- Approval: requester and Fleet Manager.
-- Rejection with reason: requester and Fleet Manager.
-- Pre-expiry reminder and expiry: requester, Fleet Manager, and assigned approver.
-- The reminder lead time is a configurable setting; the initial implementation assumes one
-  calendar day before valid-until.
+Approval/rejection notifications go to the entering user and Fleet Admin. Pending, pre-expiry,
+expiry, and extension notifications go to the relevant location Approvers and Fleet Admin.
 
 ## Calculations and Validation
 
 ### Vehicle
 
-For each submitted, non-cancelled full fill, find the previous qualifying full fill after the latest meter reset. Distance is current minus previous odometer; qualifying litres sum all transactions after the previous full fill through the current full fill, including partials. No result is shown without a previous qualifying full fill.
-
-Vehicle efficiency is:
+For each submitted, non-cancelled full fill, find the prior qualifying full fill after the latest
+meter reset. Distance is the odometer difference. Qualifying litres are every fill after the
+previous full fill through the current full fill, including authorized partials.
 
 ~~~text
-km_per_litre = qualifying_litres / distance_km
-variance = actual_km_per_litre - target_km_per_litre
+distance_km = current_odometer - previous_full_odometer
+km_per_litre = distance_km / qualifying_litres
+expected_interval_distance = target_km_per_litre * qualifying_litres
+variance = km_per_litre - target_km_per_litre
 variance_percent = variance / target_km_per_litre * 100
 ~~~
 
-Expected distance for plausibility is target km/L multiplied by tank capacity. The same
-colour bands apply to distance and efficiency: green within ±10%, orange from ±10% through
-±20%, red beyond ±20% in either direction.
+The first full fill is a baseline with no KPI. Green is within ±10%, orange is beyond ±10%
+through ±20%, and red is beyond ±20% in either direction. The closing fill's target is used for
+comparison; if the target changed within the interval, show the actual km/L but no color rating.
+
+Request-time plausibility is approximate because the gauge is approximate:
+
+~~~text
+estimated_litres = tank_capacity * (100 - gauge_percent) / 100
+estimated_distance_since_full = target_km_per_litre * estimated_litres
+~~~
 
 ### Generator
-
-Convert percentage tank readings to litres using the effective tank capacity. With no fuel
-added outside this workflow:
 
 ~~~text
 consumed_litres = previous_post_fuel_level - current_pre_fuel_level
 operating_hours = current_hour_meter - previous_hour_meter
 litres_per_hour = consumed_litres / operating_hours
-~~~
-
-The first generator transaction establishes history but has no result. Pre-/post-level
-reconciliation is checked as:
-
-~~~text
 expected_post_level = pre_fuel_level + delivered_litres
 reconciliation_difference = expected_post_level - post_fuel_level
 ~~~
 
-More than the shared 2% tolerance is allowed with a discrepancy flag and explanation. A
-non-positive operating-hour interval or an unresolvable meter rollback has no KPI result.
+The first transaction establishes a baseline. Non-positive hours or unresolved rollback has no
+KPI. Reconciliation over the shared tolerance is flagged with explanation.
 
-### Price and top-up
-
-The calculated unit price is amount divided by litres. The invoice’s printed unit price is
-also retained. Arithmetic or rounding disagreement is allowed with an explanation flag.
-
-Vehicle top-up litres are estimated on the Fuel Order:
+### Price and retrospective comparison
 
 ~~~text
-estimated_litres = tank_capacity * (100 - gauge_percent) / 100
+calculated_unit_price = invoice_amount / actual_litres
+retrospective_estimated_amount = order_estimated_litres * calculated_unit_price
 ~~~
 
-The KES cost estimate is intentionally blank before the invoice. After submission, reports
-may show a retrospective comparison using the invoice’s calculated unit price; it is labelled
-as an estimate, not an authorization.
+Printed and calculated unit prices are compared using defined currency precision. Without a
+price master, the system validates arithmetic but does not claim that a station price is high.
+The retrospective amount is labelled as a gauge estimate, never an authorization.
 
-### Hard blocks
+### Hard blocks and integrity
 
-- Missing or unapproved Fuel Order; actual fueling outside its approval window.
-- Asset, fuel type, or planned/actual station mismatch.
-- Vehicle partial fill not pre-authorised, missing partial reason, or invalid exact target.
-- Duplicate invoice/receipt within the station or duplicate CU number globally.
-- Missing signed invoice or signed Fuel Order slip.
-- Zero/negative litres, amount, unit price, capacity, target, or invalid 0–100 gauge.
-- Odometer/hour-meter decrease unless a System Manager reset event establishes a new baseline.
-- More than one active Fueling Transaction for the same Fuel Order.
-- Missing effective asset configuration required for the requested asset type.
+- Missing/unapproved order; fueling outside historical validity; asset, fuel, or station mismatch.
+- Unapproved partial fill, missing partial reason, or invalid exact target.
+- Duplicate active normalized station/invoice key or CU number, backed by database constraints.
+- Missing/non-private/invalid evidence; unsupported content type or configured size excess.
+- Zero/negative litres, amount, unit price, capacity, target, or invalid gauge/tank level.
+- Meter decrease without an authorized reset; missing assignment/configuration snapshot.
+- A concurrent second active transaction, prevented by locking the Fuel Order during submission.
+- Deletion of submitted records or referenced masters.
 
-### Allowed flags
-
-The transaction remains submitted and the order completes when the Data Entry User supplies
-an explanation for an order/invoice quantity or amount difference, partial target difference,
-capacity/max-quantity overage above 2%, invoice arithmetic mismatch, generator reconciliation
-difference above 2%, late entry, or red/orange plausibility result. The system retains both
-source values and the flag; no post-fueling approval or silent correction occurs.
+Allowed quantity, amount, arithmetic, capacity, target, generator-balance, late-entry, and
+plausibility discrepancies require explanations and complete the order without silent correction.
+Cancellation preserves original identifiers but releases their active uniqueness keys only for a
+replacement linked to that cancelled transaction and the same Fuel Order.
+Transactions are ordered deterministically by actual fueling datetime and name; cancellation or
+backdated entry recalculates affected report intervals from immutable source transactions.
 
 ## Reports
 
-All reports exclude cancelled transactions, use actual fueling dates, and reconcile to source orders/transactions. The previous qualifying record may precede the selected range.
+KPI reports exclude cancelled transactions; audit/reconciliation views retain them with status.
+All reports use actual fueling date, drill down to source documents, and enforce location scope.
 
-- Vehicle consumption and km/L by vehicle, custodian, station, and period.
-- Actual km/L versus effective target, expected-distance status, and red/orange/green flags.
-- Generator litres/hour, operating hours, tank-balance movements, targets, and flags.
-- Litres and KES cost by vehicle, generator, custodian, station, fuel type, and period.
-- Cost per kilometre and cost per generator operating hour.
-- Monthly litres and KES trends.
-- Vehicle estimated litres versus actual litres and retrospective estimated cost.
-- Invoice arithmetic and capacity/quantity discrepancy register.
-- Approved orders awaiting fueling/entry, expired orders, late entries, and cancelled
-  transactions that reopened an order.
-- Transactions missing required evidence, station spending, and exportable audit/reconciliation.
+1. **Open Fuel Orders** — pending approval, approved without a submitted transaction, expired,
+   late-entry, extended, and reopened orders.
+2. **Fuel Register and Spend** — litres, KES, unit price, asset, assignment, station, fuel type,
+   order, invoice, evidence, cancellation status, filters, groupings, trends, and export.
+3. **Vehicle Performance** — full-to-full intervals, accumulated litres, distance, km/L,
+   target variance, cost/km, color status, and estimated-versus-actual litres/amount.
+4. **Generator Performance** — operating hours, tank movements, consumed litres, litres/hour,
+   target variance, cost/hour, and reconciliation status.
+5. **Exceptions and Audit** — discrepancies, late entry, resets, extensions, cancellations,
+   draft missing evidence, explanations, actors, and timestamps.
 
-Report queries use indexed Link/date/status fields and Query Builder aggregation. They fetch
-only the prior qualifying record needed for an interval rather than loading unbounded history.
+Efficiency belongs to an asset interval and is not attributed naively to one station or custodian
+when the interval spans several transactions or assignments. Dashboard cards and monthly/station/
+custodian views reuse these reports; they do not implement separate calculations.
 
-## OCR Evaluation
+## OCR Evaluation and Historical Data
 
-OCR is a separate post-core workstream and is not a Release 1 dependency. After representative
-invoice samples are collected, the team will compare local and cloud options for field-level
-accuracy, privacy/data residency, cost, operational dependency, and maintainability.
+OCR is a separate post-core workstream. Any approved solution runs asynchronously, suggests
+values only, requires Fleet User verification, preserves the original private attachment, and
+retains manual entry. Accuracy, privacy, residency, cost, and maintenance require approval.
 
-Any approved OCR implementation must run asynchronously, populate suggestions only, require
-Data Entry verification before submission, preserve the original attachment, and retain manual
-entry as the authoritative fallback. The recommendation and dependency require approval before
-implementation.
-
-## Historical Data
-
-No Excel records are imported at go-live. The existing register remains an archive, and the
-first in-system transaction for each asset starts a new measurement baseline.
-
-If migration is later approved, it will be a separate staged workstream: a validated import
-template, duplicate/sequence pre-check, dry-run error report, reconciliation summary, and no
-destructive overwrite.
+No Excel records are imported at go-live. If later approved, migration uses a validated template,
+duplicate/sequence pre-check, dry-run errors, reconciliation summary, and no destructive overwrite.
 
 ## Tracer Bullet
 
-Each increment is vertical: it includes the minimum data, server rules, Desk surface, print or
-report output, tests, and manual walkthrough needed to prove a usable outcome.
+| Phase | User-visible outcome | Main components | Verification focus |
+|---|---|---|---|
+| 0 — Secure vehicle journey | A Fleet User requests on behalf of a driver, a different location Approver approves and prints, and two full-fill cycles produce a correct km/L result. | People, locations, stations, fuel, model, asset/assignment, settings, three roles, order, transaction, workflow, print, Vehicle Performance | Identity separation, list/direct/report permissions, self-approval denial, validity print, private evidence, one active transaction, baseline then distance/litres KPI. |
+| 1 — Integrity and exceptions | Partial authorization, discrepancies, assignment changes, resets, extension/reprint, notifications, cancellation/replacement, and audit work securely. | Assignment history, Meter Reset, discrepancy rows, constraints/locking, permission hooks, scheduler | Non-overlap, hard-block matrix, concurrency, scoped uniqueness, file validation, flags, audit, cancel/reopen. |
+| 2 — Generators | Approved quantity and measured tank balances produce reliable litres/hour. | Generator fields on Fleet Asset/order/transaction and Generator Performance | Unit normalization, inventory reconciliation, hour interval, baseline, reset, target bands. |
+| 3 — Operational reporting | Operations, management, and audit reconcile the fleet without Excel. | Five reports, dashboards, exports, indexes, permission filters | Totals, boundaries, cancelled inclusion rules, cross-range prior record, export scope, bounded queries, mobile use. |
 
-| Phase | User-visible outcome | DocTypes/components | Dependencies or approvals | Automated verification | Manual verification |
-|---|---|---|---|---|---|
-| 0 — Vehicle journey | Request, approve, print, fuel, attach, submit, and see first-baseline result. | Location, Station, Fuel Type, Vehicle Model, Vehicle, Settings, Fuel Order, Fueling Transaction, workflow, print, first report. | Specification approved; one configured vehicle, station, location, and test users; dev/test sites. | Naming, derived approver, links, attachments, one active transaction, baseline behaviour, reconciliation. | Full Desk journey, printed slip, physical-signature simulation, attachments, report. |
-| 1 — Controls | Blocks, flags, notifications, audit history, effective dates, reset, and cancellation/reopen work. | Configuration history, Meter Reset, exception child, controllers, permissions, scheduler. | Phase 0 accepted; System Manager confirms roles and holiday calendar. | Hard-block matrix, scoped uniqueness, 2% flags, calendar SLA, permissions, reset, cancel/reopen. | Role access, notifications, attachment names, audit timeline. |
-| 2 — Generators | Quantity-based generator entry produces inventory-derived litres/hour. | Generator, configuration history, transaction fields, calculation service, generator report. | Generator capacity, target, location, custodian, and sample readings supplied. | Unit conversion, inventory reconciliation, hour intervals, baseline, reset, target bands. | Generator order, litres/percentage entry, report and flagged mismatch. |
-| 3 — Reporting hardening | Fleet Manager and Auditor reconcile cost, consumption, exceptions, and outstanding work without Excel. | Complete Query/Script Reports, dashboards, exports, indexes, permission filters. | Phases 0–2 accepted; Fleet Manager reviews KPI labels and sample data. | Totals, date boundaries, cancelled exclusion, export, permissions, query bounds. | Mobile entry, print readability, evidence traceability, report reconciliation. |
+### Acceptance criteria
 
-**Acceptance**
-
-- AC-01 — An authorised requester can submit a Fuel Order with the correct derived approver.
-- AC-02 — A different approver can approve or reject; rejection requires a new order.
-- AC-03 — An approved order prints with required asset, readings, quantity, and signature area.
-- AC-04 — Data Entry cannot submit without both signed attachments.
-- AC-05 — A submitted transaction links to one active order and completes it.
-- AC-06 — The first vehicle transaction is accepted and reports no efficiency result.
-- AC-07 — Station/fuel mismatch, duplicate invoice/CU, rollback, and missing attachments block.
-- AC-08 — Quantity, amount, arithmetic, capacity, reconciliation, and late-entry differences
-  flag with explanation without changing source values.
-- AC-09 — A cancelled transaction reopens the order for one new active transaction only.
-- AC-10 — A System Manager reset restarts the relevant calculation baseline with evidence.
-- AC-11 — Approval, rejection, expiry, and cancellation history identifies user, time, and reason.
-- AC-12 — A generator order authorises maximum litres without a KES ceiling.
-- AC-13 — Data Entry can enter generator tank levels in litres or percentage.
-- AC-14 — Generator litres/hour uses measured inventory and excludes cancelled records.
-- AC-15 — Every report total reconciles to submitted, non-cancelled source transactions.
-- AC-16 — Actual fueling date filters and cross-range prior records behave as specified.
-- AC-17 — Fleet Manager and Auditor can inspect flags/evidence without editing source data.
-- AC-18 — The complete requisition-to-fueling journey works without an operational Excel register.
+- AC-01 — Fleet User records the actual requester and participants without requiring them to log in.
+- AC-02 — Role plus location permission controls list, direct, report, print, and action access.
+- AC-03 — A different location Approver can approve/reject; self-approval is denied server-side.
+- AC-04 — The print shows exact validity, approved station/fuel/quantity, signatures, and instruction.
+- AC-05 — Transaction submission requires valid private signed invoice and order attachments.
+- AC-06 — First full fill creates no KPI; the second calculates distance/litres km/L correctly.
+- AC-07 — Station, fuel, asset, validity, rollback, duplicate, and active-transaction violations block.
+- AC-08 — A pre-fueling extension changes only validity, preserves history, and requires a reprinted slip; retroactive extension is denied.
+- AC-09 — Allowed discrepancies retain source values and require explanations.
+- AC-10 — Database constraints and order locking protect active uniqueness; a linked replacement can reuse its cancelled source identifiers.
+- AC-11 — Cancelling a transaction preserves it and permits only one controlled replacement.
+- AC-12 — Assignment periods do not overlap and approved snapshots survive later reassignment.
+- AC-13 — A Fleet Admin reset restarts the calculation baseline with reason and evidence.
+- AC-14 — Generator litres/hour uses measured inventory and excludes cancelled KPI records.
+- AC-15 — The five reports reconcile to source records and apply the documented permissions.
+- AC-16 — Audit views include cancelled records; KPI views exclude them.
+- AC-17 — Actual-date filters and a prior qualifying record outside the range behave correctly.
+- AC-18 — The workflow operates without a parallel Excel register.
 
 ## Verification
 
-Automated tests belong beside the relevant controllers and calculation modules. Pure formulas
-use UnitTestCase; document, workflow, permission, attachment, and report tests use
-IntegrationTestCase on the separate test site.
-
-Required automated coverage includes naming, effective-date lookup, full-to-full intervals,
-partial accumulation, generator inventory, target and color bands, top-up litres, working
-deadline calculation, duplicate scopes, hard blocks, flags, cancellation/reopen, reset
-baseline, report totals/date boundaries, permissions, and notification event creation.
-
-After a test site exists, verification uses:
+Pure calculations use UnitTestCase; documents, workflow, permissions, files, constraints, and
+reports use IntegrationTestCase on the test site. Coverage includes both sides of every permission
+boundary, formulas, full/partial intervals, effective assignments, reset baselines, currency
+precision, duplicate normalization, concurrency, hard blocks, flags, extension, cancellation,
+report reconciliation, date boundaries, and notifications.
 
 ~~~sh
 bench --site <test-site> migrate
@@ -365,35 +355,30 @@ bench --site <test-site> run-tests --app fleet_management
 npm run test:ui
 ~~~
 
-Manual acceptance covers:
+Manual acceptance covers the three roles, request-on-behalf, two full fills, printed validity and
+instruction, extension/reprint, physical signatures, private attachments, partial authorization,
+generator measurements, mobile-width entry, report reconciliation, and cancellation audit.
 
-- Requester, approver, Fleet Manager, Data Entry, and Auditor Desk journeys.
-- Printed slip layout and pre-fueling approver signature.
-- Signed invoice and signed slip attachment, private access, and deterministic names.
-- Vehicle full fill, pre-authorised partial fill, and first-baseline behaviour.
-- Generator litre and percentage tank-level entry.
-- Mobile-width Data Entry use and report reconciliation.
-- Cancelled transaction reopening and audit history.
-
-Implementation must not begin until this specification is approved and a disposable
-development/test site is available.
+Implementation must not begin until this specification is approved and disposable development
+and test sites are available.
 
 ## Risks and Assumptions
 
 | Type | Item and treatment |
 |---|---|
-| Dependency | No site is configured. Site provisioning, app installation, developer mode, and a separate test site precede implementation verification. |
-| Assumption | One active approver is configured per Fleet Location. A future multi-approver rule would change workflow design. |
-| Assumption | Frappe User is the internal identity source; no ERPNext Employee dependency is introduced. |
-| Assumption | The site supplies a Frappe Holiday List for Sundays/public holidays. The selected list is a System Manager setting. |
-| Open at review | Notification transport and the exact pre-expiry reminder lead time; initial plan uses native in-app/email notifications and one calendar day. |
-| Open at review | If an invoice has no printed time, Data Entry must provide the known station time and explain that it was not printed; the tracer bullet must confirm this is acceptable. |
-| Risk | Manual tank-level measurements can be inaccurate. The system retains both source readings and reconciliation flags; it does not silently correct them. |
-| Risk | No price master means pre-fueling KES estimates are intentionally unavailable. The UI and reports must label post-invoice cost comparisons clearly. |
-| Risk | Configuration changes can distort history. Effective-dated rows plus transaction snapshots and reset events are mandatory. |
-| Risk | Late entry after automatic expiry could hide a valid fueling. The server validates actual fueling datetime against the historical valid-until timestamp, not only current workflow state. |
+| Dependency | No site exists; provision development/test sites and install the app before implementation verification. |
+| Assumption | Fueling always uses an approved order, station, asset fuel type, and authorization window; unsupported events require a later explicit policy. |
+| Assumption | Frappe User identifies system actors; Fleet Person identifies operational people and optionally links to User. |
+| Assumption | Three days means 72 hours from approval; the exact timestamp is printed. |
+| Assumption | The site supplies a Holiday List; Saturdays count and Sundays/public holidays do not count toward the entry SLA. |
+| Open at review | Notification transport and reminder lead time; default is native in-app/email one day before expiry. |
+| Open at review | If an invoice lacks time, Fleet User enters the known station time and explains that it was not printed. |
+| Risk | Gauges and generator tank levels are approximate; retain source readings and flag discrepancies. |
+| Risk | No price benchmark means no pre-fueling KES estimate or market-price variance claim. |
+| Risk | Old slips remain physically available after extension; they show an expired timestamp and the extended order must be reprinted. |
 
 ## Progress log
 
-- 2026-09-17 — Drafted after business grilling and read-only repository discovery. Awaiting
-  human review and approval. [Phase 0 verification](verification/phase-00-tracer-bullet.md)
+- 2026-09-18 — Revised after architecture review: simplified roles/reports, separated people
+  from users and approval from fulfillment, narrowed assignment history, and corrected formulas.
+  Awaiting human review and approval. [Phase 0 verification](verification/phase-00-tracer-bullet.md)

@@ -3,7 +3,7 @@ The proof document. Written as the phase is verified, from what was actually obs
 This scaffold remains Not started until implementation and test-site verification.
 -->
 
-# Phase 0 — One complete vehicle journey
+# Phase 0 — Secure vehicle journey
 
 | | |
 |---|---|
@@ -14,15 +14,17 @@ This scaffold remains Not started until implementation and test-site verificatio
 | Reviewed by | — |
 | Signed off | — |
 | Landed in | — |
-| Covers | AC-01–AC-06 |
+| Covers | AC-01–AC-07 |
 
 ## What this phase makes true
 
-An authorised requester can create a vehicle Fuel Order and submit it for approval. A
-different location approver can approve or reject it, and an approved order can be printed
-for the physical fueling process. After fueling, the Data Entry User can attach the signed
-invoice and signed slip, submit one linked transaction, and see either a valid first baseline
-or an explicit absence of an efficiency result.
+A Fleet User can enter a request on behalf of a driver or custodian without giving that person
+system access. A different Approver for the asset's location can approve and print an order
+whose exact validity and station instruction are clear. Two approved full-fill cycles with
+private signed evidence produce first a baseline and then a correct kilometres-per-litre result.
+
+Users outside the permitted location cannot list, open, report on, print, or act on its records.
+Asset, fuel, station, validity, evidence, and one-active-transaction controls are server-enforced.
 
 ## The rule, as observed
 
@@ -31,10 +33,13 @@ Not yet observed. This phase has not been implemented.
 ~~~mermaid
 stateDiagram-v2
     [*] --> Draft
-    Draft --> PendingApproval: requester submits
-    PendingApproval --> Approved: approver approves
-    PendingApproval --> Rejected: approver rejects
-    Approved --> Completed: transaction submitted
+    Draft --> PendingApproval: Fleet User submits
+    PendingApproval --> Approved: location Approver approves
+    PendingApproval --> Rejected: location Approver rejects
+    state Approved {
+        [*] --> AwaitingTransaction
+        AwaitingTransaction --> Completed: active transaction submitted
+    }
 ~~~
 
 ### Design vs. observed
@@ -44,36 +49,42 @@ stateDiagram-v2
 | Draft → PendingApproval | no | Unbuilt or untested |
 | PendingApproval → Approved | no | Unbuilt or untested |
 | PendingApproval → Rejected | no | Unbuilt or untested |
-| Approved → Completed | no | Unbuilt or untested |
+| AwaitingTransaction → Completed | no | Unbuilt or untested |
 
 ## Frappe-first / native-first
 
 | What we needed | Native mechanism used | Custom code, and why |
 |---|---|---|
-| Forms, naming, attachments, print | Not yet observed | Not yet implemented |
-| Approval state and role gate | Not yet observed | Not yet implemented |
-| One active transaction per order | Not yet observed | Not yet implemented |
+| Masters, assignments, forms, names, private files, print | Not yet observed | Not yet implemented |
+| Approval submission and role gate | Not yet observed | Self-approval and location guard not yet implemented |
+| List and direct access | Not yet observed | Matching query condition and document guard not yet implemented |
+| One active transaction and full-to-full calculation | Not yet observed | Lock and shared interval calculation not yet implemented |
 
-**Scope deliberately not taken:** generator calculations, full exception matrix, historical
-import, and OCR belong to later workstreams.
+**Scope deliberately not taken:** partial fills, extension/reprint, full discrepancy matrix,
+assignment changes, resets, cancellation/replacement, generators, consolidated reporting,
+historical import, and OCR belong to later workstreams.
 
 ## Verification
 
 | # | Put the system in this state | Expect | Covers |
 |---|---|---|---|
-| 1 | As an authorised requester, create an order for the configured vehicle and submit it. | The order enters Pending Approval and the derived approver is the vehicle-location approver. | AC-01 |
-| 2 | As the assigned approver, approve the order. | The order enters Approved and the requester and Fleet Manager receive notification. | AC-02 |
-| 3 | Print the approved order and inspect it. | The asset, readings, approved quantity basis, order number, and approver signature area are readable. | AC-03 |
-| 4 | As Data Entry, submit a transaction without one required attachment. | Submission is rejected with the missing attachment identified. | AC-04 |
-| 5 | Attach the signed invoice and signed slip, then submit one transaction. | The transaction submits, the order completes, and the source documents are linked and renamed. | AC-05 |
-| 6 | Open the first vehicle transaction report. | No efficiency result is shown because no prior qualifying full fill exists. | AC-06 |
+| 1 | Configure two locations and users, one approved station, fuel type, vehicle model, vehicle asset, active assignment, validity instruction, and the three operational roles. | The vehicle has one active custodian/location assignment; stable fuel/capacity/target values and role/location grants are visible to Fleet Admin. | AC-01, AC-02 |
+| 2 | As a Fleet User permitted for the vehicle location, create an order naming a non-login Fleet Person as requester/driver and submit it. | The order enters Pending Approval; the operational person and entering User remain distinct audit facts. | AC-01, AC-02 |
+| 3 | Give the entering user both Fleet User and Fleet Approver, then try to approve their order; approve it as another permitted location Approver. | Self-approval is denied server-side; the different Approver submits and freezes the order. | AC-03 |
+| 4 | Print the approved order. | It shows order number, asset, station, fuel, quantity basis, exact valid-until timestamp, configurable no-dispense-after-expiry instruction, and signature areas. | AC-04 |
+| 5 | As a permitted Fleet User, try to submit the transaction with a missing, public, or invalid signed document. | Submission identifies and rejects the invalid evidence. | AC-05 |
+| 6 | Attach both valid private signed documents and submit a full-fill transaction at odometer 10,000. | The transaction submits, its order becomes Completed, and Vehicle Performance shows a baseline with no km/L. | AC-05, AC-06 |
+| 7 | Complete a second independently approved full-fill order at odometer 10,500 with 50 actual litres. | Vehicle Performance shows 500 km, 50 litres, and 10 km/L; it links both interval endpoints and source records. | AC-06 |
+| 8 | As a user permitted only for the other location, try list, direct URL, report, print, and workflow access to the vehicle records. | Every path denies or filters the records consistently. | AC-02 |
+| 9 | Try transaction submission with a changed station, fuel type, asset, or actual fueling time outside the approved window. | Each mismatch is rejected server-side without changing the order snapshots. | AC-07 |
+| 10 | Submit or concurrently attempt another active transaction for either completed order. | The order lock and active-transaction rule allow only one active transaction. | AC-07 |
 
-**How to run it.** Automated rows cover document, workflow, attachment, and calculation
-assertions on the test site. Rows 2–6 also require a Desk walkthrough because printing,
-physical-signature workflow, attachment presentation, and role experience are not fully
-asserted by unit tests.
+**How to run it.** Automated checks cover document, workflow, permission, file, locking, and
+calculation assertions on the test site. Rows 2–10 also require a Desk walkthrough because role
+experience, printing, physical-signature flow, private-file presentation, and report drill-down
+are not fully asserted by unit tests.
 
-**Result:** 0 of 6 observed. Phase not started.
+**Result:** 0 of 10 observed. Phase not started.
 
 ## What we learned that the plan did not predict
 
@@ -81,7 +92,8 @@ None yet.
 
 ## Known limitations — accepted, not fixed
 
-- No development/test site exists yet; provisioning is a prerequisite, not a phase defect.
+- No development/test site exists; provisioning is a prerequisite, not a phase defect.
+- The phase proves only full vehicle fills; controlled partial accumulation is Phase 1.
 
 ## Review
 
@@ -91,4 +103,4 @@ None yet.
 
 **Closure:** Not applicable before implementation.
 
-**Next:** Review and approve the specification, then provision the development and test sites.
+**Next:** Review and approve the revised specification, then provision development and test sites.
