@@ -1,0 +1,60 @@
+{
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "custodian",
+  "assigned_location",
+  "effective_from",
+  "effective_until",
+  "primary_driver",
+  "reason"
+ ],
+ "fields": [
+  {
+   "fieldname": "custodian",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Custodian",
+   "options": "Fleet Person",
+   "reqd": 1
+  },
+  {
+   "fieldname": "assigned_location",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Assigned Location",
+   "options": "Fleet Location",
+   "reqd": 1
+  },
+  {
+   "fieldname": "effective_from",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Effective From",
+   "reqd": 1
+  },
+  {
+   "fieldname": "effective_until",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Effective Until"
+  },
+  {
+   "fieldname": "primary_driver",
+   "fieldtype": "Link",
+   "label": "Primary Driver",
+   "options": "Fleet Person"
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Reason"
+  }
+ ],
+ "istable": 1,
+ "module": "Fleet Management",
+ "name": "Asset Assignment",
+ "permissions": [],
+ "track_changes": 1
+}

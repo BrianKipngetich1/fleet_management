@@ -1,0 +1,82 @@
+{
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "default_tolerance_percent",
+  "orange_band_percent",
+  "red_band_percent",
+  "default_validity_days",
+  "print_instruction",
+  "transaction_entry_sla_hours",
+  "holiday_list"
+ ],
+ "fields": [
+  {
+   "default": "2",
+   "fieldname": "default_tolerance_percent",
+   "fieldtype": "Float",
+   "label": "Default Discrepancy Tolerance (%)",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "default": "10",
+   "fieldname": "orange_band_percent",
+   "fieldtype": "Float",
+   "label": "Orange Performance Band (%)",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "default": "20",
+   "fieldname": "red_band_percent",
+   "fieldtype": "Float",
+   "label": "Red Performance Band (%)",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "default": "3",
+   "fieldname": "default_validity_days",
+   "fieldtype": "Int",
+   "label": "Default Validity (Days)",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "default": "Do not dispense after the valid-until timestamp.",
+   "fieldname": "print_instruction",
+   "fieldtype": "Small Text",
+   "label": "Printed Attendant Instruction",
+   "reqd": 1
+  },
+  {
+   "default": "48",
+   "fieldname": "transaction_entry_sla_hours",
+   "fieldtype": "Int",
+   "label": "Transaction Entry SLA (Hours)",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "holiday_list",
+   "fieldtype": "Link",
+   "label": "Holiday List",
+   "options": "Holiday List"
+  }
+ ],
+ "issingle": 1,
+ "module": "Fleet Management",
+ "name": "Fleet Management Settings",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Fleet Admin",
+   "write": 1
+  }
+ ],
+ "track_changes": 1
+}

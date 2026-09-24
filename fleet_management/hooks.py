@@ -8,6 +8,29 @@ app_license = "mit"
 # Apps
 # ------------------
 
+fixtures = [
+	{
+		"dt": "Role",
+		"filters": [["name", "in", ["Fleet Admin", "Fleet Approver", "Fleet User"]]],
+	},
+	{
+		"dt": "Workflow Action Master",
+		"filters": [["name", "in", ["Submit for Approval", "Approve", "Reject"]]],
+	},
+	{
+		"dt": "Workflow State",
+		"filters": [["name", "in", ["Draft", "Pending Approval", "Approved", "Rejected"]]],
+	},
+	{
+		"dt": "Workflow",
+		"filters": [["name", "=", "Fuel Order Approval"]],
+	},
+	{
+		"dt": "Print Format",
+		"filters": [["name", "=", "Fuel Order Approval Slip"]],
+	},
+]
+
 # required_apps = []
 
 # Each item in the list will be shown as an app in the apps page
@@ -86,7 +109,9 @@ app_license = "mit"
 # ------------
 
 # before_install = "fleet_management.install.before_install"
-# after_install = "fleet_management.install.after_install"
+after_install = "fleet_management.site_defaults.ensure_date_format"
+setup_wizard_complete = "fleet_management.site_defaults.ensure_date_format"
+after_migrate = "fleet_management.site_defaults.ensure_date_format"
 
 # Uninstallation
 # ------------
@@ -126,13 +151,35 @@ app_license = "mit"
 # -----------
 # Permissions evaluated in scripted ways
 
-# permission_query_conditions = {
-# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-# }
-#
-# has_permission = {
-# 	"Event": "frappe.desk.doctype.event.event.has_permission",
-# }
+permission_query_conditions = {
+	doctype: "fleet_management.permissions.get_permission_query_conditions"
+	for doctype in (
+		"Fleet Location",
+		"Fuel Station",
+		"Fleet Asset",
+		"Asset Assignment",
+		"Fuel Order",
+		"Fueling Transaction",
+	)
+}
+
+before_request = ["fleet_management.request.guard_invalid_api_method"]
+after_request = ["fleet_management.request.strip_api_tracebacks"]
+
+doctype_js = {
+	"Fuel Order": "public/js/fuel_order.js",
+}
+
+scheduler_events = {
+	"cron": {
+		"*/5 * * * *": ["fleet_management.notifications.send_validity_notifications"],
+	}
+}
+
+has_permission = {
+	doctype: "fleet_management.permissions.has_permission"
+	for doctype in permission_query_conditions
+}
 
 # Document Events
 # ---------------
@@ -255,4 +302,3 @@ app_license = "mit"
 # ------------
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
-

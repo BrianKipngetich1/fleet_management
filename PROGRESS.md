@@ -6,7 +6,7 @@ Status history is git's job.
 
 | Specification | Status | Phases | Next action |
 |---|---|---|---|
-| [001 — Fleet and Fuel Management](specs/001-fleet-fuel-management/spec.md) | Draft | not started | Review and approve the implementation specification before implementation |
+| [001 — Fleet and Fuel Management](specs/001-fleet-fuel-management/spec.md) | In progress — re-phased 2026-09-24 into Phases 0, 0.5, 1–9 (D-16), recorded decisions unchanged; Phases 0 and 0.5 ready for review (Phase 0's three gaps built and walked through on MariaDB) | Phase 0 AC-01, 03, 04, 05, 06, 19 · Phase 0.5 D-14–D-16 · Phases 1–9 AC-02, 07–18, 20–28, each record stating built / partly built / not built | Review Phase 0.5 and the Phase 0 gap work in fresh contexts; on zero blocking findings close Phase 0 and start Phase 1 |
 
 Record execution order here when it is not phase-id order.
 
@@ -19,12 +19,16 @@ at the phase named in its status.
 | | |
 |---|---|
 | Bench root | /home/kayadmin/frappe-bench |
-| Development site | not configured |
-| Test site | not configured (all functional testing) |
-| Base branch | version-16 (current app branch) |
+| Development site | fleet_management.localhost — MariaDB `fleet_mgmt_dev`, own DB user; tests disabled (SQLite history archived) |
+| Test site | fleet_management-test.localhost — MariaDB `fleet_mgmt_test`, own DB user; bench default site; only site allowing tests (SQLite history archived) |
+| Required backend | MariaDB for both sites and all new acceptance evidence |
+| Services | systemd user units under `frappe-bench.target` (linger on; start at boot, restart on failure): apt Redis :13000/:11000, `bench serve` :8000, socketio, worker, scheduler, watch. Manage with `systemctl --user`; do not run `bench start` while the target is active. MariaDB is the system service. |
+| Backups | `~/Backups` (outside the repo; README and checksum manifest there). `bench backup` prunes a site's own backups older than 23 hours, so copy sets out after taking them. |
+| Base branch | main (release branch) |
+| Integration/default branch | develop |
 
 ## Phase records
 
-Every phase has exactly one record under `specs/[NNN-name]/verification/phase-NN-[slug].md`,
+Every phase has exactly one record under `specs/<NNN-name>/verification/phase-NN-<slug>.md`,
 written to `specs/TEMPLATE-verification.md`. A record states the current position; it is
 not a chronicle.

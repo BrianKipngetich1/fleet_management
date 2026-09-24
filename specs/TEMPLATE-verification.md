@@ -13,7 +13,9 @@ Three rules that keep this file from growing into a chronicle:
 3. Evidence of a run belongs in CI and git, linked from here. Never pasted in. A CI run
    proves it on an exact commit; pasted terminal output proves nothing and goes stale silently.
 
-Never record credentials, tokens, cookies, or session ids in any form.
+Never record credentials, tokens, cookies, or session ids in this tracked file. Phase login
+values belong only in the gitignored, mode-0600 `verification/CREDENTIALS.md` required by
+`CLAUDE.md`; refer to that path without copying its contents.
 -->
 
 # Phase <N> — <name>

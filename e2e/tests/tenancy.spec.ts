@@ -10,12 +10,25 @@ import {
 } from "../fixtures";
 
 test.use({ storageState: USERS.primary.state });
-test.skip(!SCOPE_DOCTYPE, "This application has no row-level scoping — see e2e/fixtures.ts.");
 
 test("the scoped list shows only the user's permitted records", async ({ page }) => {
+	const errors: string[] = [];
+	page.on("pageerror", (error) => errors.push(error.message));
 	await openList(page, SCOPE_DOCTYPE);
 	const names = await listRows(page);
 	expect(names.sort()).toEqual([...SCOPED_VALUES].sort());
+	expect(errors).toEqual([]);
+});
+
+test("the Fueling Transaction list finishes loading, including with no rows", async ({ page }) => {
+	const errors: string[] = [];
+	page.on("pageerror", (error) => errors.push(error.message));
+	await openList(page, "Fueling Transaction");
+	await expect(page.locator(".layout-main-section")).toBeVisible();
+	const names = await listRows(page);
+	await expect(page.locator(".layout-main-section")).not.toContainText("Object");
+	if (names.length === 0) await expect(page.locator(".no-result")).toBeVisible();
+	expect(errors).toEqual([]);
 });
 
 test("a scoping link field offers only permitted values", async ({ page }) => {

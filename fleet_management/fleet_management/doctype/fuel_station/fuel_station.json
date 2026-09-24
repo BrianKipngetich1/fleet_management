@@ -1,0 +1,72 @@
+{
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "station_name",
+  "operational_location",
+  "active",
+  "approved"
+ ],
+ "fields": [
+  {
+   "fieldname": "station_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Station Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "operational_location",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Operational Location",
+   "options": "Fleet Location",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Active"
+  },
+  {
+   "default": "1",
+   "fieldname": "approved",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Approved"
+  }
+ ],
+ "module": "Fleet Management",
+ "name": "Fuel Station",
+ "autoname": "field:station_name",
+ "naming_rule": "By fieldname",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Fleet Admin",
+   "write": 1
+  },
+  {
+   "print": 1,
+   "report": 1,
+   "read": 1,
+   "role": "Fleet Approver"
+  },
+  {
+   "read": 1,
+   "role": "Fleet User"
+  }
+ ],
+ "sort_field": "station_name",
+ "sort_order": "ASC",
+ "track_changes": 1
+}

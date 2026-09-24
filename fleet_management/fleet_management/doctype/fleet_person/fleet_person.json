@@ -1,0 +1,62 @@
+{
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "person_name",
+  "user",
+  "active"
+ ],
+ "fields": [
+  {
+   "fieldname": "person_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Person Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "Frappe User",
+   "options": "User"
+  },
+  {
+   "default": "1",
+   "fieldname": "active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Active"
+  }
+ ],
+ "module": "Fleet Management",
+ "name": "Fleet Person",
+ "naming_rule": "By fieldname",
+ "autoname": "field:person_name",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Fleet Admin",
+   "write": 1
+  },
+  {
+   "print": 1,
+   "report": 1,
+   "read": 1,
+   "role": "Fleet Approver"
+  },
+  {
+   "read": 1,
+   "role": "Fleet User"
+  }
+ ],
+ "sort_field": "person_name",
+ "sort_order": "ASC",
+ "track_changes": 1
+}

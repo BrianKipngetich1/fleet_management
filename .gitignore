@@ -53,3 +53,30 @@ jspm_packages/
 
 # Aider AI Chat
 .aider*
+
+# Local browser verification outputs
+e2e/.auth/
+playwright-report/
+test-results/
+# Append to the project's .gitignore:  cat gitignore-additions.txt >> .gitignore
+
+# Planning docs kept local
+plans/
+
+# Playwright UI regression suite
+/test-results/
+/playwright-report/
+/blob-report/
+# Live session cookies — never commit
+/e2e/.auth/
+
+# Phase-local login inventories may contain plaintext credentials. Keep them local only.
+specs/*/verification/CREDENTIALS.md
+
+# agent-browser phase evidence (kept local; pull requests reference the paths).
+# The example spec's directory is committed on purpose: it documents the convention.
+specs/*/verification/screenshots/
+!specs/000-example-spec/verification/screenshots/
+
+# Bench build symlink to the repository node_modules (machine-specific)
+/fleet_management/public/node_modules

@@ -1,19 +1,20 @@
 <!--
-Canonical agent-instruction file for a Frappe repository. Replace every bracketed value, delete
-rules that do not apply, and keep feature-specific requirements in specs/. `AGENTS.md` is a
-one-line pointer to this file — Codex and other compatible agents follow it here; edit only
-this.
+Canonical agent-instruction file for this Frappe repository. Keep feature-specific requirements
+in specs/. `AGENTS.md` is a one-line pointer to this file — Codex and other compatible agents
+follow it here; edit only this.
 -->
 
 # Project
 
-- Repository: `[repository_name]` · App/module: `[app_name]` / `[module_name]`
-- Working directory: `[directory where the agent is started]`
-- Bench root: `[path containing apps/, sites/, and Procfile]`
-- Development site: `[app-name].localhost` · Test site: `[app-name]-test.localhost`
-- UI surface(s): `[Desk | portal | Vue 3 + frappe-ui]`
-- Base branch: `[branch, e.g. main]` · Integration branch: `[branch, e.g. develop]`
-- Codeowner who presses merge: `[handle, matching .github/CODEOWNERS]`
+- Repository: `BrianKipngetich1/fleet_management` · App/module: `fleet_management` / `Fleet Management`
+- Working directory: `/home/kayadmin/frappe-bench/apps/fleet_management`
+- Bench root: `/home/kayadmin/frappe-bench`
+- Development site: `fleet_management.localhost` · Test site: `fleet_management-test.localhost`
+- Required database backend: MariaDB for both sites. SQLite evidence and backups created before the
+  2026-09-24 cutover remain historical only; do not create or run new SQLite acceptance evidence.
+- UI surface: Frappe Desk
+- Base branch: `main` · Integration/default branch: `develop`
+- Codeowner who presses merge: `@BrianKipngetich1` (provisional; see `.github/CODEOWNERS`)
 
 # Start a context
 
@@ -28,7 +29,7 @@ stop and reconcile the documents before writing code.
 Two documents per specification, and no others. Both are written by the agent; they differ in
 audience, language, and what they are allowed to contain.
 
-| | `specs/[NNN-name]/spec.md` | `specs/[NNN-name]/verification/phase-NN-[name].md` |
+| | `specs/<NNN-name>/spec.md` | `specs/<NNN-name>/verification/phase-NN-<name>.md` |
 |---|---|---|
 | Is | The design — what we understood and intend to build | The proof — what was actually observed |
 | Written | Before implementation | As each phase is verified |
@@ -82,12 +83,26 @@ Record the verdict as one row in the phase record's review table.
    introducing a new pattern.
 5. Every phase is a thin vertical slice with an observable outcome. Never schema-only,
    backend-only, or UI-only.
-6. Run `bench --site [site] migrate` after any schema or fixture change, before verifying.
+6. Run `bench --site fleet_management-test.localhost migrate` after any schema or fixture change,
+   before verifying, and confirm the site reports MariaDB before treating backend evidence as valid.
 7. Write proportional tests. `IntegrationTestCase` for database, document, permission, or hook
    behaviour on the test site; `UnitTestCase` only for logic needing no site context.
 8. Keep unrelated cleanup out of the active specification.
 9. Get explicit authorization before merging, pushing to a protected branch, deploying, changing
    repository or infrastructure settings, or touching secrets.
+
+# Credential handling
+
+- Every login created for a phase on the main site is recorded locally in that phase's
+  `specs/<NNN-name>/verification/CREDENTIALS.md`, including username, role, site, and password.
+- `CREDENTIALS.md` is gitignored, must be mode `0600`, and must never be committed, attached to a
+  pull request, pasted into a verification record, or copied into logs. The tracked phase record
+  names only this approved secret location, never a credential value.
+- The test site mirrors each phase login and role. Both the test username and test password must
+  contain the literal word `test`; test passwords must never reuse a main-site password.
+- Create or update the main-site and test-site entries together so the local inventory remains the
+  source of truth for manual login testing. Passwordless `bench browse --user` remains preferred
+  for automated test-site browser checks so credentials do not enter automation output.
 
 # UI verification
 
@@ -95,10 +110,13 @@ Two tools, two jobs, not interchangeable.
 
 **`agent-browser` — per phase.** After implementation and before pushing, walk the new
 behaviour through Desk as the intended role and capture screenshots. This satisfies the phase's
-browser-workflow requirement. Run `agent-browser skills get core` once per context. Screenshots
-go to `specs/[NNN-name]/verification/screenshots/phase-NN-SS-short-slug.png` — gitignored,
+browser-workflow requirement. Run `agent-browser skills get core` once per context. Each phase's
+screenshots go in their own folder named after the phase record,
+`specs/<NNN-name>/verification/screenshots/phase-NN-<slug>/phase-NN-SS-short-slug.png` — gitignored,
 listed by exact path in the PR for the human to attach; see the naming convention documented in
-`specs/000-example-spec/verification/screenshots/`.
+`specs/000-example-spec/verification/screenshots/`. On this Ubuntu host the bundled Chrome
+needs `AGENT_BROWSER_ARGS=--no-sandbox` (AppArmor blocks its user-namespace sandbox; Playwright
+disables the sandbox by default for the same reason).
 
 **Playwright — repository root, generic.** `e2e/` guards root functionality: login and session,
 tenancy scoping, list and form rendering, create/submit/cancel, permission allow and deny. It
@@ -106,28 +124,45 @@ is never per phase and must never encode one phase's acceptance criterion — it
 proving a finished phase broke nothing. `e2e/fixtures.ts` is the only file that carries project
 facts. `npm run test:ui` before every push.
 
-Sequence: implement → `agent-browser` walkthrough → local Playwright plus `bench --site [test
-site] run-tests --app [app_name]` → push → PR, where CI reruns both.
+Sequence: implement → `agent-browser` walkthrough → local Playwright plus `bench --site
+fleet_management-test.localhost run-tests --app fleet_management` → push → PR, where the same
+checks are rerun before merge.
 
 **Functional testing runs only on the test site.** Never write test records to the development
 site: a Desk walkthrough cannot be rolled back the way a document-API run can, so it leaves
-residue. Both tools authenticate without a password — `bench browse [site] --user [email]`
-mints a session id printed as `?sid=`; set it as the `sid` cookie. Never type credentials into
+residue. `fleet_management-test.localhost` is the one home for every kind of test data — seeded
+and throwaway records, QA user creation and deletion, unauthorised-access probes — and it is kept,
+not reset, so its contents remain a record of the testing performed. Following Frappe's own UI
+test convention, both tools reach it through the bench's standard web server (the `frappe-web`
+user service, equivalent to `bench start`) at
+`http://fleet_management-test.localhost:8000`; the site is selected by host name, and Playwright
+reuses that server rather than starting its own. Both tools authenticate without a password — `bench
+--site fleet_management-test.localhost browse --user <test-user-email>` persists a session; read
+its id back from `tabSessions` (as `e2e/sid.ts` does — the printed `?sid=` is not reliably the
+persisted one) and set it as the `sid` cookie without echoing it. Never type credentials into
 a login form. This is a user-impersonation primitive that only works because `developer_mode`
-is on — acceptable on a disposable test site, a privilege-escalation surface anywhere else.
+is on — acceptable on the dedicated, non-production test site, a privilege-escalation surface anywhere else.
 
 ## Provisioning a site for UI tests
 
 A site that never completed the setup wizard fails misleadingly: Desk re-routes everything to
 the wizard, so every DocType route resolves as a Page and returns `403 Not permitted` — for
 every user and DocType — while roles and `can_read` in the boot payload look perfectly correct.
-Run `bench --site [site] execute frappe.utils.install.complete_setup_wizard` on any new site
-first. It also needs `bench --site [site] set-config developer_mode 1`, without which `bench
+Run `bench --site <new-site> execute frappe.utils.install.complete_setup_wizard` on any new site
+first. It also needs `bench --site <new-site> set-config developer_mode 1`, without which `bench
 browse --user` refuses to mint a session for a non-Administrator — and it prints the refusal
 while exiting `0`, so check the output for `?sid=`, never the exit code.
 
-That helper sets a US locale, so the site's date format becomes `mm-dd-yyyy`. Never type a
-hard-coded ISO date into a Desk date field; convert through `frappe.datetime.str_to_user`.
+## Dates
+
+**Every site, everywhere, uses Frappe's `dd/mm/yyyy` date format** (System Settings → Date
+Format). The app sets it on install, after the setup wizard (which would otherwise apply the
+country's format, `mm-dd-yyyy` for the US helper above), and after every migrate. After
+provisioning or migrating any site, confirm System Settings shows `dd/mm/yyyy` before testing.
+Every check assumes it: backend tests assert it, Playwright asserts it at boot
+(`DATE_FORMAT` in `e2e/fixtures.ts`), and walkthroughs read and type dates as `dd/mm/yyyy`.
+Never type a hard-coded ISO date into a Desk date field; convert through
+`frappe.datetime.str_to_user` (`userDate()` in `e2e/desk.ts`).
 
 ## Desk quirks that cost time when forgotten
 
@@ -138,6 +173,10 @@ hard-coded ISO date into a Desk date field; convert through `frappe.datetime.str
 - Frappe renders autocomplete entries as `div[role="option"]`, never `li`. Scanning for `li`
   finds nothing and reads as "no options returned".
 - `Cancel` on a submitted document is a `.page-actions` button, not a menu dropdown item.
+- A date/datetime field must be **typed** after its date picker opens. An instant `fill`, or
+  keys sent before the picker appears, lose the value or replace the typed time with now.
+- An approved Fuel Order can show two "Actions" buttons: Frappe's workflow actions and the
+  app's own group. Target the app's with `.inner-group-button[data-label="Actions"]`.
 
 # Frappe conventions
 
@@ -150,8 +189,9 @@ hard-coded ISO date into a Desk date field; convert through `frappe.datetime.str
   app.
 - Child DocTypes use `istable: 1` and inherit access through the parent. `owner`, `creation`,
   `modified`, and `docstatus` remain framework-owned.
-- Never commit credentials, tokens, passwords, cookies, or private keys. Name the approved secret
-  source only.
+- Never commit credentials, tokens, passwords, cookies, or private keys. The only local plaintext
+  exception is the gitignored, mode-`0600` phase `verification/CREDENTIALS.md` defined above; all
+  tracked documents name the approved secret source only.
 
 # Commits and pull requests
 
@@ -160,14 +200,15 @@ trailing period. `scope` optional; `!` before the colon marks a breaking change.
 `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `ci`, `build`, `revert`.
 Never use the word "phase" in a commit message.
 
-Nothing is pushed to `[base branch]` directly; work reaches it through `[integration branch]`.
+Nothing is pushed to `main` directly; work is staged and physically verified on `develop`, then
+reaches `main` through a pull request.
 A pull request is opened at each point a human decision is required, not per file touched:
 
 | Branch | Carries | Merges into | The approval it seeks |
 |---|---|---|---|
-| `spec/[NNN-name]` | `spec.md`, scaffolded phase records, the `PROGRESS.md` pointer | `[integration branch]` | Specification approved, implementation may begin |
-| `feature\|fix\|chore/[NNN]-phase-[N]` | Implementation, that phase's verification record with its review table filled in, the `PROGRESS.md` update | `[integration branch]` | The phase is signed off |
-| `release/[version]` or `[integration branch]` itself | Accumulated, reviewed work | `[base branch]` | The release is cut |
+| `spec/<NNN-name>` | `spec.md`, scaffolded phase records, the `PROGRESS.md` pointer | `develop` | Specification approved, implementation may begin |
+| `feature\|fix\|chore/<NNN>-phase-<N>` | Implementation, that phase's verification record with its review table filled in, the `PROGRESS.md` update | `develop` | The phase is signed off |
+| `release/<version>` or `develop` itself | Accumulated, reviewed, physically verified work | `main` | The release is cut |
 
 Every pull request runs the full check set — no fast path for documentation-only changes,
 because a check skipped by a path filter reports "not run", which reads as "not blocking".
@@ -180,20 +221,24 @@ the PR, drags in the screenshots — `gh` cannot upload images — and the codeo
 
 # Adopting this kit in an existing repository
 
-Delete this section when the repository has no history that predates the kit. A repository that
-already carries planning or verification documents does not have to migrate them. Record here,
-once: where the pre-kit record lives, cited as reference rather than re-verified (`[path]`);
-where the cutover happened — the first specification tracked under `specs/`, and which of its
-phases are evidenced only in the old location (`[NNN-name]`, `[phase IDs]`); and what must not
-be created again — the old paths, now closed to new work (`[paths]`). Re-verifying completed
-work to satisfy a new format costs more than it proves. Cite it and move on.
+The only pre-kit history is the initial Frappe app scaffold in commit `a21a579`; it contains no
+planning or verification record to migrate. The documentation cutover begins with
+`specs/001-fleet-fuel-management/`, and none of its phases rely on evidence from an older
+location. There are no superseded documentation paths to keep closed.
 
 # References
 
-- Framework/API pattern: `[path or repository and exact pattern]`
-- Comparable feature: `[path or repository and exact feature]`
-- Tests: `[path]`, `IntegrationTestCase` on `[test site]`.
-- Roles: `[role names]`.
-- Test commands: `bench --site [test site] run-tests --app [app_name]` and `npm run test:ui`.
-- Required CI: `CI` workflow (`.github/workflows/ci.yml`, jobs `tests` and `ui`) and `Linters`
-  (`.github/workflows/linter.yml`).
+- Framework/API patterns: Frappe workflow/document behavior in
+  `../frappe/frappe/model/workflow.py` and `../frappe/frappe/model/document.py`; permission
+  behavior in `../frappe/frappe/permissions.py`.
+- Comparable local feature: the implemented `Fuel Order` → `Fueling Transaction` vertical slice
+  under `fleet_management/fleet_management/doctype/`.
+- Tests: `fleet_management/tests/` and the DocType `test_*.py` files under
+  `fleet_management/fleet_management/doctype/`; use `IntegrationTestCase` on
+  `fleet_management-test.localhost` for site-backed behavior.
+- Roles: `Fleet Admin`, `Fleet Approver`, and `Fleet User`.
+- Test commands: `bench --site fleet_management-test.localhost run-tests --app fleet_management`
+  and `npm run test:ui`.
+- Required pre-merge checks: backend tests, Playwright Desk tests, the phase's `agent-browser`
+  walkthrough, and a human review of its recorded evidence. The repository currently has no
+  committed `.github/workflows/` automation, so these checks remain local/manual until CI is added.

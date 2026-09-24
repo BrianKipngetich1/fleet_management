@@ -1,0 +1,55 @@
+{
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "fuel_type_name",
+  "active"
+ ],
+ "fields": [
+  {
+   "fieldname": "fuel_type_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Fuel Type Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Active"
+  }
+ ],
+ "module": "Fleet Management",
+ "name": "Fuel Type",
+ "autoname": "field:fuel_type_name",
+ "naming_rule": "By fieldname",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Fleet Admin",
+   "write": 1
+  },
+  {
+   "print": 1,
+   "report": 1,
+   "read": 1,
+   "role": "Fleet Approver"
+  },
+  {
+   "read": 1,
+   "role": "Fleet User"
+  }
+ ],
+ "sort_field": "fuel_type_name",
+ "sort_order": "ASC",
+ "track_changes": 1
+}
