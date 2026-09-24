@@ -6,7 +6,7 @@ Status history is git's job.
 
 | Specification | Status | Phases | Next action |
 |---|---|---|---|
-| [001 — Fleet and Fuel Management](specs/001-fleet-fuel-management/spec.md) | In progress — re-phased 2026-09-24 into Phases 0, 0.5, 1–9 (D-16), recorded decisions unchanged; Phases 0 and 0.5 ready for review (Phase 0's three gaps built and walked through on MariaDB) | Phase 0 AC-01, 03, 04, 05, 06, 19 · Phase 0.5 D-14–D-16 · Phases 1–9 AC-02, 07–18, 20–28, each record stating built / partly built / not built | Review Phase 0.5 and the Phase 0 gap work in fresh contexts; on zero blocking findings close Phase 0 and start Phase 1 |
+| [001 — Fleet and Fuel Management](specs/001-fleet-fuel-management/spec.md) | In progress — Phases 0 and 0.5 complete (PR #2: independent review by Claude Opus 5.5, final review by Rishabh Vyas); Phase 1 in progress on `feature/001-phase-1` | Phase 0 ✅ AC-01, 03, 04, 05, 06, 19 · Phase 0.5 ✅ D-14–D-16 · Phases 1–9 AC-02, 07–18, 20–28, each record stating built / partly built / not built | Phase 1 (location access, AC-02): add tests for asset and station choice (rows 5–6), rerun rows 1–7 on MariaDB, walk through Desk |
 
 Record execution order here when it is not phase-id order.
 

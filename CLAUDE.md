@@ -9,7 +9,10 @@ follow it here; edit only this.
 - Repository: `BrianKipngetich1/fleet_management` · App/module: `fleet_management` / `Fleet Management`
 - Working directory: `/home/kayadmin/frappe-bench/apps/fleet_management`
 - Bench root: `/home/kayadmin/frappe-bench`
-- Development site: `fleet_management.localhost` · Test site: `fleet_management-test.localhost`
+- Main site: `fleet_management.localhost` (`http://fleet_management.localhost:8000`) · Test site:
+  `fleet_management-test.localhost` (`http://fleet_management-test.localhost:8000`). The main site is
+  the working, non-production site; there is no production deployment yet. Neither relates to the
+  `main` git branch.
 - Required database backend: MariaDB for both sites. SQLite evidence and backups created before the
   2026-09-24 cutover remain historical only; do not create or run new SQLite acceptance evidence.
 - UI surface: Frappe Desk
@@ -128,7 +131,7 @@ Sequence: implement → `agent-browser` walkthrough → local Playwright plus `b
 fleet_management-test.localhost run-tests --app fleet_management` → push → PR, where the same
 checks are rerun before merge.
 
-**Functional testing runs only on the test site.** Never write test records to the development
+**Functional testing runs only on the test site.** Never write test records to the main
 site: a Desk walkthrough cannot be rolled back the way a document-API run can, so it leaves
 residue. `fleet_management-test.localhost` is the one home for every kind of test data — seeded
 and throwaway records, QA user creation and deletion, unauthorised-access probes — and it is kept,

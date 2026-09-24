@@ -12,12 +12,12 @@ Keep the whole file under ~400 lines for its entire life.
 
 | | |
 |---|---|
-| Status | In progress — re-phased 2026-09-24 (D-16); Phases 0 and 0.5 in review |
+| Status | In progress — Phases 0 and 0.5 complete (PR #2); Phase 1 in progress |
 | Owner | Fleet Management team |
 | Started | 2026-09-17 |
 | Approved by / date | — |
 | Approved revision | — |
-| Branch | develop |
+| Branch | feature/001-phase-1 |
 
 ## Problem
 
@@ -332,8 +332,8 @@ One capability per phase (D-16). Build state is as of 2026-09-24; each phase rec
 
 | Phase | User-visible outcome | Criteria | Build state |
 |---|---|---|---|
-| 0 — Core vehicle journey | A Fleet User requests on behalf of a driver, a different Approver approves or rejects, the slip prints, and a transaction with both signed documents completes the order and records a first baseline. | AC-01, 03, 04, 05, 06, 19 | Built; in review |
-| 0.5 — Harness, conventions, re-phasing | Test evidence is trustworthy and the plan closes one phase at a time. | D-14–D-16 | Built |
+| 0 — Core vehicle journey | A Fleet User requests on behalf of a driver, a different Approver approves or rejects, the slip prints, and a transaction with both signed documents completes the order and records a first baseline. | AC-01, 03, 04, 05, 06, 19 | Complete (PR #2) |
+| 0.5 — Harness, conventions, re-phasing | Test evidence is trustworthy and the plan closes one phase at a time. | D-14–D-16 | Complete (PR #2) |
 | 1 — Location access | People see and act only on their permitted locations. | AC-02 | Built by Phase 0 |
 | 2 — Integrity and hard blocks | Mismatched, duplicate, rolled-back, or concurrent submissions are refused; fueling time is provable. | AC-07, 10, 20 | Built by Phase 0; concurrency proof open |
 | 3 — Validity and notifications | Approvers extend or cancel orders with history; slips show validity; the right people are told. | AC-08, 21, 22, 23 | Built by Phase 0 except Approver cancellation |
@@ -411,7 +411,7 @@ PROGRESS. Manual acceptance also covers physical signatures and mobile-width ent
 
 - 2026-09-18 — Revised after architecture review: simplified roles/reports, separated people
   from users and approval from fulfillment, narrowed assignment history, and corrected formulas.
-- 2026-09-23 — Phase 0 (wider scope) closure gate: 59 backend and 22/22 Playwright tests, SQLite
-  era; signed off 2026-09-24 for completed work. [Phase 0](verification/phase-00-tracer-bullet.md)
-- 2026-09-24 — Phase 0.5 added D-14–D-16, cleaned up the harness, and re-phased the plan; Phase 0
-  was cut back to the 2026-09-17 plan. [Phase 0.5](verification/phase-00.5-test-harness-cleanup.md)
+- 2026-09-24 — Phase 0 ✅ core vehicle journey; independent review by Claude Opus 5.5 (Phase 0.5),
+  final review by Rishabh Vyas, merged in PR #2. [Phase 0](verification/phase-00-tracer-bullet.md)
+- 2026-09-24 — Phase 0.5 ✅ harness, conventions, re-phasing (D-14–D-16), merged in PR #2.
+  [Phase 0.5](verification/phase-00.5-test-harness-cleanup.md)

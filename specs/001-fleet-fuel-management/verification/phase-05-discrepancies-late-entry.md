@@ -7,7 +7,7 @@ Nothing in this phase has been built beyond settings fields.
 
 | | |
 |---|---|
-| Specification | [`../spec.md`](../spec.md) @ uncommitted working tree on `develop` (D-10, D-16) |
+| Specification | [`../spec.md`](../spec.md) @ `07bf479` (D-10, D-16) |
 | Status | Not started — not built (settings fields only) |
 | Started / Closed | — / — |
 | Author | Fleet Management team |

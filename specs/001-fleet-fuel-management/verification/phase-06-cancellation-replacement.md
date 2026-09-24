@@ -7,7 +7,7 @@ Only standard cancellation permission exists; nothing specific to this phase has
 
 | | |
 |---|---|
-| Specification | [`../spec.md`](../spec.md) @ uncommitted working tree on `develop` (D-9, D-16) |
+| Specification | [`../spec.md`](../spec.md) @ `07bf479` (D-9, D-16) |
 | Status | Not started — not built beyond Fleet Admin's standard cancel permission |
 | Started / Closed | — / — |
 | Author | Fleet Management team |

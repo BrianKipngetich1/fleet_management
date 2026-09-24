@@ -8,7 +8,7 @@ is carried here as the starting position and must be rerun on MariaDB before clo
 
 | | |
 |---|---|
-| Specification | [`../spec.md`](../spec.md) @ uncommitted working tree on `develop` (D-16) |
+| Specification | [`../spec.md`](../spec.md) @ `07bf479` (D-16) |
 | Status | Not started — built by Phase 0; concurrency proof open |
 | Started / Closed | — / — |
 | Author | Fleet Management team |
