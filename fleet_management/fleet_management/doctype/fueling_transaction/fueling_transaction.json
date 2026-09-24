@@ -1,0 +1,447 @@
+{
+ "autoname": "naming_series:",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "fuel_order",
+  "fuel_order_slip_revision",
+  "operational_location",
+  "asset",
+  "assigned_location_snapshot",
+  "assigned_custodian_snapshot",
+  "assignment_effective_from",
+  "assignment_effective_until",
+  "asset_fuel_type_snapshot",
+  "asset_tank_capacity_snapshot",
+  "asset_target_km_per_litre_snapshot",
+  "asset_tolerance_percent_snapshot",
+  "actual_station",
+  "fuel_type",
+  "approved_station",
+  "approved_fuel_type",
+  "approved_on",
+  "valid_until",
+  "invoice_number",
+  "cu_number",
+  "actual_fueling_datetime",
+  "fueling_time_source",
+  "fueling_time_explanation",
+  "vehicle_odometer",
+  "hour_meter",
+  "invoice_litres",
+  "full_tank_confirmed",
+  "attendant_name",
+  "normalized_invoice_number",
+  "normalized_invoice_station_key",
+  "normalized_cu_number",
+  "active_fuel_order",
+  "section_break_evidence",
+  "signed_invoice",
+  "signed_order",
+  "section_break_efficiency",
+  "is_efficiency_baseline",
+  "previous_full_fill",
+  "closing_full_fill",
+  "distance_km",
+  "qualifying_litres",
+  "km_per_litre",
+  "section_break_submission_audit",
+  "submitted_by",
+  "submitted_on"
+ ],
+ "fields": [
+  {
+   "default": "FT-.YYYY.-",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "options": "FT-.YYYY.-",
+   "reqd": 1
+  },
+  {
+   "fieldname": "fuel_order",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Fuel Order",
+   "options": "Fuel Order",
+   "reqd": 1
+  },
+  {
+   "fieldname": "fuel_order_slip_revision",
+   "fieldtype": "Int",
+   "hidden": 1,
+   "label": "Fuel Order Slip Revision",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "operational_location",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "ignore_user_permissions": 1,
+   "label": "Operational Location",
+   "no_copy": 1,
+   "options": "Fleet Location",
+   "read_only": 1
+  },
+  {
+   "fieldname": "asset",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Asset",
+   "no_copy": 1,
+   "options": "Fleet Asset",
+   "read_only": 1
+  },
+  {
+   "fieldname": "assigned_location_snapshot",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Assigned Location Snapshot",
+   "no_copy": 1,
+   "options": "Fleet Location",
+   "read_only": 1
+  },
+  {
+   "fieldname": "assigned_custodian_snapshot",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Assigned Custodian Snapshot",
+   "no_copy": 1,
+   "options": "Fleet Person",
+   "read_only": 1
+  },
+  {
+   "fieldname": "assignment_effective_from",
+   "fieldtype": "Date",
+   "hidden": 1,
+   "label": "Assignment Effective From",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "assignment_effective_until",
+   "fieldtype": "Date",
+   "hidden": 1,
+   "label": "Assignment Effective Until",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "asset_fuel_type_snapshot",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Asset Fuel Type Snapshot",
+   "no_copy": 1,
+   "options": "Fuel Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "asset_tank_capacity_snapshot",
+   "fieldtype": "Float",
+   "hidden": 1,
+   "label": "Asset Tank Capacity Snapshot",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "asset_target_km_per_litre_snapshot",
+   "fieldtype": "Float",
+   "hidden": 1,
+   "label": "Asset Target Snapshot",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "asset_tolerance_percent_snapshot",
+   "fieldtype": "Float",
+   "hidden": 1,
+   "label": "Asset Tolerance Snapshot",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "actual_station",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Actual Station",
+   "no_copy": 1,
+   "options": "Fuel Station"
+  },
+  {
+   "fieldname": "fuel_type",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Fuel Type",
+   "no_copy": 1,
+   "options": "Fuel Type"
+  },
+  {
+   "fieldname": "approved_station",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Approved Station",
+   "no_copy": 1,
+   "options": "Fuel Station",
+   "read_only": 1
+  },
+  {
+   "fieldname": "approved_fuel_type",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Approved Fuel Type",
+   "no_copy": 1,
+   "options": "Fuel Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "approved_on",
+   "fieldtype": "Datetime",
+   "hidden": 1,
+   "label": "Approved On",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "valid_until",
+   "fieldtype": "Datetime",
+   "hidden": 1,
+   "label": "Valid Until",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "invoice_number",
+   "fieldtype": "Data",
+   "label": "Invoice Number",
+   "no_copy": 1
+  },
+  {
+   "fieldname": "cu_number",
+   "fieldtype": "Data",
+   "label": "CU Number",
+   "no_copy": 1
+  },
+  {
+   "fieldname": "actual_fueling_datetime",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Actual Fueling Datetime",
+   "no_copy": 1,
+   "description": "Record when fuel was dispensed. This event time determines Fuel Order validity and KPI ordering. If the invoice has no time, enter the known station time and explain it; never use entry or submission time as a substitute."
+  },
+  {
+   "fieldname": "fueling_time_source",
+   "fieldtype": "Select",
+   "label": "Fueling Time Source",
+   "no_copy": 1,
+   "options": "\nPrinted on invoice\nNot printed on invoice",
+   "description": "Choose whether the invoice prints the fueling time. When it does not, record the known station time and explain how it was established."
+  },
+  {
+   "depends_on": "eval:doc.fueling_time_source == 'Not printed on invoice'",
+   "fieldname": "fueling_time_explanation",
+   "fieldtype": "Small Text",
+   "label": "Station Time Explanation",
+   "mandatory_depends_on": "eval:doc.fueling_time_source == 'Not printed on invoice'",
+   "no_copy": 1,
+   "description": "Required when the invoice does not print a time. Explain how the known station fueling time was established."
+  },
+  {
+   "fieldname": "vehicle_odometer",
+   "fieldtype": "Float",
+   "label": "Vehicle Odometer",
+   "no_copy": 1,
+   "description": "Authoritative odometer reading at fueling."
+  },
+  {
+   "fieldname": "hour_meter",
+   "fieldtype": "Float",
+   "label": "Hour Meter",
+   "no_copy": 1,
+   "description": "Authoritative generator hour-meter reading at fueling."
+  },
+  {
+   "fieldname": "invoice_litres",
+   "fieldtype": "Float",
+   "label": "Invoice Litres",
+   "no_copy": 1,
+   "description": "Litres recorded on the fueling invoice."
+  },
+  {
+   "default": "0",
+   "fieldname": "full_tank_confirmed",
+   "fieldtype": "Check",
+   "label": "Full Tank Confirmed",
+   "no_copy": 1,
+   "description": "Marks a vehicle transaction as a qualifying full fill."
+  },
+  {
+   "description": "External fuel station attendant who confirmed the fill, as named on the signed invoice. Required at submission.",
+   "fieldname": "attendant_name",
+   "fieldtype": "Data",
+   "label": "Fuel Attendant Name",
+   "no_copy": 1
+  },
+  {
+   "fieldname": "normalized_invoice_number",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Normalized Invoice Number",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "normalized_invoice_station_key",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Normalized Invoice Station Key",
+   "length": 255,
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "normalized_cu_number",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Normalized CU Number",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "active_fuel_order",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Active Fuel Order",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_evidence",
+   "fieldtype": "Section Break",
+   "label": "Signed Evidence"
+  },
+  {
+   "fieldname": "signed_invoice",
+   "fieldtype": "Attach",
+   "label": "Signed Invoice",
+   "no_copy": 1,
+   "description": "Required when the transaction is submitted. Must be a private PDF, JPG, or PNG."
+  },
+  {
+   "fieldname": "signed_order",
+   "fieldtype": "Attach",
+   "label": "Signed Fuel Order",
+   "no_copy": 1,
+   "description": "Required when the transaction is submitted. Must be a private PDF, JPG, or PNG."
+  },
+  {
+   "fieldname": "section_break_efficiency",
+   "fieldtype": "Section Break",
+   "label": "Vehicle Efficiency"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_efficiency_baseline",
+   "fieldtype": "Check",
+   "label": "Efficiency Baseline",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "previous_full_fill",
+   "fieldtype": "Link",
+   "label": "Previous Full Fill",
+   "no_copy": 1,
+   "options": "Fueling Transaction",
+   "read_only": 1
+  },
+  {
+   "fieldname": "closing_full_fill",
+   "fieldtype": "Link",
+   "label": "Closing Full Fill",
+   "no_copy": 1,
+   "options": "Fueling Transaction",
+   "read_only": 1
+  },
+  {
+   "fieldname": "distance_km",
+   "fieldtype": "Float",
+   "label": "Distance (km)",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "qualifying_litres",
+   "fieldtype": "Float",
+   "label": "Qualifying Litres",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "km_per_litre",
+   "fieldtype": "Float",
+   "label": "Efficiency (km/L)",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_submission_audit",
+   "fieldtype": "Section Break",
+   "label": "Submission Audit"
+  },
+  {
+   "fieldname": "submitted_by",
+   "fieldtype": "Link",
+   "label": "Submitted By",
+   "no_copy": 1,
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "submitted_on",
+   "fieldtype": "Datetime",
+   "label": "Submitted On",
+   "no_copy": 1,
+   "read_only": 1
+  }
+ ],
+ "is_submittable": 1,
+ "module": "Fleet Management",
+ "name": "Fueling Transaction",
+ "route": "fueling-transaction",
+ "permissions": [
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Fleet Admin",
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "role": "Fleet User",
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Fleet Approver"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "track_changes": 1,
+ "modified": "2026-09-24 13:43:24.329225"
+}

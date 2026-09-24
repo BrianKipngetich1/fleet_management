@@ -1,8 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
+import { assertTestBaseURL } from "./e2e/target";
 
 // Root UI regression suite. It guards the application's core Desk behaviour and is
-// deliberately not tied to any spec phase — per-phase evidence comes from agent-browser.
-// See CLAUDE.md "UI verification workflow".
+// deliberately not tied to any spec phase — per-phase evidence is recorded in the
+// verification record alongside this live browser suite.
+
+const baseURL = assertTestBaseURL(process.env.BASE_URL);
 
 export default defineConfig({
 	testDir: "./e2e/tests",
@@ -16,12 +19,21 @@ export default defineConfig({
 	timeout: 90_000,
 	expect: { timeout: 15_000 },
 	use: {
-		baseURL: process.env.BASE_URL || "http://[test site]:8000",
+		baseURL,
 		trace: "on-first-retry",
 		video: "retain-on-failure",
 		screenshot: "only-on-failure",
 		actionTimeout: 20_000,
 		navigationTimeout: 45_000,
+	},
+	// Frappe convention: the bench's own web server (:8000) serves every site
+	// by Host header, with Socket.IO, workers and the scheduler alongside it. The suite
+	// reuses that server and never starts a partial one of its own.
+	webServer: {
+		command: "echo 'Test site not reachable on :8000. Start the bench: systemctl --user start frappe-bench.target (or bench start).' >&2; exit 1",
+		url: `${baseURL}/api/method/ping`,
+		reuseExistingServer: true,
+		timeout: 10_000,
 	},
 	projects: [
 		{ name: "setup", testMatch: /auth\.setup\.ts/ },

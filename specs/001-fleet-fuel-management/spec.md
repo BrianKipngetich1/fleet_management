@@ -12,12 +12,12 @@ Keep the whole file under ~400 lines for its entire life.
 
 | | |
 |---|---|
-| Status | Draft |
+| Status | In progress — re-phased 2026-09-24 (D-16); Phases 0 and 0.5 in review |
 | Owner | Fleet Management team |
 | Started | 2026-09-17 |
 | Approved by / date | — |
 | Approved revision | — |
-| Branch | version-16 |
+| Branch | develop |
 
 ## Problem
 
@@ -76,13 +76,23 @@ discrepancies remain visible without silently changing source values.
   baseline; partial litres accumulate until the next full fill.
 - D-13 — Reports use actual fueling date, apply location permissions, and may use the previous
   qualifying record outside the selected range.
+- D-14 — Every site shows and accepts dates as day/month/year; installing, setting up, or
+  upgrading a site restores that format if anything changed it.
+- D-15 — All testing uses the one dedicated test site. It keeps its test data, users, and access
+  probes as a record of what was tested; the development site never receives test records.
+- D-16 — Phase 0 is only the tracer bullet planned on 2026-09-17: request, approve, print, fuel,
+  attach, submit, and a first baseline. Each later capability is its own phase of one to four
+  criteria, credited with any work built early. Chosen over the 2026-09-18 scope, which absorbed
+  most of Release 1 and could not close in two review rounds.
 
 ## Current state
 
-The repository contains a scaffolded fleet_management app with no application DocTypes or
-business controllers. Frappe source is tagged v16.22.0, the app is on branch version-16, and
-there is no development or test site. The app declares Python >=3.14 and only bench-managed
-Frappe as a dependency.
+Phase 0 was built to the wider 2026-09-18 scope; D-16 credits that work to Phases 1–4 and 7,
+whose records say per criterion what is built, partly built, or missing. Phase 0's three gaps
+(request gauge and estimate, attendant identity, derived Awaiting/Completed/Expired condition)
+were built on 2026-09-24. Not built: pre-fuel gauge, invoice amount and printed price, partial
+reason, Meter Reset, discrepancy rows, late entry, replacement, generator tank levels and
+consumption, bands, reports; Fleet Approvers cannot cancel orders. Both sites run MariaDB; the harness is per Phase 0.5. Python >=3.14.
 
 ## Design
 
@@ -95,6 +105,7 @@ stateDiagram-v2
     Approved --> Cancelled: Approver cancels authorization
     state Approved {
         [*] --> AwaitingTransaction
+        AwaitingTransaction --> AwaitingTransaction: Approver extends before fueling, slip reprinted
         AwaitingTransaction --> Expired: valid-until passes
         Expired --> AwaitingTransaction: Approver extends and slip is reprinted
         AwaitingTransaction --> Completed: active transaction submitted
@@ -127,6 +138,7 @@ The extension must precede fueling and cannot retroactively authorize an expired
 | Notifications | Notification, Notification Log, scheduler | Validity and working-deadline recipients |
 | Reports | Query/Script Report and Query Builder | Shared interval calculations and explicit location filters |
 | Integrity | Validation, database constraints, transactions | Scoped uniqueness and active-order locking |
+| Date format | System Settings date format (`dd/mm/yyyy` option) | Re-assert after install, setup wizard, and migrate |
 
 No custom API, cache, microservice, external OCR service, or price dependency is planned.
 
@@ -171,8 +183,9 @@ asset, fuel, quantity basis, signatures, and configurable attendant instruction.
 
 The submittable document uses FT-.YYYY.-.##### and links to one Fuel Order:
 
-- Invoice-authoritative fueling datetime, driver and company representative Fleet Persons,
-  external attendant name, invoice number, CU number, and read-only approved station.
+- Actual fueling datetime identified as printed on the invoice or, when absent, as the known
+  station time with an explanation; never substitute submission time. Also records driver and
+  company representative Fleet Persons, external attendant, invoice/CU numbers, and station.
 - Read-only order/asset/fuel/assignment snapshots; owner and a server snapshot identify the
   creating and submitting Users.
 - Vehicle odometer, pre-fueling gauge, full confirmation, and attendant identity; or generator
@@ -210,8 +223,10 @@ System Manager remains a platform role and is not required for routine fleet adm
 Submitted records cannot be deleted or directly edited; draft deletion, sharing, importing,
 exporting, printing, cancelling, and reporting are granted only where required.
 
-Approval/rejection notifications go to the entering user and Fleet Admin. Pending, pre-expiry,
-expiry, and extension notifications go to the relevant location Approvers and Fleet Admin.
+Frappe Notification Log is the guaranteed in-app delivery; queued email is additional only when
+an outgoing email account is configured. Approval/rejection notifications go to the entering
+user and Fleet Admin. Pending, pre-expiry, expiry, and extension notifications go to enabled
+Approvers for that location and Fleet Admin, without duplicates or cross-location recipients.
 
 ## Calculations and Validation
 
@@ -313,26 +328,37 @@ duplicate/sequence pre-check, dry-run errors, reconciliation summary, and no des
 
 ## Tracer Bullet
 
-| Phase | User-visible outcome | Main components | Verification focus |
+One capability per phase (D-16). Build state is as of 2026-09-24; each phase record details it.
+
+| Phase | User-visible outcome | Criteria | Build state |
 |---|---|---|---|
-| 0 — Secure vehicle journey | A Fleet User requests on behalf of a driver, a different location Approver approves and prints, and two full-fill cycles produce a correct km/L result. | People, locations, stations, fuel, model, asset/assignment, settings, three roles, order, transaction, workflow, print, Vehicle Performance | Identity separation, list/direct/report permissions, self-approval denial, validity print, private evidence, one active transaction, baseline then distance/litres KPI. |
-| 1 — Integrity and exceptions | Partial authorization, discrepancies, assignment changes, resets, extension/reprint, notifications, cancellation/replacement, and audit work securely. | Assignment history, Meter Reset, discrepancy rows, constraints/locking, permission hooks, scheduler | Non-overlap, hard-block matrix, concurrency, scoped uniqueness, file validation, flags, audit, cancel/reopen. |
-| 2 — Generators | Approved quantity and measured tank balances produce reliable litres/hour. | Generator fields on Fleet Asset/order/transaction and Generator Performance | Unit normalization, inventory reconciliation, hour interval, baseline, reset, target bands. |
-| 3 — Operational reporting | Operations, management, and audit reconcile the fleet without Excel. | Five reports, dashboards, exports, indexes, permission filters | Totals, boundaries, cancelled inclusion rules, cross-range prior record, export scope, bounded queries, mobile use. |
+| 0 — Core vehicle journey | A Fleet User requests on behalf of a driver, a different Approver approves or rejects, the slip prints, and a transaction with both signed documents completes the order and records a first baseline. | AC-01, 03, 04, 05, 06, 19 | Built; in review |
+| 0.5 — Harness, conventions, re-phasing | Test evidence is trustworthy and the plan closes one phase at a time. | D-14–D-16 | Built |
+| 1 — Location access | People see and act only on their permitted locations. | AC-02 | Built by Phase 0 |
+| 2 — Integrity and hard blocks | Mismatched, duplicate, rolled-back, or concurrent submissions are refused; fueling time is provable. | AC-07, 10, 20 | Built by Phase 0; concurrency proof open |
+| 3 — Validity and notifications | Approvers extend or cancel orders with history; slips show validity; the right people are told. | AC-08, 21, 22, 23 | Built by Phase 0 except Approver cancellation |
+| 4 — Partial fills and efficiency | Partial fills are authorized exactly; full-to-full intervals give colored km/L. | AC-24, 25, 26 | km/L built by Phase 0; reason and bands not |
+| 5 — Discrepancies and late entry | Allowed differences and late entries are flagged with explanations. | AC-09, 27 | Not built (settings only) |
+| 6 — Cancellation and replacement | Fleet Admin cancels a transaction with reason; one replacement follows. | AC-11, 28 | Not built |
+| 7 — Assignments and resets | Assignments stay non-overlapping; a Fleet Admin reset restarts the baseline. | AC-12, 13 | Assignments built by Phase 0 |
+| 8 — Generators | Approved quantity and measured tank balances give litres/hour. | AC-14 | Partly built (fields) |
+| 9 — Reports and release | Operations, management, and audit reconcile the fleet without Excel. | AC-15–18 | Not built |
 
 ### Acceptance criteria
+
+IDs never change. On 2026-09-24 AC-04, 06, 10, 11 were narrowed; the parts removed became AC-19–28.
 
 - AC-01 — Fleet User records the actual requester and participants without requiring them to log in.
 - AC-02 — Role plus location permission controls list, direct, report, print, and action access.
 - AC-03 — A different location Approver can approve/reject; self-approval is denied server-side.
-- AC-04 — The print shows exact validity, approved station/fuel/quantity, signatures, and instruction.
+- AC-04 — The approved slip shows asset, request readings, station, fuel, quantity basis, approver, and signatures.
 - AC-05 — Transaction submission requires valid private signed invoice and order attachments.
-- AC-06 — First full fill creates no KPI; the second calculates distance/litres km/L correctly.
+- AC-06 — The first full fill, confirmed by the attendant, is a baseline with no KPI.
 - AC-07 — Station, fuel, asset, validity, rollback, duplicate, and active-transaction violations block.
 - AC-08 — A pre-fueling extension changes only validity, preserves history, and requires a reprinted slip; retroactive extension is denied.
 - AC-09 — Allowed discrepancies retain source values and require explanations.
-- AC-10 — Database constraints and order locking protect active uniqueness; a linked replacement can reuse its cancelled source identifiers.
-- AC-11 — Cancelling a transaction preserves it and permits only one controlled replacement.
+- AC-10 — Database constraints and order locking protect active uniqueness, including concurrently.
+- AC-11 — Cancelling a transaction preserves it and permits one replacement, which may reuse its identifiers.
 - AC-12 — Assignment periods do not overlap and approved snapshots survive later reassignment.
 - AC-13 — A Fleet Admin reset restarts the calculation baseline with reason and evidence.
 - AC-14 — Generator litres/hour uses measured inventory and excludes cancelled KPI records.
@@ -340,45 +366,52 @@ duplicate/sequence pre-check, dry-run errors, reconciliation summary, and no des
 - AC-16 — Audit views include cancelled records; KPI views exclude them.
 - AC-17 — Actual-date filters and a prior qualifying record outside the range behave correctly.
 - AC-18 — The workflow operates without a parallel Excel register.
+- AC-19 — A submitted transaction completes its one approved order; a second active one is refused.
+- AC-20 — Fueling time is the invoice or explained station time, never submission time, and sets validity.
+- AC-21 — The slip shows the exact valid-until timestamp and the configurable instruction.
+- AC-22 — A location Approver cancels an approved order before fueling, with reason.
+- AC-23 — Workflow and validity notices reach exactly the documented recipients, once each.
+- AC-24 — A partial fill requires an exact approved target and reason.
+- AC-25 — A second full fill calculates km/L over all qualifying litres since the previous full fill.
+- AC-26 — km/L variance is colored by the bands in both directions; a mid-interval target change shows no color.
+- AC-27 — Entry after the 48-hour working deadline is flagged with explanation.
+- AC-28 — Only Fleet Admin cancels a submitted transaction, with a recorded reason.
 
 ## Verification
 
 Pure calculations use UnitTestCase; documents, workflow, permissions, files, constraints, and
-reports use IntegrationTestCase on the test site. Coverage includes both sides of every permission
-boundary, formulas, full/partial intervals, effective assignments, reset baselines, currency
-precision, duplicate normalization, concurrency, hard blocks, flags, extension, cancellation,
-report reconciliation, date boundaries, and notifications.
+reports use IntegrationTestCase on the test site, covering both sides of every boundary. Each
+phase record lists its own rows and adds an `agent-browser` Desk walkthrough as its roles.
 
 ~~~sh
-bench --site <test-site> migrate
-bench --site <test-site> run-tests --app fleet_management
+bench --site fleet_management-test.localhost migrate
+bench --site fleet_management-test.localhost run-tests --app fleet_management
 npm run test:ui
 ~~~
 
-Manual acceptance covers the three roles, request-on-behalf, two full fills, printed validity and
-instruction, extension/reprint, physical signatures, private attachments, partial authorization,
-generator measurements, mobile-width entry, report reconciliation, and cancellation audit.
-
-Implementation must not begin until this specification is approved and disposable development
-and test sites are available.
+A phase starts only after the one before it closes, or when the owner records another order in
+PROGRESS. Manual acceptance also covers physical signatures and mobile-width entry.
 
 ## Risks and Assumptions
 
 | Type | Item and treatment |
 |---|---|
-| Dependency | No site exists; provision development/test sites and install the app before implementation verification. |
 | Assumption | Fueling always uses an approved order, station, asset fuel type, and authorization window; unsupported events require a later explicit policy. |
 | Assumption | Frappe User identifies system actors; Fleet Person identifies operational people and optionally links to User. |
 | Assumption | Three days means 72 hours from approval; the exact timestamp is printed. |
 | Assumption | The site supplies a Holiday List; Saturdays count and Sundays/public holidays do not count toward the entry SLA. |
-| Open at review | Notification transport and reminder lead time; default is native in-app/email one day before expiry. |
-| Open at review | If an invoice lacks time, Fleet User enters the known station time and explains that it was not printed. |
+| Decision | Notification Log is guaranteed in-app delivery; queued email is supplementary when configured. Pre-expiry reminder lead time is one day. |
+| Assumption | If an invoice lacks time, Fleet User enters the known station time and explains that it was not printed. |
 | Risk | Gauges and generator tank levels are approximate; retain source readings and flag discrepancies. |
 | Risk | No price benchmark means no pre-fueling KES estimate or market-price variance claim. |
 | Risk | Old slips remain physically available after extension; they show an expired timestamp and the extended order must be reprinted. |
+| Risk | Work built early (Phases 1–4, 7, 8) was verified under Phase 0's wider scope; each phase record reruns it before closing. |
 
 ## Progress log
 
 - 2026-09-18 — Revised after architecture review: simplified roles/reports, separated people
   from users and approval from fulfillment, narrowed assignment history, and corrected formulas.
-  Awaiting human review and approval. [Phase 0 verification](verification/phase-00-tracer-bullet.md)
+- 2026-09-23 — Phase 0 (wider scope) closure gate: 59 backend and 22/22 Playwright tests, SQLite
+  era; signed off 2026-09-24 for completed work. [Phase 0](verification/phase-00-tracer-bullet.md)
+- 2026-09-24 — Phase 0.5 added D-14–D-16, cleaned up the harness, and re-phased the plan; Phase 0
+  was cut back to the 2026-09-17 plan. [Phase 0.5](verification/phase-00.5-test-harness-cleanup.md)

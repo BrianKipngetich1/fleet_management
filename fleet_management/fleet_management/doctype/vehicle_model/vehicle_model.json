@@ -1,0 +1,61 @@
+{
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "make",
+  "model",
+  "engine_capacity_cc"
+ ],
+ "fields": [
+  {
+   "fieldname": "make",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Make",
+   "reqd": 1
+  },
+  {
+   "fieldname": "model",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Model",
+   "reqd": 1
+  },
+  {
+   "fieldname": "engine_capacity_cc",
+   "fieldtype": "Int",
+   "label": "Engine Capacity (CC)",
+   "non_negative": 1
+  }
+ ],
+ "module": "Fleet Management",
+ "name": "Vehicle Model",
+ "autoname": "format:{make} - {model}",
+ "naming_rule": "Expression",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Fleet Admin",
+   "write": 1
+  },
+  {
+   "print": 1,
+   "report": 1,
+   "read": 1,
+   "role": "Fleet Approver"
+  },
+  {
+   "read": 1,
+   "role": "Fleet User"
+  }
+ ],
+ "sort_field": "model",
+ "sort_order": "ASC",
+ "track_changes": 1
+}

@@ -1,7 +1,7 @@
 {
-	"name": "[app_name]",
+	"name": "fleet_management",
 	"private": true,
-	"description": "Root UI regression suite for the [app_name] Desk surface.",
+	"description": "Root UI regression suite for the fleet_management Desk surface.",
 	"scripts": {
 		"test:ui": "playwright test",
 		"test:ui:headed": "playwright test --headed",

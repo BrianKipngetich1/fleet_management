@@ -1,0 +1,416 @@
+{
+ "autoname": "naming_series:",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "request_datetime",
+  "actual_requester",
+  "driver",
+  "custodian",
+  "company_representative",
+  "section_break_request_facts",
+  "asset",
+  "asset_type",
+  "operational_location",
+  "assigned_location_snapshot",
+  "assigned_custodian_snapshot",
+  "assignment_effective_from",
+  "assignment_effective_until",
+  "asset_fuel_type_snapshot",
+  "asset_tank_capacity_snapshot",
+  "asset_target_km_per_litre_snapshot",
+  "asset_tolerance_percent_snapshot",
+  "planned_station",
+  "fuel_type",
+  "request_meter_reading",
+  "request_gauge_percent",
+  "estimated_litres",
+  "quantity_authorization",
+  "authorized_quantity_litres",
+  "section_break_approval_audit",
+  "workflow_state",
+  "fulfillment_status",
+  "submitted_by",
+  "submitted_on",
+  "approved_by",
+  "approved_on",
+  "valid_until",
+  "reprint_required",
+  "slip_revision",
+  "printed_slip_revision",
+  "last_slip_printed_on",
+  "validity_extension_history",
+  "rejected_by",
+  "rejected_on"
+ ],
+ "fields": [
+  {
+   "default": "FO-.YYYY.-",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "options": "FO-.YYYY.-",
+   "reqd": 1
+  },
+  {
+   "default": "Now",
+   "fieldname": "request_datetime",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Request Datetime",
+   "reqd": 1
+  },
+  {
+   "fieldname": "actual_requester",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Actual Requester",
+   "options": "Fleet Person",
+   "reqd": 1,
+   "description": "Operational person who requested the fuel; a Frappe login is not required."
+  },
+  {
+   "fieldname": "driver",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Driver",
+   "options": "Fleet Person",
+   "reqd": 1,
+   "description": "Operational driver; a Frappe login is not required."
+  },
+  {
+   "fieldname": "custodian",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Custodian",
+   "options": "Fleet Person",
+   "reqd": 1,
+   "description": "Operational custodian; a Frappe login is not required."
+  },
+  {
+   "fieldname": "company_representative",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Company Representative",
+   "options": "Fleet Person",
+   "reqd": 1,
+   "description": "Operational representative; a Frappe login is not required."
+  },
+  {
+   "fieldname": "section_break_request_facts",
+   "fieldtype": "Section Break",
+   "label": "Request Facts"
+  },
+  {
+   "fieldname": "asset",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Asset",
+   "options": "Fleet Asset",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "asset.asset_type",
+   "fieldname": "asset_type",
+   "fieldtype": "Data",
+   "label": "Asset Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "operational_location",
+   "fieldtype": "Link",
+   "ignore_user_permissions": 1,
+   "in_list_view": 1,
+   "label": "Operational Location",
+   "options": "Fleet Location",
+   "reqd": 1
+  },
+  {
+   "fieldname": "assigned_location_snapshot",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Assigned Location Snapshot",
+   "no_copy": 1,
+   "options": "Fleet Location",
+   "read_only": 1
+  },
+  {
+   "fieldname": "assigned_custodian_snapshot",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Assigned Custodian Snapshot",
+   "no_copy": 1,
+   "options": "Fleet Person",
+   "read_only": 1
+  },
+  {
+   "fieldname": "assignment_effective_from",
+   "fieldtype": "Date",
+   "hidden": 1,
+   "label": "Assignment Effective From",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "assignment_effective_until",
+   "fieldtype": "Date",
+   "hidden": 1,
+   "label": "Assignment Effective Until",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "asset_fuel_type_snapshot",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Asset Fuel Type Snapshot",
+   "no_copy": 1,
+   "options": "Fuel Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "asset_tank_capacity_snapshot",
+   "fieldtype": "Float",
+   "hidden": 1,
+   "label": "Asset Tank Capacity Snapshot",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "asset_target_km_per_litre_snapshot",
+   "fieldtype": "Float",
+   "hidden": 1,
+   "label": "Asset Target Snapshot",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "asset_tolerance_percent_snapshot",
+   "fieldtype": "Float",
+   "hidden": 1,
+   "label": "Asset Tolerance Snapshot",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "planned_station",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Planned Station",
+   "options": "Fuel Station",
+   "reqd": 1
+  },
+  {
+   "fieldname": "fuel_type",
+   "fieldtype": "Link",
+   "label": "Fuel Type",
+   "options": "Fuel Type",
+   "reqd": 1
+  },
+  {
+   "fieldname": "request_meter_reading",
+   "fieldtype": "Float",
+   "label": "Request Meter Reading",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.asset_type=='Vehicle'",
+   "description": "Fuel gauge at request, whole-number percent from 0 to 100.",
+   "fieldname": "request_gauge_percent",
+   "fieldtype": "Int",
+   "label": "Request Gauge (%)",
+   "mandatory_depends_on": "eval:doc.asset_type=='Vehicle'",
+   "non_negative": 1
+  },
+  {
+   "depends_on": "eval:doc.asset_type=='Vehicle'",
+   "description": "Tank capacity x (100 - gauge) / 100, calculated by the server.",
+   "fieldname": "estimated_litres",
+   "fieldtype": "Float",
+   "label": "Estimated Litres to Fill",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "default": "Full",
+   "fieldname": "quantity_authorization",
+   "fieldtype": "Select",
+   "label": "Quantity Authorization",
+   "options": "Full\nPartial",
+   "reqd": 1
+  },
+  {
+   "fieldname": "authorized_quantity_litres",
+   "fieldtype": "Float",
+   "label": "Authorized Quantity (Litres)",
+   "non_negative": 1,
+   "description": "Required for Partial authorization; optional for Full authorization."
+  },
+  {
+   "fieldname": "section_break_approval_audit",
+   "fieldtype": "Section Break",
+   "label": "Approval Audit"
+  },
+  {
+   "default": "Draft",
+   "fieldname": "workflow_state",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Workflow State",
+   "no_copy": 1,
+   "options": "Workflow State",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.docstatus==1",
+   "description": "Derived from validity and the order's active Fueling Transaction; never stored.",
+   "fieldname": "fulfillment_status",
+   "fieldtype": "Data",
+   "is_virtual": 1,
+   "label": "Fulfillment Status",
+   "read_only": 1
+  },
+  {
+   "fieldname": "submitted_by",
+   "fieldtype": "Link",
+   "label": "Submitted for Approval By",
+   "no_copy": 1,
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "submitted_on",
+   "fieldtype": "Datetime",
+   "label": "Submitted for Approval On",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "approved_by",
+   "fieldtype": "Link",
+   "label": "Approved By",
+   "no_copy": 1,
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "approved_on",
+   "fieldtype": "Datetime",
+   "label": "Approved On",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "valid_until",
+   "fieldtype": "Datetime",
+   "label": "Valid Until",
+   "allow_on_submit": 1,
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "reprint_required",
+   "fieldtype": "Check",
+   "label": "Reprint Required",
+   "allow_on_submit": 1,
+   "no_copy": 1,
+   "read_only": 1,
+   "description": "Set by the server after a pre-fueling validity extension; print the updated slip before fueling."
+  },
+  {
+   "default": "1",
+   "fieldname": "slip_revision",
+   "fieldtype": "Int",
+   "label": "Slip Revision",
+   "allow_on_submit": 1,
+   "no_copy": 1,
+   "read_only": 1,
+   "description": "Server-managed approval-slip revision; it increments when validity is extended."
+  },
+  {
+   "default": "0",
+   "fieldname": "printed_slip_revision",
+   "fieldtype": "Int",
+   "label": "Printed Slip Revision",
+   "allow_on_submit": 1,
+   "no_copy": 1,
+   "read_only": 1,
+   "description": "Server-managed revision last rendered by an authorized print request."
+  },
+  {
+   "fieldname": "last_slip_printed_on",
+   "fieldtype": "Datetime",
+   "label": "Last Slip Printed On",
+   "allow_on_submit": 1,
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "default": "[]",
+   "fieldname": "validity_extension_history",
+   "fieldtype": "Long Text",
+   "label": "Validity Extension History",
+   "allow_on_submit": 1,
+   "no_copy": 1,
+   "read_only": 1,
+   "description": "Server-managed JSON audit history of validity extensions."
+  },
+  {
+   "fieldname": "rejected_by",
+   "fieldtype": "Link",
+   "label": "Rejected By",
+   "no_copy": 1,
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "rejected_on",
+   "fieldtype": "Datetime",
+   "label": "Rejected On",
+   "no_copy": 1,
+   "read_only": 1
+  }
+ ],
+ "is_submittable": 1,
+ "module": "Fleet Management",
+ "name": "Fuel Order",
+ "route": "fuel-order",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "role": "Fleet Admin",
+   "write": 1,
+   "submit": 1,
+   "cancel": 1,
+   "amend": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1,
+   "import": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "role": "Fleet User",
+   "write": 1,
+   "submit": 1
+  },
+  {
+   "read": 1,
+   "print": 1,
+   "report": 1,
+   "role": "Fleet Approver",
+   "write": 1,
+   "submit": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "track_changes": 1,
+ "modified": "2026-09-24 13:43:24.329225"
+}

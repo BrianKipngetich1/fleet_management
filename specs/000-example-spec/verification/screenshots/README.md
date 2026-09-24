@@ -7,9 +7,16 @@ hand.
 
 ## Naming
 
+Each phase gets its own folder, named after its phase record, so one phase's frames never
+mix with another's:
+
 ```
-phase-NN-SS-short-slug.png
+screenshots/phase-NN-<slug>/phase-NN-SS-short-slug.png
 ```
+
+A fractional phase keeps its number as written: `phase-00.5-test-harness-cleanup/`. Frames
+taken before this convention (loose `phase-00-*` and `ac0N-*` files) stay where the phase
+record that cites them says they are.
 
 | Part | Meaning |
 |---|---|
@@ -24,7 +31,7 @@ reviewer assembling the story out of filenames.
 ## Worked example
 
 ```
-specs/001-invoicing/verification/screenshots/
+specs/001-invoicing/verification/screenshots/phase-05-invoice-submission/
   phase-05-01-draft-form.png          the form as the intended role first sees it
   phase-05-02-validation-error.png    the guard refusing an invalid value
   phase-05-03-submitted-state.png     docstatus 1, the state the criterion claims

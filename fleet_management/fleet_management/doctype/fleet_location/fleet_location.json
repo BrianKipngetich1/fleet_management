@@ -1,0 +1,61 @@
+{
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "location_name",
+  "active",
+  "description"
+ ],
+ "fields": [
+  {
+   "fieldname": "location_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Location Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Active"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  }
+ ],
+ "module": "Fleet Management",
+ "name": "Fleet Location",
+ "autoname": "field:location_name",
+ "naming_rule": "By fieldname",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Fleet Admin",
+   "write": 1
+  },
+  {
+   "print": 1,
+   "report": 1,
+   "read": 1,
+   "role": "Fleet Approver"
+  },
+  {
+   "read": 1,
+   "role": "Fleet User"
+  }
+ ],
+ "sort_field": "location_name",
+ "sort_order": "ASC",
+ "track_changes": 1
+}

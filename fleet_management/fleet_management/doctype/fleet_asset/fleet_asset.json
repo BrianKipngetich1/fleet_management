@@ -1,0 +1,123 @@
+{
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "asset_identifier",
+  "asset_type",
+  "active",
+  "section_break_asset_facts",
+  "fuel_type",
+  "tank_capacity_litres",
+  "target_km_per_litre",
+  "tolerance_percent",
+  "vehicle_model",
+  "section_break_assignments",
+  "assignments"
+ ],
+ "fields": [
+  {
+   "fieldname": "asset_identifier",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Asset Identifier",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "Vehicle",
+   "fieldname": "asset_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Asset Type",
+   "options": "Vehicle\nGenerator",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Active"
+  },
+  {
+   "fieldname": "section_break_asset_facts",
+   "fieldtype": "Section Break",
+   "label": "Asset Facts"
+  },
+  {
+   "fieldname": "fuel_type",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Fuel Type",
+   "options": "Fuel Type",
+   "reqd": 1
+  },
+  {
+   "fieldname": "tank_capacity_litres",
+   "fieldtype": "Float",
+   "label": "Tank Capacity (Litres)",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "target_km_per_litre",
+   "fieldtype": "Float",
+   "label": "Target (km/L)",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "tolerance_percent",
+   "fieldtype": "Float",
+   "label": "Tolerance Override (%)",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "vehicle_model",
+   "fieldtype": "Link",
+   "label": "Vehicle Model",
+   "options": "Vehicle Model"
+  },
+  {
+   "fieldname": "section_break_assignments",
+   "fieldtype": "Section Break",
+   "label": "Assignments"
+  },
+  {
+   "fieldname": "assignments",
+   "fieldtype": "Table",
+   "label": "Assignment History",
+   "options": "Asset Assignment"
+  }
+ ],
+ "module": "Fleet Management",
+ "name": "Fleet Asset",
+ "autoname": "field:asset_identifier",
+ "naming_rule": "By fieldname",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Fleet Admin",
+   "write": 1
+  },
+  {
+   "print": 1,
+   "report": 1,
+   "read": 1,
+   "role": "Fleet Approver"
+  },
+  {
+   "read": 1,
+   "role": "Fleet User"
+  }
+ ],
+ "sort_field": "asset_identifier",
+ "sort_order": "ASC",
+ "track_changes": 1
+}
