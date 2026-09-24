@@ -79,4 +79,4 @@ tests, and Playwright `tenancy.spec.ts`; rows 5–6 need tests. A MariaDB `agent
 
 **Closure:** Open.
 
-**Next:** Add tests for rows 5–6 and rerun rows 1–7 on MariaDB.
+**Next:** STEP 1 — confirm the environment and map rows 1–7 to their existing tests.
