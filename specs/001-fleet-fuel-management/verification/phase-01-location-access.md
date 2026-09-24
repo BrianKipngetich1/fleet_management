@@ -32,8 +32,8 @@ cannot list, open, report on, print, or act on those records by any route.
 | 2 — direct access and actions | Built by Phase 0 | `fleet_management/tests/test_permissions.py::test_direct_access_denies_other_location_for_all_document_actions`; `fleet_management/tests/test_permissions.py::test_list_and_direct_access_are_location_scoped`; `fleet_management/fleet_management/doctype/fueling_transaction/test_fueling_transaction.py::test_location_permissions_filter_and_block_out_of_location_access`; Playwright `e2e/tests/acceptance.spec.ts::live Desk transaction acceptance covers evidence, KPI, integrity, and scope` |
 | 3 — report, print, and report permission | Built by Phase 0 | `fleet_management/tests/test_permissions.py::test_approver_can_report_and_print_only_permitted_orders`; `fleet_management/tests/test_permissions.py::test_fleet_user_can_request_location_list_without_report_permission`; `fleet_management/tests/test_permissions.py::test_restricted_query_report_remains_denied`; Playwright `e2e/tests/acceptance.spec.ts::live Desk transaction acceptance covers evidence, KPI, integrity, and scope` |
 | 4 — user without a permitted location | Built by Phase 0 | `fleet_management/tests/test_permissions.py::test_list_query_denies_user_without_a_location` |
-| 5 — asset choice and order creation | No exact test | `fleet_management/tests/test_permissions.py::test_direct_access_allows_permitted_asset` checks permitted-asset read access only; no test creates an order for an asset assigned to another location or proves the same user's permitted-location create path |
-| 6 — planned-station choice and validation | No exact test | Server validation exists in `fuel_order.py::_validate_station`, but no test covers a station outside the order's operational location; `fleet_management/public/js/fuel_order.js` has no `planned_station` query |
+| 5 — asset choice and order creation | Built by Step 2 | `fleet_management/tests/test_permissions.py::test_fleet_user_can_create_orders_only_for_permitted_assets`; `fleet_management/tests/test_permissions.py::test_fleet_admin_can_create_orders_for_any_location` |
+| 6 — planned-station choice and validation | Built by Step 2 | `fleet_management/tests/test_permissions.py::test_planned_station_must_match_operational_location`; `fleet_management/public/js/fuel_order.js::setup` filters the planned-station picker by operational location, active, and approved |
 | 7 — Fleet Admin unrestricted access | Built by Phase 0 | `fleet_management/tests/test_permissions.py::test_fleet_admin_is_unrestricted` |
 
 ## The rule, as observed
@@ -46,8 +46,10 @@ Phase 0 and Phase 3 edges.
 | What we needed | Native mechanism used | Custom code, and why |
 |---|---|---|
 | Location scope on lists and links | User Permission on Fleet Location; `permission_query_conditions` | Query conditions follow the asset's effective assignment, which User Permission alone cannot |
+| Asset choice during order creation | Linked-document `has_permission` hook plus controller validation | The create path did not reject the selected out-of-location asset, so Fuel Order validation enforces the server-side rule |
 | Direct document access | `has_permission` hook | Same location rule for read, write, print, submit, cancel |
 | Reports | Report permissions | Report view stays denied without report permission; list access does not require it |
+| Planned station picker | Link-field `set_query` in `fleet_management/public/js/fuel_order.js` | Frappe's native dependent query filters operational location, active, and approved; server validation remains authoritative |
 
 ## Verification
 
@@ -62,11 +64,10 @@ Phase 0 and Phase 3 edges.
 | 7 | As Fleet Admin, repeat rows 1–2 | All locations visible and actionable | AC-02 |
 
 **How to run it.** Run `bench --site fleet_management-test.localhost run-tests --module fleet_management.tests.test_permissions`
-for the permission tests named in rows 1–4 and 7, and the Fueling Transaction module for
+for the permission tests named in rows 1–7, and the Fueling Transaction module for
 `test_location_permissions_filter_and_block_out_of_location_access`. Run `npm run test:ui` for
-the named `tenancy.spec.ts` and `acceptance.spec.ts` tests. Rows 5–6 have no exact existing test;
-Step 2 adds those tests. A MariaDB `agent-browser` walkthrough as the location A and B users is
-required.
+the named `tenancy.spec.ts` and `acceptance.spec.ts` tests. A MariaDB `agent-browser` walkthrough
+as the location A and B users is required.
 
 **Result:** Not yet run in this phase. Rows 1–4 and 7 passed under Phase 0 (SQLite gate
 2026-09-23; MariaDB suites 2026-09-24).
@@ -88,4 +89,4 @@ required.
 
 **Closure:** Open.
 
-**Next:** STEP 2 — build and test rows 5–6
+**Next:** STEP 3 — rerun rows 1–7 on MariaDB

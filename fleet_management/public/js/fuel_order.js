@@ -5,6 +5,16 @@ frappe.ui.form.on("Fuel Order", {
 			const locations = permissions.map((permission) => permission.doc).filter(Boolean);
 			return locations.length ? { filters: { name: ["in", locations] } } : {};
 		});
+		frm.set_query("planned_station", () => ({
+			filters: {
+				operational_location: frm.doc.operational_location,
+				active: 1,
+				approved: 1,
+			},
+		}));
+	},
+	operational_location(frm) {
+		if (frm.doc.planned_station) frm.set_value("planned_station", null);
 	},
 	refresh(frm) {
 		if (

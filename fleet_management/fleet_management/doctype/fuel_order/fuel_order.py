@@ -97,9 +97,20 @@ class FuelOrder(Document):
 			self._validate_active_reference("Fleet Person", fieldname, label)
 
 		self._validate_active_reference("Fleet Asset", "asset", "Asset")
+		self._validate_asset_permission()
 		self._validate_active_reference("Fleet Location", "operational_location", "Operational location")
 		self._validate_active_reference("Fuel Type", "fuel_type", "Fuel type")
 		self._validate_station()
+
+	def _validate_asset_permission(self):
+		if self.flags.ignore_permissions or not self.asset:
+			return
+
+		asset = frappe.get_doc("Fleet Asset", self.asset)
+		if not frappe.has_permission("Fleet Asset", "read", asset):
+			frappe.throw(
+				frappe._("You do not have permission to use this asset."), frappe.PermissionError
+			)
 
 	def _set_asset_assignment_snapshot(self):
 		if not self.asset:
