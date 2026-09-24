@@ -26,10 +26,15 @@ cannot list, open, report on, print, or act on those records by any route.
 
 ## Build state by criterion
 
-| Criterion | State | Carried evidence |
+| Verification row | State | Exact existing test(s) / evidence |
 |---|---|---|
-| AC-02 — list, direct, report, print, action scope | Built by Phase 0 | `test_permissions.py` (10 tests), transaction location tests, Playwright `tenancy.spec.ts` and `acceptance.spec.ts`; SQLite-era screenshots `ac02-*`, `phase-00-22/23/24-*` |
-| AC-02 — requests only for permitted assets and stations | Built by Phase 0 | Asset access follows the assigned location; the server refuses a planned station outside the operational location; the Desk station picker filter is unverified |
+| 1 — permitted-location lists | Built by Phase 0; no dedicated Fleet Asset list assertion | `fleet_management/tests/test_permissions.py::test_list_query_is_limited_to_permitted_location`; `fleet_management/tests/test_permissions.py::test_list_and_direct_access_are_location_scoped`; `fleet_management/tests/test_permissions.py::test_fleet_user_can_request_location_list_without_report_permission`; `fleet_management/fleet_management/doctype/fueling_transaction/test_fueling_transaction.py::test_location_permissions_filter_and_block_out_of_location_access`; Playwright `e2e/tests/tenancy.spec.ts::the scoped list shows only the user's permitted records` |
+| 2 — direct access and actions | Built by Phase 0 | `fleet_management/tests/test_permissions.py::test_direct_access_denies_other_location_for_all_document_actions`; `fleet_management/tests/test_permissions.py::test_list_and_direct_access_are_location_scoped`; `fleet_management/fleet_management/doctype/fueling_transaction/test_fueling_transaction.py::test_location_permissions_filter_and_block_out_of_location_access`; Playwright `e2e/tests/acceptance.spec.ts::live Desk transaction acceptance covers evidence, KPI, integrity, and scope` |
+| 3 — report, print, and report permission | Built by Phase 0 | `fleet_management/tests/test_permissions.py::test_approver_can_report_and_print_only_permitted_orders`; `fleet_management/tests/test_permissions.py::test_fleet_user_can_request_location_list_without_report_permission`; `fleet_management/tests/test_permissions.py::test_restricted_query_report_remains_denied`; Playwright `e2e/tests/acceptance.spec.ts::live Desk transaction acceptance covers evidence, KPI, integrity, and scope` |
+| 4 — user without a permitted location | Built by Phase 0 | `fleet_management/tests/test_permissions.py::test_list_query_denies_user_without_a_location` |
+| 5 — asset choice and order creation | No exact test | `fleet_management/tests/test_permissions.py::test_direct_access_allows_permitted_asset` checks permitted-asset read access only; no test creates an order for an asset assigned to another location or proves the same user's permitted-location create path |
+| 6 — planned-station choice and validation | No exact test | Server validation exists in `fuel_order.py::_validate_station`, but no test covers a station outside the order's operational location; `fleet_management/public/js/fuel_order.js` has no `planned_station` query |
+| 7 — Fleet Admin unrestricted access | Built by Phase 0 | `fleet_management/tests/test_permissions.py::test_fleet_admin_is_unrestricted` |
 
 ## The rule, as observed
 
@@ -56,8 +61,12 @@ Phase 0 and Phase 3 edges.
 | 6 | Pick a planned station outside the order's operational location, in the picker and via direct save | Not offered; refused on save | AC-02 |
 | 7 | As Fleet Admin, repeat rows 1–2 | All locations visible and actionable | AC-02 |
 
-**How to run it.** Rows 1–4 and 7 are asserted by `test_permissions.py`, the transaction location
-tests, and Playwright `tenancy.spec.ts`; rows 5–6 need tests. A MariaDB `agent-browser` walkthrough as the location A and B users is required.
+**How to run it.** Run `bench --site fleet_management-test.localhost run-tests --module fleet_management.tests.test_permissions`
+for the permission tests named in rows 1–4 and 7, and the Fueling Transaction module for
+`test_location_permissions_filter_and_block_out_of_location_access`. Run `npm run test:ui` for
+the named `tenancy.spec.ts` and `acceptance.spec.ts` tests. Rows 5–6 have no exact existing test;
+Step 2 adds those tests. A MariaDB `agent-browser` walkthrough as the location A and B users is
+required.
 
 **Result:** Not yet run in this phase. Rows 1–4 and 7 passed under Phase 0 (SQLite gate
 2026-09-23; MariaDB suites 2026-09-24).
@@ -79,4 +88,4 @@ tests, and Playwright `tenancy.spec.ts`; rows 5–6 need tests. A MariaDB `agent
 
 **Closure:** Open.
 
-**Next:** STEP 1 — confirm the environment and map rows 1–7 to their existing tests.
+**Next:** STEP 2 — build and test rows 5–6
