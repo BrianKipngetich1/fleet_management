@@ -7,9 +7,9 @@ verified, from what was actually observed. Procedure, not transcript. Never reco
 
 | | |
 |---|---|
-| Specification | [`../spec.md`](../spec.md) @ — (awaiting approval) |
-| Status | Not started |
-| Started / Closed | — / — |
+| Specification | [`../spec.md`](../spec.md) @ `3c37dbb` |
+| Status | Building on `feature/002-fuel-order-request-slip` |
+| Started / Closed | 2026-09-25 / — |
 | Author | Fleet Management team |
 | Reviewed by | — |
 | Signed off | — |
@@ -42,6 +42,8 @@ Not yet observed in this phase.
 
 | # | Put the system in this state | Expect | Covers |
 |---|---|---|---|
+| 1 | Build the test site. As Test Fleet Admin, open the Letter Head list | "Krystalline Salt Fuel Order Slip" is the default; its heading reads KRYSTALLINE SALT LIMITED, PIN NO. P000000000T, a P.O. Box, telephone, and email — all synthetic | AC-01 |
+| 2 | As Test Fleet Admin, open Fuel Station "Mombasa Road Service Station" | An Address section lists its postal address (P.O Box 10001, 00100, Nairobi) and email mombasa-road.test@example.com; the other five stations each show their own | AC-01 |
 
 **How to run it.** Backend rows: `bench --site fleet_management-test.localhost run-tests --app fleet_management`.
 Desk rows: `agent-browser` walkthrough on the test site as the named role.

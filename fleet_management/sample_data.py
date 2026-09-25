@@ -73,6 +73,24 @@ STATIONS = (
 )
 INVOICE_PREFIX = {name: prefix for name, _location, _approved, prefix in STATIONS}
 
+# Synthetic company heading and station postal addresses (002 D-13: site data, never real values).
+LETTER_HEAD = "Krystalline Salt Fuel Order Slip"
+LETTER_HEAD_CONTENT = (
+	'<div class="company-heading">'
+	"<p><strong>KRYSTALLINE SALT LIMITED</strong><br><strong>PIN NO. P000000000T</strong></p>"
+	"<p>P.O Box 00000-00100<br>NAIROBI.<br>Tel: 020-0000000<br>Email: fuel.test@example.com</p>"
+	"</div>"
+)
+STATION_ADDRESSES = {
+	# station: P.O. Box, postal code, town, email
+	"Mombasa Road Service Station": ("P.O Box 10001", "00100", "Nairobi", "mombasa-road.test@example.com"),
+	"Industrial Area Fuel Centre": ("P.O Box 10002", "00500", "Nairobi", "industrial-area.test@example.com"),
+	"Githurai Roadside Kiosk": ("P.O Box 10003", "00609", "Nairobi", "githurai.test@example.com"),
+	"Changamwe Service Station": ("P.O Box 20001", "80100", "Mombasa", "changamwe.test@example.com"),
+	"Gongoni Fuel Point": ("P.O Box 30001", "80200", "Malindi", "gongoni.test@example.com"),
+	"Marereni Service Station": ("P.O Box 30002", "80207", "Marereni", "marereni.test@example.com"),
+}
+
 VEHICLE_MODELS = (
 	# make, model, engine cc, tank litres
 	("Toyota", "Hilux Double Cab 2.4 GD-6", 2393, 80),
@@ -275,6 +293,15 @@ def reset():
 	):
 		frappe.db.delete(doctype, {field: ("in", FLEET_DOCTYPES)})
 
+	addresses = frappe.get_all(
+		"Dynamic Link",
+		filters={"parenttype": "Address", "link_doctype": ("in", FLEET_DOCTYPES)},
+		pluck="parent",
+	)
+	for name in set(addresses):
+		frappe.delete_doc("Address", name, force=True, ignore_permissions=True)
+	frappe.db.delete("Letter Head", {"name": LETTER_HEAD})
+
 	frappe.db.delete("User Permission", {"allow": ("in", FLEET_DOCTYPES)})
 	for doctype in FLEET_DOCTYPES:
 		frappe.db.delete(doctype)
@@ -357,6 +384,26 @@ def _seed_masters():
 		_insert(
 			"Fuel Station", station_name=name, operational_location=location, active=1, approved=approved
 		)
+	for station, (box, postal_code, town, email) in STATION_ADDRESSES.items():
+		_insert(
+			"Address",
+			address_title=station,
+			address_type="Postal",
+			address_line1=box,
+			pincode=postal_code,
+			city=town,
+			country="Kenya",
+			email_id=email,
+			is_primary_address=1,
+			links=[{"link_doctype": "Fuel Station", "link_name": station}],
+		)
+	_insert(
+		"Letter Head",
+		letter_head_name=LETTER_HEAD,
+		source="HTML",
+		content=LETTER_HEAD_CONTENT,
+		is_default=1,
+	)
 	for make, model, engine_cc, tank in VEHICLE_MODELS:
 		_insert(
 			"Vehicle Model", make=make, model=model, engine_capacity_cc=engine_cc, tank_capacity_litres=tank
