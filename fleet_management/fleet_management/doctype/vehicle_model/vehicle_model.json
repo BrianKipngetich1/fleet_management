@@ -4,7 +4,8 @@
  "field_order": [
   "make",
   "model",
-  "engine_capacity_cc"
+  "engine_capacity_cc",
+  "tank_capacity_litres"
  ],
  "fields": [
   {
@@ -26,6 +27,13 @@
    "fieldtype": "Int",
    "label": "Engine Capacity (CC)",
    "non_negative": 1
+  },
+  {
+   "fieldname": "tank_capacity_litres",
+   "fieldtype": "Float",
+   "label": "Tank Capacity (Litres)",
+   "non_negative": 1,
+   "reqd": 1
   }
  ],
  "module": "Fleet Management",

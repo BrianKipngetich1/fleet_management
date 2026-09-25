@@ -42,7 +42,7 @@ def get_assignment_snapshot(asset, at=None):
 		"assignment_effective_from": assignment.effective_from,
 		"assignment_effective_until": assignment.effective_until,
 		"asset_fuel_type_snapshot": asset.fuel_type,
-		"asset_tank_capacity_snapshot": asset.tank_capacity_litres,
+		"asset_tank_capacity_snapshot": get_vehicle_model_tank_capacity(asset),
 		"asset_target_km_per_litre_snapshot": asset.target_km_per_litre,
 		"asset_tolerance_percent_snapshot": (
 			asset.tolerance_percent
@@ -52,9 +52,20 @@ def get_assignment_snapshot(asset, at=None):
 	}
 
 
+def get_vehicle_model_tank_capacity(asset):
+	if asset.get("asset_type") != "Vehicle" or not asset.get("vehicle_model"):
+		return None
+	return frappe.db.get_value("Vehicle Model", asset.vehicle_model, "tank_capacity_litres")
+
+
 class FleetAsset(Document):
 	def validate(self):
+		self.validate_vehicle_model()
 		self.validate_assignments()
+
+	def validate_vehicle_model(self):
+		if self.asset_type == "Vehicle" and not self.vehicle_model:
+			frappe.throw(frappe._("Vehicle assets must reference a Vehicle Model."))
 
 	def validate_assignments(self):
 		periods = []

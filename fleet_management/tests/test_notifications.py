@@ -24,6 +24,12 @@ class TestFuelOrderNotifications(IntegrationTestCase):
 			"Fleet Location", location_name=f"Notify Other Location {suffix}"
 		)
 		self.fuel_type = self._insert("Fuel Type", fuel_type_name=f"Notify Diesel {suffix}")
+		self.vehicle_model = self._insert(
+			"Vehicle Model",
+			make=f"Notify Make {suffix}",
+			model=f"Notify Model {suffix}",
+			tank_capacity_litres=60,
+		)
 		self.station = self._insert(
 			"Fuel Station",
 			station_name=f"Notify Station {suffix}",
@@ -37,7 +43,7 @@ class TestFuelOrderNotifications(IntegrationTestCase):
 			asset_identifier=f"Notify Asset {suffix}",
 			asset_type="Vehicle",
 			fuel_type=self.fuel_type.name,
-			tank_capacity_litres=60,
+			vehicle_model=self.vehicle_model.name,
 			target_km_per_litre=10,
 			assignments=[
 				{

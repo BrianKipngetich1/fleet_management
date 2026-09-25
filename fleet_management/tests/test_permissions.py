@@ -97,6 +97,12 @@ class TestFleetPermissionIntegration(IntegrationTestCase):
 		self.north = self._insert("Fleet Location", location_name=f"AC02 North {suffix}")
 		self.south = self._insert("Fleet Location", location_name=f"AC02 South {suffix}")
 		self.fuel_type = self._insert("Fuel Type", fuel_type_name=f"AC02 Diesel {suffix}")
+		self.vehicle_model = self._insert(
+			"Vehicle Model",
+			make=f"AC02 Make {suffix}",
+			model=f"AC02 Model {suffix}",
+			tank_capacity_litres=60,
+		)
 		self.person = self._insert("Fleet Person", person_name=f"AC02 Person {suffix}")
 		self.north_station = self._insert(
 			"Fuel Station",
@@ -127,7 +133,7 @@ class TestFleetPermissionIntegration(IntegrationTestCase):
 			asset_identifier=identifier,
 			asset_type="Vehicle",
 			fuel_type=self.fuel_type.name,
-			tank_capacity_litres=60,
+			vehicle_model=self.vehicle_model.name,
 			target_km_per_litre=10,
 			assignments=[
 				{

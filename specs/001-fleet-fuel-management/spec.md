@@ -54,7 +54,7 @@ discrepancies remain visible without silently changing source values.
 - D-1 — The app is standalone on Frappe 16.22.0 with no ERPNext dependency.
 - D-2 — Vehicles default to full-tank authorization. A partial fill requires an exact approved
   target and reason. Generators authorize a maximum quantity.
-- D-3 — Asset fuel type and tank capacity are controlled master facts. Station, fuel type,
+- D-3 — Asset fuel type and vehicle-model tank capacity are controlled master facts. Station, fuel type,
   asset, fill mode, and validity must match the approved order; mismatches are blocked.
 - D-4 — The actual requester, driver, custodian, and company representative are people, not
   necessarily system users. Frappe records the users who enter, submit, approve, and cancel.
@@ -152,8 +152,8 @@ No custom API, cache, microservice, external OCR service, or price dependency is
 | Fleet Location | Name and active flag; User Permissions determine which Fleet Users and Approvers may act there. |
 | Fuel Station | Name, active/approved flag, and operational location; a location may define a default station. |
 | Fuel Type | Name and active flag. |
-| Vehicle Model | Make, model, and descriptive engine capacity in CC. |
-| Fleet Asset | Vehicle/Generator type, unique identifier, active flag, stable fuel type and tank capacity, current target, optional model, and tolerance override. |
+| Vehicle Model | Make, model, descriptive engine capacity in CC, and tank capacity in litres. |
+| Fleet Asset | Vehicle/Generator type, unique identifier, active flag, stable fuel type, linked vehicle model, current target, and tolerance override. |
 | Asset Assignment | Child history with custodian, assigned location, effective-from/until, optional primary driver, and reason; periods cannot overlap. |
 | Fleet Management Settings | Defaults for 2% tolerance, 10%/20% bands, 3-day validity, print instruction, 48-hour entry SLA, Holiday List, and reminders. |
 | Meter Reset | Asset, reset date, old reading, new baseline, reason, evidence, and Fleet Admin authorization. |

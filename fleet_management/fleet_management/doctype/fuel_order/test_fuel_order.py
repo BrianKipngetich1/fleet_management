@@ -16,6 +16,12 @@ class TestFuelOrder(IntegrationTestCase):
 			"Fleet Location", location_name=f"AC01 Inactive Location {suffix}", active=0
 		)
 		self.fuel_type = self._insert("Fuel Type", fuel_type_name=f"AC01 Diesel {suffix}")
+		self.vehicle_model = self._insert(
+			"Vehicle Model",
+			make=f"AC01 Make {suffix}",
+			model=f"AC01 Model {suffix}",
+			tank_capacity_litres=60,
+		)
 		self.inactive_fuel_type = self._insert(
 			"Fuel Type", fuel_type_name=f"AC01 Inactive Fuel {suffix}", active=0
 		)
@@ -49,7 +55,7 @@ class TestFuelOrder(IntegrationTestCase):
 			"Fleet Asset",
 			asset_identifier=f"AC01 Asset {suffix}",
 			fuel_type=self.fuel_type.name,
-			tank_capacity_litres=60,
+			vehicle_model=self.vehicle_model.name,
 			target_km_per_litre=10,
 			assignments=[dict(assignment)],
 		)
@@ -57,7 +63,7 @@ class TestFuelOrder(IntegrationTestCase):
 			"Fleet Asset",
 			asset_identifier=f"AC01 Inactive Asset {suffix}",
 			fuel_type=self.fuel_type.name,
-			tank_capacity_litres=60,
+			vehicle_model=self.vehicle_model.name,
 			target_km_per_litre=10,
 			assignments=[dict(assignment)],
 			active=0,
@@ -445,7 +451,6 @@ class TestFuelOrder(IntegrationTestCase):
 			asset_identifier=f"AC04 Generator {frappe.generate_hash(length=8)}",
 			asset_type="Generator",
 			fuel_type=self.fuel_type.name,
-			tank_capacity_litres=500,
 			target_km_per_litre=10,
 			assignments=[
 				{

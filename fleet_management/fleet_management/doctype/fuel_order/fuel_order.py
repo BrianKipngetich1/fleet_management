@@ -163,10 +163,13 @@ class FuelOrder(Document):
 			)
 
 	def _validate_assignment_snapshot(self):
+		asset_type = self._asset_type()
 		missing = [
 			fieldname
 			for fieldname in SNAPSHOT_FIELDS
-			if fieldname != "assignment_effective_until" and self.get(fieldname) in (None, "")
+			if fieldname != "assignment_effective_until"
+			and (fieldname != "asset_tank_capacity_snapshot" or asset_type == "Vehicle")
+			and self.get(fieldname) in (None, "")
 		]
 		if missing:
 			frappe.throw(

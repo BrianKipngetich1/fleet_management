@@ -4,5 +4,6 @@
 
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated
+fleet_management.patches.vehicle_model_tank_capacity
 fleet_management.patches.phase_0_snapshots
 fleet_management.patches.fuel_order_asset_type
