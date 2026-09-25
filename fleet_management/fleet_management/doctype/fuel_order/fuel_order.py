@@ -7,6 +7,7 @@ from frappe.utils import flt, get_datetime, now_datetime
 
 from fleet_management.fleet_management.doctype.fleet_asset.fleet_asset import (
 	get_assignment_snapshot,
+	get_effective_assignment,
 )
 from fleet_management.permissions import get_permitted_location_names
 from fleet_management.notifications import notify_fuel_order
@@ -68,6 +69,7 @@ class FuelOrder(Document):
 	def before_validate(self):
 		self._set_request_datetime()
 		self._set_asset_assignment_snapshot()
+		self._set_previous_entry()
 		if self.asset and not self.fuel_type:
 			self.fuel_type = frappe.db.get_value("Fleet Asset", self.asset, "fuel_type")
 		if not self.quantity_authorization:
@@ -140,6 +142,12 @@ class FuelOrder(Document):
 			self.set(fieldname, value)
 		# The custodian is a fact of the effective assignment, not a choice (spec 002 D-4).
 		self.custodian = snapshot["assigned_custodian_snapshot"]
+
+	def _set_previous_entry(self):
+		# Recomputed until approval, then frozen with the approval snapshot (spec 002 D-5).
+		if not self.asset or (self.docstatus == 1 and self.workflow_state == "Approved"):
+			return
+		self.update(get_previous_entry(self.asset, exclude_order=None if self.is_new() else self.name))
 
 	def _asset_type(self):
 		return frappe.db.get_value("Fleet Asset", self.asset, "asset_type") if self.asset else None
@@ -468,3 +476,63 @@ class FuelOrder(Document):
 			# integration tests inside their existing transaction boundary.
 			if getattr(frappe.local, "request", None):
 				frappe.db.commit()
+
+
+def get_previous_entry(asset, exclude_order=None):
+	"""Previous Entry (spec 002 D-5): the last completed fueling, else the last approved order, else none."""
+	asset_type = frappe.db.get_value("Fleet Asset", asset, "asset_type")
+	meter_field = "vehicle_odometer" if asset_type == "Vehicle" else "hour_meter"
+	fueling = frappe.get_all(
+		"Fueling Transaction",
+		filters={"asset": asset, "docstatus": 1},
+		fields=["name", meter_field, "actual_fueling_datetime"],
+		order_by="actual_fueling_datetime desc, creation desc",
+		limit=1,
+	)
+	if fueling:
+		return {
+			"previous_entry_source": f"Fueling {fueling[0].name}",
+			"previous_meter_reading": fueling[0].get(meter_field),
+			"previous_entry_date": fueling[0].actual_fueling_datetime,
+		}
+
+	filters = {"asset": asset, "docstatus": 1, "workflow_state": "Approved"}
+	if exclude_order:
+		filters["name"] = ("!=", exclude_order)
+	order = frappe.get_all(
+		"Fuel Order",
+		filters=filters,
+		fields=["name", "request_meter_reading", "approved_on"],
+		order_by="approved_on desc, creation desc",
+		limit=1,
+	)
+	if order:
+		return {
+			"previous_entry_source": f"Approved order {order[0].name}",
+			"previous_meter_reading": order[0].request_meter_reading,
+			"previous_entry_date": order[0].approved_on,
+		}
+	return {"previous_entry_source": "none", "previous_meter_reading": None, "previous_entry_date": None}
+
+
+@frappe.whitelist()
+def get_request_facts(asset: str):
+	"""What the form fills in on choosing a vehicle (spec 002 D-4, D-5); the server sets it again on save."""
+	asset_doc = frappe.get_doc("Fleet Asset", asset)
+	asset_doc.check_permission("read")
+	assignment = get_effective_assignment(asset_doc)
+	stations = []
+	if assignment:
+		stations = frappe.get_all(
+			"Fuel Station",
+			filters={"operational_location": assignment.assigned_location, "active": 1, "approved": 1},
+			pluck="name",
+			limit=2,
+		)
+	return {
+		**(get_assignment_snapshot(asset_doc) or {}),
+		"custodian": assignment.custodian if assignment else None,
+		"primary_driver": assignment.primary_driver if assignment else None,
+		"suggested_station": stations[0] if len(stations) == 1 else None,
+		**get_previous_entry(asset_doc.name),
+	}

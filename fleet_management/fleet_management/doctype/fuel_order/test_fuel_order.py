@@ -6,6 +6,11 @@ from frappe.model.workflow import apply_workflow
 from frappe.tests import IntegrationTestCase
 from frappe.utils import get_datetime, getdate, now_datetime
 
+from fleet_management.fleet_management.doctype.fuel_order.fuel_order import (
+	get_previous_entry,
+	get_request_facts,
+)
+
 
 class TestFuelOrder(IntegrationTestCase):
 	def setUp(self):
@@ -551,6 +556,69 @@ class TestFuelOrder(IntegrationTestCase):
 		self.assertEqual(order.asset_target_km_per_litre_snapshot, 10)
 		self.assertEqual(order.assigned_location_snapshot, self.location.name)
 		self.assertEqual(order.fuel_type, self.fuel_type.name)
+
+	def test_previous_entry_is_none_for_a_vehicle_never_ordered(self):
+		order = self.make_order().insert(ignore_permissions=True)
+
+		self.assertEqual(order.previous_entry_source, "none")
+		self.assertFalse(order.previous_meter_reading)
+		self.assertIsNone(order.previous_entry_date)
+
+	def test_previous_entry_falls_back_to_the_last_approved_order(self):
+		approved, _requester, _approver = self._make_approved_order()
+		order = self.make_order(request_meter_reading=1500).insert(ignore_permissions=True)
+
+		self.assertEqual(order.previous_entry_source, f"Approved order {approved.name}")
+		self.assertEqual(order.previous_meter_reading, approved.request_meter_reading)
+		self.assertEqual(get_datetime(order.previous_entry_date), get_datetime(approved.approved_on))
+
+		# The approved order's own previous entry was computed before it was
+		# approved and is now frozen; it never picks up the new order.
+		persisted_approved = frappe.get_doc("Fuel Order", approved.name)
+		self.assertEqual(persisted_approved.previous_entry_source, "none")
+
+		self.assertEqual(
+			get_previous_entry(self.asset.name, exclude_order=approved.name)["previous_entry_source"],
+			"none",
+		)
+
+	def test_request_facts_suggest_driver_home_location_and_a_single_station(self):
+		suffix = frappe.generate_hash(length=8)
+		location = self._insert("Fleet Location", location_name=f"AC05 Home {suffix}")
+		station = self._insert(
+			"Fuel Station", station_name=f"AC05 Only Station {suffix}", operational_location=location.name
+		)
+		asset = self._insert(
+			"Fleet Asset",
+			asset_identifier=f"AC05 Asset {suffix}",
+			fuel_type=self.fuel_type.name,
+			vehicle_model=self.vehicle_model.name,
+			target_km_per_litre=10,
+			assignments=[
+				{
+					"doctype": "Asset Assignment",
+					"custodian": self.custodian.name,
+					"assigned_location": location.name,
+					"effective_from": "2026-01-01",
+					"primary_driver": self.driver.name,
+				}
+			],
+		)
+
+		facts = get_request_facts(asset.name)
+
+		self.assertEqual(facts["custodian"], self.custodian.name)
+		self.assertEqual(facts["primary_driver"], self.driver.name)
+		self.assertEqual(facts["assigned_location_snapshot"], location.name)
+		self.assertEqual(facts["asset_tank_capacity_snapshot"], 60)
+		self.assertEqual(facts["asset_target_km_per_litre_snapshot"], 10)
+		self.assertEqual(facts["suggested_station"], station.name)
+		self.assertEqual(facts["previous_entry_source"], "none")
+
+		self._insert(
+			"Fuel Station", station_name=f"AC05 Second Station {suffix}", operational_location=location.name
+		)
+		self.assertIsNone(get_request_facts(asset.name)["suggested_station"])
 
 	def test_vehicle_request_gauge_is_required_whole_and_estimates_litres(self):
 		with self.assertRaisesRegex(frappe.ValidationError, "Request gauge is required"):
