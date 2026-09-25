@@ -10,13 +10,13 @@ it happened, including rounds that reviewed the wider 2026-09-18 scope.
 
 | | |
 |---|---|
-| Specification | [`../spec.md`](../spec.md) @ uncommitted working tree on `develop` (D-16) |
-| Status | Ready for review — scope cut back to the initial plan (D-16); three gaps built 2026-09-24 |
-| Started / Closed | 2026-09-17 / — |
+| Specification | [`../spec.md`](../spec.md) @ `07bf479` (D-16) |
+| Status | Complete |
+| Started / Closed | 2026-09-17 / 2026-09-24 |
 | Author | Fleet Management team |
-| Reviewed by | Rishabh Vyas and James Kabochi — 2026-09-24 (wider scope; see Review) |
-| Signed off | BrianKipngetich1 — 2026-09-24, for completed and evidenced work |
-| Landed in | — |
+| Reviewed by | Claude Opus 5.5 — independent review (Phase 0.5), 2026-09-24; Rishabh Vyas — final review of the re-phasing and gap fixes, 2026-09-24 |
+| Signed off | BrianKipngetich1 — 2026-09-24 (merged PR #2) |
+| Landed in | [PR #2](https://github.com/BrianKipngetich1/fleet_management/pull/2) — merge commit `81754a0` |
 | Covers | AC-01, AC-03, AC-04, AC-05, AC-06, AC-19 |
 | Credential inventory | `verification/CREDENTIALS.md` — local-only, gitignored, mode `0600` |
 
@@ -132,11 +132,11 @@ SQLite-era screenshots (`ac03-*`, `ac04-*`) are historical.
 | 2 | 2026-09-21 | Closure verdict, later superseded by the escalation | Implementation agent |
 | Escalation audit | 2026-09-23 | Reopened: list authorization, event-time provenance, concurrency, notifications — all outside the 2026-09-17 scope, now Phases 1–3 | — |
 | Closure evidence review | 2026-09-24 | Completed work accepted; concurrency and log review left open, now Phase 2 and an operations task | Rishabh Vyas and James Kabochi |
+| Independent review | 2026-09-24 | Phase 0.5: this phase had absorbed most of Release 1 and could not close; three gaps inside the 2026-09-17 scope (request gauge and estimate, attendant identity, order Completed condition). Re-phased to the initial plan (D-16) and the gaps were built | Claude Opus 5.5 |
+| Final review | 2026-09-24 | Approved — re-phasing and gap fixes; zero blocking findings | Rishabh Vyas |
 
-**Closure:** Every escalation finding belongs to Phases 1–3. The three gaps inside the narrowed
-scope — request gauge and estimate, attendant identity, and the order's Completed condition —
-were built and observed on 2026-09-24. A review of that change is round 1 of a new cycle, not a
-third round.
+**Closure:** Closed 2026-09-24 with zero blocking findings. The escalation findings belong to
+Phases 1–3; the independent review's three gaps were built and observed; the final review
+approved the re-phasing and the fixes. The independent review is recorded in the Phase 0.5 record.
 
-**Next:** Review round 1 of the gap work in a fresh context; on zero blocking findings Phase 0
-closes and Phase 1 starts.
+**Next:** Phase 1 — location access.

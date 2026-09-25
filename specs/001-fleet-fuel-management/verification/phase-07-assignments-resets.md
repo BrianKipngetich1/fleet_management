@@ -7,7 +7,7 @@ Assignment history was built under the wider 2026-09-18 Phase 0; its evidence is
 
 | | |
 |---|---|
-| Specification | [`../spec.md`](../spec.md) @ uncommitted working tree on `develop` (D-11, D-16) |
+| Specification | [`../spec.md`](../spec.md) @ `07bf479` (D-11, D-16) |
 | Status | Not started — assignments built by Phase 0; resets not built |
 | Started / Closed | — / — |
 | Author | Fleet Management team |

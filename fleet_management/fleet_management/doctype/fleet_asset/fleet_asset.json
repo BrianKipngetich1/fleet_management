@@ -7,10 +7,9 @@
   "active",
   "section_break_asset_facts",
   "fuel_type",
-  "tank_capacity_litres",
+  "vehicle_model",
   "target_km_per_litre",
   "tolerance_percent",
-  "vehicle_model",
   "section_break_assignments",
   "assignments"
  ],
@@ -53,11 +52,12 @@
    "reqd": 1
   },
   {
-   "fieldname": "tank_capacity_litres",
-   "fieldtype": "Float",
-   "label": "Tank Capacity (Litres)",
-   "non_negative": 1,
-   "reqd": 1
+   "depends_on": "eval:doc.asset_type=='Vehicle'",
+   "fieldname": "vehicle_model",
+   "fieldtype": "Link",
+   "label": "Vehicle Model",
+   "mandatory_depends_on": "eval:doc.asset_type=='Vehicle'",
+   "options": "Vehicle Model"
   },
   {
    "fieldname": "target_km_per_litre",
@@ -71,12 +71,6 @@
    "fieldtype": "Float",
    "label": "Tolerance Override (%)",
    "non_negative": 1
-  },
-  {
-   "fieldname": "vehicle_model",
-   "fieldtype": "Link",
-   "label": "Vehicle Model",
-   "options": "Vehicle Model"
   },
   {
    "fieldname": "section_break_assignments",

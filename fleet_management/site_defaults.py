@@ -10,6 +10,12 @@ def ensure_date_format(*args, **kwargs):
 	settings = frappe.get_single("System Settings")
 	if settings.date_format == DATE_FORMAT:
 		return
+	if not frappe.is_setup_complete():
+		# A fresh install has no language or time zone until the setup wizard runs, so a full save
+		# fails validation. Write the value directly; the wizard hook re-asserts it afterwards.
+		frappe.db.set_single_value("System Settings", "date_format", DATE_FORMAT)
+		frappe.db.set_default("date_format", DATE_FORMAT)
+		return
 	settings.date_format = DATE_FORMAT
 	# Saving (not set_single_value) also refreshes the site default that Desk boots from.
 	settings.save(ignore_permissions=True)

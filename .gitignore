@@ -80,3 +80,4 @@ specs/*/verification/screenshots/
 
 # Bench build symlink to the repository node_modules (machine-specific)
 /fleet_management/public/node_modules
+/specs/001-fleet-fuel-management/To Build/

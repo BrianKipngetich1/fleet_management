@@ -1,22 +1,23 @@
 <!--
 The proof document. Written as the phase is verified, from what was actually observed.
-Phase 0.5 is a cleanup phase for Phase 0 and every later phase. On 2026-09-24 it also re-phased
-the specification (D-16); that re-scoped the Phase 0 record and scaffolded the Phase 1–9
-records. No recorded decision changed.
+Phase 0.5 is the independent review of Phase 0, performed by Claude Opus 5.5 on 2026-09-24,
+and the cleanup it led to for Phase 0 and every later phase. It re-phased the specification
+(D-16), which re-scoped the Phase 0 record and scaffolded the Phase 1–9 records; the three Phase 0
+gaps it found were built and are recorded in the Phase 0 record. No recorded decision changed.
 -->
 
 # Phase 0.5 — Test harness, site conventions, and re-phasing
 
 | | |
 |---|---|
-| Specification | [`../spec.md`](../spec.md) @ uncommitted working tree on `develop` (D-14–D-16) |
-| Status | Ready for review |
-| Started / Closed | 2026-09-24 / — |
-| Author | Fleet Management team (agent-prepared) |
-| Reviewed by | — |
-| Signed off | — |
-| Landed in | — |
-| Covers | D-14–D-16; harness defects found while closing Phase 0; re-phasing |
+| Specification | [`../spec.md`](../spec.md) @ `07bf479` (D-14–D-16) |
+| Status | Complete |
+| Started / Closed | 2026-09-24 / 2026-09-24 |
+| Author | Claude Opus 5.5 (independent review of Phase 0), for the Fleet Management team |
+| Reviewed by | Rishabh Vyas — final review of the re-phasing and gap fixes, 2026-09-24 |
+| Signed off | BrianKipngetich1 — 2026-09-24 (merged PR #2) |
+| Landed in | [PR #2](https://github.com/BrianKipngetich1/fleet_management/pull/2) — merge commit `81754a0` |
+| Covers | D-14–D-16; independent review of Phase 0; harness defects; re-phasing |
 | Credential inventory | No new logins; the Phase 0 QA users in `verification/CREDENTIALS.md` were reused |
 
 ## What this phase makes true
@@ -122,8 +123,9 @@ that lands this record.
 
 | Round | Date | Verdict | Closed by |
 |---|---|---|---|
-| 1 | — | Pending — request in a fresh context | — |
+| Independent review of Phase 0 | 2026-09-24 | This phase: Phase 0 over-scoped and unclosable; three gaps inside its initial scope; re-phased (D-16); harness and site conventions repaired | Claude Opus 5.5 |
+| 1 — final review | 2026-09-24 | Approved — re-phasing and gap fixes; zero blocking findings | Rishabh Vyas |
 
-**Closure:** Open until round 1 is recorded.
+**Closure:** Closed 2026-09-24 with zero blocking findings in round 1.
 
-**Next:** Review this phase, then build Phase 0's three gaps and walk it through Desk on MariaDB.
+**Next:** Phase 1 — location access.

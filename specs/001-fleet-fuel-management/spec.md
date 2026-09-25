@@ -12,12 +12,12 @@ Keep the whole file under ~400 lines for its entire life.
 
 | | |
 |---|---|
-| Status | In progress — re-phased 2026-09-24 (D-16); Phases 0 and 0.5 in review |
+| Status | In progress — Phases 0 and 0.5 complete (PR #2); Phase 1 in progress |
 | Owner | Fleet Management team |
 | Started | 2026-09-17 |
 | Approved by / date | — |
 | Approved revision | — |
-| Branch | develop |
+| Branch | feature/001-phase-1 |
 
 ## Problem
 
@@ -54,7 +54,7 @@ discrepancies remain visible without silently changing source values.
 - D-1 — The app is standalone on Frappe 16.22.0 with no ERPNext dependency.
 - D-2 — Vehicles default to full-tank authorization. A partial fill requires an exact approved
   target and reason. Generators authorize a maximum quantity.
-- D-3 — Asset fuel type and tank capacity are controlled master facts. Station, fuel type,
+- D-3 — Asset fuel type and vehicle-model tank capacity are controlled master facts. Station, fuel type,
   asset, fill mode, and validity must match the approved order; mismatches are blocked.
 - D-4 — The actual requester, driver, custodian, and company representative are people, not
   necessarily system users. Frappe records the users who enter, submit, approve, and cancel.
@@ -78,8 +78,9 @@ discrepancies remain visible without silently changing source values.
   qualifying record outside the selected range.
 - D-14 — Every site shows and accepts dates as day/month/year; installing, setting up, or
   upgrading a site restores that format if anything changed it.
-- D-15 — All testing uses the one dedicated test site. It keeps its test data, users, and access
-  probes as a record of what was tested; the development site never receives test records.
+- D-15 — All testing uses the one dedicated test site; the development site never receives test
+  records. *Superseded 2026-09-25 by 002 D-14:* the test site is disposable — built from fixed
+  sample data for each test session and thrown away afterwards — and is no longer kept as a record.
 - D-16 — Phase 0 is only the tracer bullet planned on 2026-09-17: request, approve, print, fuel,
   attach, submit, and a first baseline. Each later capability is its own phase of one to four
   criteria, credited with any work built early. Chosen over the 2026-09-18 scope, which absorbed
@@ -152,8 +153,8 @@ No custom API, cache, microservice, external OCR service, or price dependency is
 | Fleet Location | Name and active flag; User Permissions determine which Fleet Users and Approvers may act there. |
 | Fuel Station | Name, active/approved flag, and operational location; a location may define a default station. |
 | Fuel Type | Name and active flag. |
-| Vehicle Model | Make, model, and descriptive engine capacity in CC. |
-| Fleet Asset | Vehicle/Generator type, unique identifier, active flag, stable fuel type and tank capacity, current target, optional model, and tolerance override. |
+| Vehicle Model | Make, model, descriptive engine capacity in CC, and tank capacity in litres. |
+| Fleet Asset | Vehicle/Generator type, unique identifier, active flag, stable fuel type, linked vehicle model, current target, and tolerance override. |
 | Asset Assignment | Child history with custodian, assigned location, effective-from/until, optional primary driver, and reason; periods cannot overlap. |
 | Fleet Management Settings | Defaults for 2% tolerance, 10%/20% bands, 3-day validity, print instruction, 48-hour entry SLA, Holiday List, and reminders. |
 | Meter Reset | Asset, reset date, old reading, new baseline, reason, evidence, and Fleet Admin authorization. |
@@ -332,8 +333,8 @@ One capability per phase (D-16). Build state is as of 2026-09-24; each phase rec
 
 | Phase | User-visible outcome | Criteria | Build state |
 |---|---|---|---|
-| 0 — Core vehicle journey | A Fleet User requests on behalf of a driver, a different Approver approves or rejects, the slip prints, and a transaction with both signed documents completes the order and records a first baseline. | AC-01, 03, 04, 05, 06, 19 | Built; in review |
-| 0.5 — Harness, conventions, re-phasing | Test evidence is trustworthy and the plan closes one phase at a time. | D-14–D-16 | Built |
+| 0 — Core vehicle journey | A Fleet User requests on behalf of a driver, a different Approver approves or rejects, the slip prints, and a transaction with both signed documents completes the order and records a first baseline. | AC-01, 03, 04, 05, 06, 19 | Complete (PR #2) |
+| 0.5 — Harness, conventions, re-phasing | Test evidence is trustworthy and the plan closes one phase at a time. | D-14–D-16 | Complete (PR #2) |
 | 1 — Location access | People see and act only on their permitted locations. | AC-02 | Built by Phase 0 |
 | 2 — Integrity and hard blocks | Mismatched, duplicate, rolled-back, or concurrent submissions are refused; fueling time is provable. | AC-07, 10, 20 | Built by Phase 0; concurrency proof open |
 | 3 — Validity and notifications | Approvers extend or cancel orders with history; slips show validity; the right people are told. | AC-08, 21, 22, 23 | Built by Phase 0 except Approver cancellation |
@@ -384,9 +385,10 @@ reports use IntegrationTestCase on the test site, covering both sides of every b
 phase record lists its own rows and adds an `agent-browser` Desk walkthrough as its roles.
 
 ~~~sh
-bench --site fleet_management-test.localhost migrate
+bench fleet-test-site up --replace      # fresh test site from the current code and sample data
 bench --site fleet_management-test.localhost run-tests --app fleet_management
 npm run test:ui
+bench fleet-test-site down              # or: npm run test:all for the whole cycle
 ~~~
 
 A phase starts only after the one before it closes, or when the owner records another order in
@@ -411,7 +413,7 @@ PROGRESS. Manual acceptance also covers physical signatures and mobile-width ent
 
 - 2026-09-18 — Revised after architecture review: simplified roles/reports, separated people
   from users and approval from fulfillment, narrowed assignment history, and corrected formulas.
-- 2026-09-23 — Phase 0 (wider scope) closure gate: 59 backend and 22/22 Playwright tests, SQLite
-  era; signed off 2026-09-24 for completed work. [Phase 0](verification/phase-00-tracer-bullet.md)
-- 2026-09-24 — Phase 0.5 added D-14–D-16, cleaned up the harness, and re-phased the plan; Phase 0
-  was cut back to the 2026-09-17 plan. [Phase 0.5](verification/phase-00.5-test-harness-cleanup.md)
+- 2026-09-24 — Phase 0 ✅ core vehicle journey; independent review by Claude Opus 5.5 (Phase 0.5),
+  final review by Rishabh Vyas, merged in PR #2. [Phase 0](verification/phase-00-tracer-bullet.md)
+- 2026-09-24 — Phase 0.5 ✅ harness, conventions, re-phasing (D-14–D-16), merged in PR #2.
+  [Phase 0.5](verification/phase-00.5-test-harness-cleanup.md)

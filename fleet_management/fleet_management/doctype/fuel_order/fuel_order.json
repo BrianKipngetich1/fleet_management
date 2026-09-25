@@ -5,12 +5,12 @@
  "field_order": [
   "naming_series",
   "request_datetime",
+  "asset",
   "actual_requester",
   "driver",
   "custodian",
   "company_representative",
   "section_break_request_facts",
-  "asset",
   "asset_type",
   "operational_location",
   "assigned_location_snapshot",
@@ -62,6 +62,14 @@
    "reqd": 1
   },
   {
+   "fieldname": "asset",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Asset",
+   "options": "Fleet Asset",
+   "reqd": 1
+  },
+  {
    "fieldname": "actual_requester",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -101,14 +109,6 @@
    "fieldname": "section_break_request_facts",
    "fieldtype": "Section Break",
    "label": "Request Facts"
-  },
-  {
-   "fieldname": "asset",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Asset",
-   "options": "Fleet Asset",
-   "reqd": 1
   },
   {
    "fetch_from": "asset.asset_type",

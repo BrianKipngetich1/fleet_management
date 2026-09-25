@@ -132,8 +132,10 @@ class FuelingTransaction(Document):
 		for fieldname in SNAPSHOT_FIELDS:
 			self.set(fieldname, order.get(fieldname))
 
+		asset_type = frappe.db.get_value("Fleet Asset", order.asset, "asset_type")
 		if any(
 			fieldname != "assignment_effective_until"
+			and (fieldname != "asset_tank_capacity_snapshot" or asset_type == "Vehicle")
 			and self.get(fieldname) in (None, "")
 			for fieldname in SNAPSHOT_FIELDS
 		):

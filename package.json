@@ -5,7 +5,10 @@
 	"scripts": {
 		"test:ui": "playwright test",
 		"test:ui:headed": "playwright test --headed",
-		"test:ui:report": "playwright show-report"
+		"test:ui:report": "playwright show-report",
+		"test:site:up": "cd ../.. && bench fleet-test-site up --replace",
+		"test:site:down": "cd ../.. && bench fleet-test-site down",
+		"test:all": "scripts/test-cycle.sh"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.56.0"

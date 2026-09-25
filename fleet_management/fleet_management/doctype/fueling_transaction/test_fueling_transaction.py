@@ -78,6 +78,12 @@ class TestFuelingTransaction(IntegrationTestCase):
 		)
 		self.fuel_type = self._insert("Fuel Type", fuel_type_name=f"AC05 Diesel {suffix}")
 		self.other_fuel_type = self._insert("Fuel Type", fuel_type_name=f"AC07 Petrol {suffix}")
+		self.vehicle_model = self._insert(
+			"Vehicle Model",
+			make=f"AC05 Make {suffix}",
+			model=f"AC05 Model {suffix}",
+			tank_capacity_litres=60,
+		)
 		self.station = self._insert(
 			"Fuel Station",
 			station_name=f"AC05 Station {suffix}",
@@ -93,7 +99,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 			"Fleet Asset",
 			asset_identifier=f"AC05 Asset {suffix}",
 			fuel_type=self.fuel_type.name,
-			tank_capacity_litres=60,
+			vehicle_model=self.vehicle_model.name,
 			target_km_per_litre=10,
 			assignments=[
 				{
@@ -108,7 +114,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 			"Fleet Asset",
 			asset_identifier=f"AC07 Other Asset {suffix}",
 			fuel_type=self.fuel_type.name,
-			tank_capacity_litres=60,
+			vehicle_model=self.vehicle_model.name,
 			target_km_per_litre=10,
 			assignments=[
 				{
@@ -124,7 +130,6 @@ class TestFuelingTransaction(IntegrationTestCase):
 			asset_identifier=f"AC07 Generator {suffix}",
 			asset_type="Generator",
 			fuel_type=self.fuel_type.name,
-			tank_capacity_litres=500,
 			target_km_per_litre=10,
 			assignments=[
 				{

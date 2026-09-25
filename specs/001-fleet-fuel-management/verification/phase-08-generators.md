@@ -7,7 +7,7 @@ Only the generator asset type and hour-meter reading exist; built under the wide
 
 | | |
 |---|---|
-| Specification | [`../spec.md`](../spec.md) @ uncommitted working tree on `develop` (D-2, D-16) |
+| Specification | [`../spec.md`](../spec.md) @ `07bf479` (D-2, D-16) |
 | Status | Not started — partly built (asset type, hour meter) |
 | Started / Closed | — / — |
 | Author | Fleet Management team |

@@ -61,7 +61,7 @@ async function createQaAsset(page: Page, fuelType: string, location: string, cus
 			asset_type: "Vehicle",
 			active: 1,
 			fuel_type: fuelType,
-			tank_capacity_litres: 60,
+			vehicle_model: QA_FIXTURES.vehicleModel,
 			target_km_per_litre: 10,
 			assignments: [
 				{

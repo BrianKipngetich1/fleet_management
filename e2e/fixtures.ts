@@ -1,34 +1,47 @@
 // The only file in e2e/ that carries project facts. Fill it once; every spec in
 // e2e/tests/ is driven from it. See CLAUDE.md "UI verification workflow".
 
+// Sample-data logins: Philip enters orders, Vikas approves them, Amina approves only Mombasa.
 export const USERS = {
 	primary: {
-		email: "desk.qa.requester.20260919@example.com",
+		email: "philip.test@example.com",
 		role: "Fleet User",
 		state: "e2e/.auth/primary.json",
 	},
 	restricted: {
-		email: "desk.qa.restricted.20260919@example.com",
+		email: "amina.test@example.com",
 		role: "Fleet Approver",
 		state: "e2e/.auth/restricted.json",
 	},
 	approver: {
-		email: "desk.qa.approver.20260919@example.com",
+		email: "vikas.test@example.com",
 		role: "Fleet Approver",
 		state: "e2e/.auth/approver.json",
 	},
 	admin: { email: "Administrator", role: "Administrator", state: "e2e/.auth/admin.json" },
 } as const;
 
+// Records from the sample data (fleet_management/sample_data.py) that every test site is built
+// with — `bench fleet-test-site up`. The suite never creates master data or users of its own; it
+// fails fast when these are missing. KDH 201A is the Nairobi pool vehicle with no history, kept
+// for the suite's generic orders so the realistic vehicle histories stay untouched.
 export const QA_FIXTURES = {
 	locations: ["Gongoni", "Marereni", "Mombasa", "Nairobi"],
 	fuelTypes: ["Diesel", "Petrol"],
-	station: "Synthetic Nairobi Station",
-	asset: "Synthetic Nairobi Vehicle",
-	requester: "Synthetic Requester",
-	driver: "Synthetic Driver",
-	custodian: "Synthetic Custodian",
-	representative: "Synthetic Company Representative",
+	station: "Mombasa Road Service Station",
+	asset: "KDH 201A",
+	vehicleModel: "Isuzu - D-Max 3.0 Double Cab",
+	requester: "Daniel Kiptoo",
+	driver: "Joseph Mutua",
+	custodian: "Grace Wanjiku",
+	representative: "Lucy Njeri",
+} as const;
+
+// The location each suite user is granted by the sample data.
+export const USER_LOCATIONS = {
+	primary: "Nairobi",
+	restricted: "Mombasa",
+	approver: "Nairobi",
 } as const;
 
 // Every site uses Frappe's dd/mm/yyyy date format (CLAUDE.md "Dates"). Checks and typed dates

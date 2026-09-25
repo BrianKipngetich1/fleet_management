@@ -7,7 +7,7 @@ The km/L interval was built under the wider 2026-09-18 Phase 0; its evidence is 
 
 | | |
 |---|---|
-| Specification | [`../spec.md`](../spec.md) @ uncommitted working tree on `develop` (D-2, D-12, D-16) |
+| Specification | [`../spec.md`](../spec.md) @ `07bf479` (D-2, D-12, D-16) |
 | Status | Not started — partly built by Phase 0 |
 | Started / Closed | — / — |
 | Author | Fleet Management team |

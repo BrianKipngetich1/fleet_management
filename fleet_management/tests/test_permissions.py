@@ -97,6 +97,12 @@ class TestFleetPermissionIntegration(IntegrationTestCase):
 		self.north = self._insert("Fleet Location", location_name=f"AC02 North {suffix}")
 		self.south = self._insert("Fleet Location", location_name=f"AC02 South {suffix}")
 		self.fuel_type = self._insert("Fuel Type", fuel_type_name=f"AC02 Diesel {suffix}")
+		self.vehicle_model = self._insert(
+			"Vehicle Model",
+			make=f"AC02 Make {suffix}",
+			model=f"AC02 Model {suffix}",
+			tank_capacity_litres=60,
+		)
 		self.person = self._insert("Fleet Person", person_name=f"AC02 Person {suffix}")
 		self.north_station = self._insert(
 			"Fuel Station",
@@ -127,7 +133,7 @@ class TestFleetPermissionIntegration(IntegrationTestCase):
 			asset_identifier=identifier,
 			asset_type="Vehicle",
 			fuel_type=self.fuel_type.name,
-			tank_capacity_litres=60,
+			vehicle_model=self.vehicle_model.name,
 			target_km_per_litre=10,
 			assignments=[
 				{
@@ -139,20 +145,22 @@ class TestFleetPermissionIntegration(IntegrationTestCase):
 			],
 		)
 
-	def _insert_order(self, location, station, asset):
-		return self._insert(
-			"Fuel Order",
-			request_datetime="2026-01-01 10:00:00",
-			actual_requester=self.person.name,
-			driver=self.person.name,
-			custodian=self.person.name,
-			company_representative=self.person.name,
-			asset=asset.name,
-			operational_location=location.name,
-			planned_station=station.name,
-			request_meter_reading=1000,
-			request_gauge_percent=40,
-		)
+	def _insert_order(self, location, station, asset, ignore_permissions=True):
+		return frappe.get_doc(
+			{
+				"doctype": "Fuel Order",
+				"request_datetime": "2026-01-01 10:00:00",
+				"actual_requester": self.person.name,
+				"driver": self.person.name,
+				"custodian": self.person.name,
+				"company_representative": self.person.name,
+				"asset": asset.name,
+				"operational_location": location.name,
+				"planned_station": station.name,
+				"request_meter_reading": 1000,
+				"request_gauge_percent": 40,
+			}
+		).insert(ignore_permissions=ignore_permissions)
 
 	def _user(self, role, location=None):
 		email = f"ac02-{frappe.generate_hash(length=8)}@example.com"
@@ -165,14 +173,15 @@ class TestFleetPermissionIntegration(IntegrationTestCase):
 				"roles": [{"doctype": "Has Role", "role": role}],
 			}
 		).insert(ignore_permissions=True)
-		frappe.get_doc(
-			{
-				"doctype": "User Permission",
-				"user": user.name,
-				"allow": "Fleet Location",
-				"for_value": location or self.north.name,
-			}
-		).insert(ignore_permissions=True)
+		if role != "Fleet Admin":
+			frappe.get_doc(
+				{
+					"doctype": "User Permission",
+					"user": user.name,
+					"allow": "Fleet Location",
+					"for_value": location or self.north.name,
+				}
+			).insert(ignore_permissions=True)
 		frappe.clear_cache(user=user.name)
 		return user.name
 
@@ -263,3 +272,37 @@ class TestFleetPermissionIntegration(IntegrationTestCase):
 					report_name=report.name,
 					filters="{}",
 				)
+
+	def test_fleet_user_can_create_orders_only_for_permitted_assets(self):
+		user = self._user("Fleet User")
+
+		with self.set_user(user):
+			north_order = self._insert_order(
+				self.north, self.north_station, self.north_asset, ignore_permissions=False
+			)
+			self.assertEqual(north_order.assigned_location_snapshot, self.north.name)
+			with self.assertRaises(frappe.PermissionError):
+				self._insert_order(
+					self.south, self.south_station, self.south_asset, ignore_permissions=False
+				)
+
+	def test_planned_station_must_match_operational_location(self):
+		with self.assertRaisesRegex(
+			frappe.ValidationError,
+			r"Planned station must belong to the operational location\.",
+		):
+			self._insert_order(self.north, self.south_station, self.north_asset)
+
+	def test_fleet_admin_can_create_orders_for_any_location(self):
+		admin = self._user("Fleet Admin")
+
+		with self.set_user(admin):
+			north_order = self._insert_order(
+				self.north, self.north_station, self.north_asset, ignore_permissions=False
+			)
+			south_order = self._insert_order(
+				self.south, self.south_station, self.south_asset, ignore_permissions=False
+			)
+
+		self.assertEqual(north_order.assigned_location_snapshot, self.north.name)
+		self.assertEqual(south_order.assigned_location_snapshot, self.south.name)
