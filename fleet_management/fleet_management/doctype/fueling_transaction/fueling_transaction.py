@@ -72,6 +72,79 @@ def calculate_vehicle_interval(previous_odometer, current_odometer, qualifying_l
 	}
 
 
+def resolve_attached_file(doc, fieldname, label, missing_message=None):
+	"""Return the File attached to a document's field, or refuse."""
+	value = doc.get(fieldname)
+	if not value:
+		frappe.throw(
+			missing_message or frappe._("{0} attachment is required before submission.").format(label),
+			frappe.ValidationError,
+		)
+
+	file_url = value.split("?", 1)[0]
+	file_name = frappe.db.get_value(
+		"File",
+		{
+			"file_url": file_url,
+			"attached_to_doctype": doc.doctype,
+			"attached_to_name": doc.name,
+			"attached_to_field": fieldname,
+			"is_folder": 0,
+		},
+		"name",
+	)
+	if not file_name:
+		target = "transaction" if doc.doctype == "Fueling Transaction" else "document"
+		frappe.throw(
+			frappe._("{0} must resolve to a File attached to this {1}.").format(label, target),
+			frappe.ValidationError,
+		)
+
+	return frappe.get_doc("File", file_name)
+
+
+def validate_evidence_file(
+	file_doc, label, allowed_types=ALLOWED_EVIDENCE_TYPES, type_names="PDF, JPG, or PNG"
+):
+	"""Refuse an attachment that is not a private file of an allowed, genuine type."""
+	if not file_doc.is_private or not (file_doc.file_url or "").startswith("/private/files/"):
+		frappe.throw(
+			frappe._("{0} must be a private attachment.").format(label), frappe.ValidationError
+		)
+
+	extension = Path(file_doc.file_name or "").suffix.lower()
+	expected_mime = allowed_types.get(extension)
+	if not expected_mime:
+		frappe.throw(
+			frappe._("{0} must be a {1} file.").format(label, type_names), frappe.ValidationError
+		)
+
+	try:
+		content = file_doc.get_content(encodings=())
+	except (OSError, frappe.ValidationError):
+		frappe.throw(
+			frappe._("{0} could not be read as a valid attachment.").format(label),
+			frappe.ValidationError,
+		)
+
+	if isinstance(content, str):
+		content = content.encode()
+	if not isinstance(content, bytes):
+		content = bytes(content)
+
+	if len(content) > get_max_file_size():
+		frappe.throw(
+			frappe._("{0} exceeds the maximum permitted file size.").format(label),
+			frappe.ValidationError,
+		)
+
+	if filetype.guess_mime(content) != expected_mime:
+		frappe.throw(
+			frappe._("{0} does not contain a valid {1} file.").format(label, extension.lstrip(".")),
+			frappe.ValidationError,
+		)
+
+
 class FuelingTransaction(Document):
 	def before_validate(self):
 		self._set_location_from_order()
@@ -477,67 +550,7 @@ class FuelingTransaction(Document):
 					)
 
 	def _resolve_file(self, fieldname, label):
-		value = self.get(fieldname)
-		if not value:
-			frappe.throw(
-				frappe._("{0} attachment is required before submission.").format(label),
-				frappe.ValidationError,
-			)
-
-		file_url = value.split("?", 1)[0]
-		file_name = frappe.db.get_value(
-			"File",
-			{
-				"file_url": file_url,
-				"attached_to_doctype": self.doctype,
-				"attached_to_name": self.name,
-				"attached_to_field": fieldname,
-				"is_folder": 0,
-			},
-			"name",
-		)
-		if not file_name:
-			frappe.throw(
-				frappe._("{0} must resolve to a File attached to this transaction.").format(label),
-				frappe.ValidationError,
-			)
-
-		return frappe.get_doc("File", file_name)
+		return resolve_attached_file(self, fieldname, label)
 
 	def _validate_file(self, file_doc, label):
-		if not file_doc.is_private or not (file_doc.file_url or "").startswith("/private/files/"):
-			frappe.throw(
-				frappe._("{0} must be a private attachment.").format(label), frappe.ValidationError
-			)
-
-		extension = Path(file_doc.file_name or "").suffix.lower()
-		expected_mime = ALLOWED_EVIDENCE_TYPES.get(extension)
-		if not expected_mime:
-			frappe.throw(
-				frappe._("{0} must be a PDF, JPG, or PNG file.").format(label), frappe.ValidationError
-			)
-
-		try:
-			content = file_doc.get_content(encodings=())
-		except (OSError, frappe.ValidationError):
-			frappe.throw(
-				frappe._("{0} could not be read as a valid attachment.").format(label),
-				frappe.ValidationError,
-			)
-
-		if isinstance(content, str):
-			content = content.encode()
-		if not isinstance(content, bytes):
-			content = bytes(content)
-
-		if len(content) > get_max_file_size():
-			frappe.throw(
-				frappe._("{0} exceeds the maximum permitted file size.").format(label),
-				frappe.ValidationError,
-			)
-
-		if filetype.guess_mime(content) != expected_mime:
-			frappe.throw(
-				frappe._("{0} does not contain a valid {1} file.").format(label, extension.lstrip(".")),
-				frappe.ValidationError,
-			)
+		validate_evidence_file(file_doc, label)
