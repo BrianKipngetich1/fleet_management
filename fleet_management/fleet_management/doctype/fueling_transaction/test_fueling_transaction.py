@@ -10,15 +10,17 @@ from frappe.tests import IntegrationTestCase, UnitTestCase
 from frappe.utils import get_datetime, now_datetime
 from PIL import Image
 
+from fleet_management.fleet_management.doctype.fuel_order.fuel_order import get_previous_entry
+from fleet_management.fleet_management.doctype.fueling_transaction.fueling_transaction import (
+	calculate_vehicle_interval,
+)
 from fleet_management.tests.concurrency_proof import (
 	EXPECTED_UNIQUE_INDEXES,
 	assert_concurrency_site,
 	run_locked_order_overlap,
 	unique_index_names,
 )
-from fleet_management.fleet_management.doctype.fueling_transaction.fueling_transaction import (
-	calculate_vehicle_interval,
-)
+from fleet_management.tests.utils import attach_request_photos
 
 
 PDF_CONTENT = (
@@ -190,7 +192,8 @@ class TestFuelingTransaction(IntegrationTestCase):
 	def _make_approved_order(self, location, station, requester, approver, asset=None):
 		with self.set_user(requester):
 			order = apply_workflow(
-				self._make_order(location, station, asset=asset).insert(), "Submit for Approval"
+				attach_request_photos(self._make_order(location, station, asset=asset).insert()),
+				"Submit for Approval",
 			)
 		with self.set_user(approver):
 			order = apply_workflow(order, "Approve")
@@ -362,6 +365,23 @@ class TestFuelingTransaction(IntegrationTestCase):
 							},
 						)
 					)
+
+	def test_previous_entry_is_the_last_completed_fueling(self):
+		# 002 AC-06: the last completed, not cancelled fueling; after cancelling it, the approved order.
+		transaction = self._submit_valid_transaction()
+		order = frappe.get_doc("Fuel Order", transaction.fuel_order)
+
+		entry = get_previous_entry(order.asset)
+		self.assertEqual(entry["previous_entry_source"], f"Fueling {transaction.name}")
+		self.assertEqual(entry["previous_meter_reading"], transaction.vehicle_odometer)
+		self.assertEqual(
+			get_datetime(entry["previous_entry_date"]), get_datetime(transaction.actual_fueling_datetime)
+		)
+
+		admin = self._user(("Fleet Admin",), self.location.name)
+		with self.set_user(admin):
+			frappe.get_doc("Fueling Transaction", transaction.name).cancel()
+		self.assertEqual(get_previous_entry(order.asset)["previous_entry_source"], f"Approved order {order.name}")
 
 	def test_extension_requires_current_print_and_rejects_stale_signed_slip(self):
 		order = self._make_approved_order(self.location, self.station, self.user, self.approver)

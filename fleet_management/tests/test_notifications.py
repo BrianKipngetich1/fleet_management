@@ -9,6 +9,7 @@ from frappe.utils import now_datetime
 
 from fleet_management.notifications import notify_fuel_order, send_validity_notifications
 from fleet_management.permissions import get_permitted_location_names
+from fleet_management.tests.utils import attach_request_photos
 
 
 class TestFuelOrderNotifications(IntegrationTestCase):
@@ -110,7 +111,9 @@ class TestFuelOrderNotifications(IntegrationTestCase):
 
 	def _make_approved_order(self):
 		with self.set_user(self.requester):
-			order = apply_workflow(self._make_order().insert(), "Submit for Approval")
+			order = apply_workflow(
+				attach_request_photos(self._make_order().insert()), "Submit for Approval"
+			)
 		with self.set_user(self.approver):
 			order = apply_workflow(order, "Approve")
 		return order
@@ -149,7 +152,9 @@ class TestFuelOrderNotifications(IntegrationTestCase):
 			msg=f"Other approver scope: {get_permitted_location_names(self.other_approver)}",
 		)
 		with self.set_user(self.requester):
-			order = apply_workflow(self._make_order().insert(), "Submit for Approval")
+			order = apply_workflow(
+				attach_request_photos(self._make_order().insert()), "Submit for Approval"
+			)
 
 		logs = [row for row in self._logs(order) if "requires approval" in row.subject]
 		admins = self._users_with_role("Fleet Admin")
@@ -167,8 +172,12 @@ class TestFuelOrderNotifications(IntegrationTestCase):
 
 	def test_approval_and_rejection_notify_submitter_and_fleet_admins(self):
 		with self.set_user(self.requester):
-			approved_order = apply_workflow(self._make_order().insert(), "Submit for Approval")
-			rejected_order = apply_workflow(self._make_order().insert(), "Submit for Approval")
+			approved_order = apply_workflow(
+				attach_request_photos(self._make_order().insert()), "Submit for Approval"
+			)
+			rejected_order = apply_workflow(
+				attach_request_photos(self._make_order().insert()), "Submit for Approval"
+			)
 
 		with self.set_user(self.approver):
 			apply_workflow(approved_order, "Approve")
