@@ -7,9 +7,9 @@ verified, from what was actually observed. Procedure, not transcript. Never reco
 
 | | |
 |---|---|
-| Specification | [`../spec.md`](../spec.md) @ — (awaiting approval) |
-| Status | Not started |
-| Started / Closed | — / — |
+| Specification | [`../spec.md`](../spec.md) @ `3c37dbb` |
+| Status | Building on `feature/002-fuel-order-request-slip` |
+| Started / Closed | 2026-09-25 / — |
 | Author | Fleet Management team |
 | Reviewed by | — |
 | Signed off | — |
@@ -43,6 +43,7 @@ Not yet observed in this phase.
 
 | # | Put the system in this state | Expect | Covers |
 |---|---|---|---|
+| 1 | As Test Fleet Admin, open Fleet Management Settings | A Fuel Order Signal section holds Mileage Margin 15%, Litres Excess Allowance 10% of tank, Gauge Limit 75%, and Minimum Hours Between Fuelings 24; saving a Gauge Limit of 100 is refused | AC-09 |
 
 **How to run it.** Backend rows: `bench --site fleet_management-test.localhost run-tests --app fleet_management`.
 Desk rows: `agent-browser` walkthrough on the test site as the named role.

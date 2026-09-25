@@ -8,7 +8,12 @@
   "default_validity_days",
   "print_instruction",
   "transaction_entry_sla_hours",
-  "holiday_list"
+  "holiday_list",
+  "section_break_signal",
+  "mileage_margin_percent",
+  "litres_excess_percent",
+  "gauge_limit_percent",
+  "min_hours_between_fuelings"
  ],
  "fields": [
   {
@@ -63,6 +68,47 @@
    "fieldtype": "Link",
    "label": "Holiday List",
    "options": "Holiday List"
+  },
+  {
+   "fieldname": "section_break_signal",
+   "fieldtype": "Section Break",
+   "label": "Fuel Order Signal"
+  },
+  {
+   "default": "15",
+   "description": "An order is red when the distance since the previous entry differs from what the fuel used should have covered by more than this.",
+   "fieldname": "mileage_margin_percent",
+   "fieldtype": "Float",
+   "label": "Mileage Margin (%)",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "default": "10",
+   "description": "A litres request is red when it exceeds the room the gauge shows by more than this share of the tank.",
+   "fieldname": "litres_excess_percent",
+   "fieldtype": "Float",
+   "label": "Litres Excess Allowance (% of tank)",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "default": "75",
+   "description": "An order is red when the gauge is above this. Must be below 100.",
+   "fieldname": "gauge_limit_percent",
+   "fieldtype": "Float",
+   "label": "Gauge Limit (%)",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "default": "24",
+   "description": "An order is red when the vehicle was fuelled fewer than this many hours ago.",
+   "fieldname": "min_hours_between_fuelings",
+   "fieldtype": "Float",
+   "label": "Minimum Hours Between Fuelings",
+   "non_negative": 1,
+   "reqd": 1
   }
  ],
  "issingle": 1,
