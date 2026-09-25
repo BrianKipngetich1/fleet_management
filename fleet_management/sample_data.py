@@ -481,6 +481,20 @@ def _new_order(asset, meter, gauge, station, partial_litres=None):
 	entered_by, _approver = _actors(location)
 	frappe.set_user(entered_by)
 	order.insert()
+	# Philip photographs the meter and, for a vehicle, the gauge (spec 002 D-6).
+	generator = _is_generator(asset)
+	photos = {
+		"meter_photo": _evidence(
+			f"{order.name}-meter.png",
+			["METER PHOTO", f"{'Hour meter' if generator else 'Odometer'} {meter}", f"Asset {asset}"],
+		)
+	}
+	if not generator:
+		photos["gauge_photo"] = _evidence(
+			f"{order.name}-gauge.png", ["GAUGE PHOTO", f"Fuel gauge {gauge}%", f"Asset {asset}"]
+		)
+	order.update(photos)
+	order.save()
 	return order
 
 
