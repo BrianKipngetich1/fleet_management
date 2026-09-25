@@ -1,10 +1,10 @@
 import { test as setup } from "@playwright/test";
 import { authenticate } from "../auth";
 import { USERS } from "../fixtures";
-import { ensureQaLocationPermissions } from "../setup";
+import { assertSampleData } from "../setup";
 
-setup("bootstrap QA location permissions", async ({ page }) => {
-	await ensureQaLocationPermissions(page);
+setup("the test site carries the sample data", async ({ page }) => {
+	await assertSampleData(page);
 });
 
 for (const [name, user] of Object.entries(USERS)) {

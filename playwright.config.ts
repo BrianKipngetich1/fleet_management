@@ -30,7 +30,9 @@ export default defineConfig({
 	// by Host header, with Socket.IO, workers and the scheduler alongside it. The suite
 	// reuses that server and never starts a partial one of its own.
 	webServer: {
-		command: "echo 'Test site not reachable on :8000. Start the bench: systemctl --user start frappe-bench.target (or bench start).' >&2; exit 1",
+		// A missing test site answers 404, so it lands here too: the site is disposable and is
+		// built for each test session from the sample data.
+		command: "echo 'Test site not reachable on :8000. Build it with: bench fleet-test-site up --replace (and start the bench if needed: systemctl --user start frappe-bench.target).' >&2; exit 1",
 		url: `${baseURL}/api/method/ping`,
 		reuseExistingServer: true,
 		timeout: 10_000,
