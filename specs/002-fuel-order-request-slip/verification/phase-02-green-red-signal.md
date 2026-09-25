@@ -46,6 +46,7 @@ Not yet observed in this phase.
 | 1 | As Test Fleet Admin, open Fleet Management Settings | A Fuel Order Signal section holds Mileage Margin 15%, Litres Excess Allowance 10% of tank, Gauge Limit 75%, and Minimum Hours Between Fuelings 24; saving a Gauge Limit of 100 is refused | AC-09 |
 | 2 | Take a vehicle order that passes every check; make each of the eight checks fail on its own, once exactly at its limit and once just past it | Exactly at a limit the order stays green; just past it the order is red with that check's reason only; the spec's worked examples (20 L tank, 110 km on an empty gauge, 95% off; 60 L tank at 50% asking for more than 36 L) are red | AC-08, AC-09 — `fleet_management/tests/test_fuel_signal.py` |
 | 3 | A generator order whose readings would fail the vehicle-only checks; then one that is also away from home, too soon, and has an open order | The first is green (only checks 4, 5, and 6 apply to generators); the second lists exactly those three reasons, in order | AC-08 — `test_fuel_signal.py`, generator cases |
+| 4 | As Philip, start a new order for KDA 412M (its approved order at 52,650 km still awaits fuel), fill it in, and save | A red note at the top of the form lists "Open order exists"; the Signal and Signal Reasons fields are read-only and the list view shows the order as Red | AC-08 |
 
 **How to run it.** Backend rows: `bench --site fleet_management-test.localhost run-tests --app fleet_management`.
 Desk rows: `agent-browser` walkthrough on the test site as the named role.

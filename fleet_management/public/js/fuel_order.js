@@ -42,6 +42,20 @@ frappe.ui.form.on("Fuel Order", {
 		if (facts.suggested_station) await frm.set_value("planned_station", facts.suggested_station);
 	},
 	refresh(frm) {
+		// The colour is the server's (spec 002 D-8); show it, with every reason, where the order starts.
+		if (frm.doc.signal) {
+			const reasons = (frm.doc.signal_reasons || "").split("\n").filter(Boolean);
+			const red = frm.doc.signal === "Red";
+			frm.set_intro(
+				red
+					? `<strong>${__("Red")}</strong><br>${reasons.map((r) => frappe.utils.escape_html(r)).join("<br>")}`
+					: `<strong>${__("Green")}</strong>: ${__("every check passed.")}`,
+				red ? "red" : "green",
+			);
+		} else {
+			frm.set_intro("");
+		}
+
 		if (
 			frm.is_new() ||
 			frm.doc.workflow_state !== "Approved" ||
