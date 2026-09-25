@@ -6,9 +6,12 @@ Status history is git's job.
 
 | Specification | Status | Phases | Next action |
 |---|---|---|---|
-| [001 — Fleet and Fuel Management](specs/001-fleet-fuel-management/spec.md) | In progress — Phases 0 and 0.5 complete (PR #2: independent review by Claude Opus 5.5, final review by Rishabh Vyas); Phase 1 in progress on `feature/001-phase-1` | Phase 0 ✅ AC-01, 03, 04, 05, 06, 19 · Phase 0.5 ✅ D-14–D-16 · Phases 1–9 AC-02, 07–18, 20–28, each record stating built / partly built / not built | Phase 1 (location access, AC-02): add tests for asset and station choice (rows 5–6), rerun rows 1–7 on MariaDB, walk through Desk |
+| [001 — Fleet and Fuel Management](specs/001-fleet-fuel-management/spec.md) | **Parked** at Phase 1 for 002 (owner, 2026-09-25) — Phases 0 and 0.5 complete (PR #2: independent review by Claude Opus 5.5, final review by Rishabh Vyas); Phase 1 work in progress, partly merged in PR #3 | Phase 0 ✅ AC-01, 03, 04, 05, 06, 19 · Phase 0.5 ✅ D-14–D-16 · Phases 1–9 AC-02, 07–18, 20–28, each record stating built / partly built / not built | After 002 closes, resume Phase 1 (location access, AC-02): add tests for asset and station choice (rows 5–6), rerun rows 1–7 on MariaDB, walk through Desk |
+| [002 — Fuel Order request, signal, and slip](specs/002-fuel-order-request-slip/spec.md) | Draft — awaiting approval | Phase 0 slip AC-01–03 · Phase 1 vehicle-first request AC-04–07 · Phase 2 green and red signal AC-08–11 · Phase 3 Philip decides, Vikas signs off red AC-12–15 | Approve the specification, then build Phase 0 (company fuel order slip) |
 
 Record execution order here when it is not phase-id order.
+
+- 2026-09-25 — 002 runs before 001 resumes; 001 is parked at Phase 1 (002 D-2).
 
 A specification may be **parked** so another takes priority. Parked is not abandoned and
 not cleared: its phase records and open findings stay exactly as they are, and it resumes
