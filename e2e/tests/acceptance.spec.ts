@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { authenticate } from "../auth";
-import { openNew } from "../desk";
+import { attachRequestPhotos, openNew } from "../desk";
 import { QA_FIXTURES, USERS } from "../fixtures";
 
 test.use({ storageState: USERS.primary.state });
@@ -98,6 +98,7 @@ async function createApprovedOrder(page: Page, refs: Record<string, string>, met
 		headers: { "X-Frappe-CSRF-Token": await csrf(page) },
 	});
 	const order = await resourceData<Resource>(create, "Fuel Order creation");
+	await attachRequestPhotos(page, order.name);
 	const submit = await page.request.post("/api/method/frappe.model.workflow.apply_workflow", {
 		data: {
 			doc: JSON.stringify({ doctype: "Fuel Order", name: order.name }),

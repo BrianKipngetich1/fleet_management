@@ -8,7 +8,7 @@ verified, from what was actually observed. Procedure, not transcript. Never reco
 | | |
 |---|---|
 | Specification | [`../spec.md`](../spec.md) @ `3c37dbb` |
-| Status | Building on `feature/002-fuel-order-request-slip` |
+| Status | Built — awaiting Stage C |
 | Started / Closed | 2026-09-25 / — |
 | Author | Fleet Management team |
 | Reviewed by | — |
@@ -38,6 +38,7 @@ Not yet observed in this phase.
 | Auto-filled facts | fetch_from, read_only | Assignment lookup from 001 |
 | Previous Entry | — | Last completed transaction lookup |
 | Photos | Attach Image | Private-file and type check from 001 |
+| Suggestions on choosing a vehicle | `fetch_from` for make, model, and fuel type | One whitelisted lookup for the assignment facts, Previous Entry, and a single-station suggestion, since `fetch_from` cannot reach the effective assignment |
 
 ## Verification
 
