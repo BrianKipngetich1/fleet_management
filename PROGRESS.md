@@ -20,7 +20,7 @@ at the phase named in its status.
 |---|---|
 | Bench root | /home/kayadmin/frappe-bench |
 | Main site | fleet_management.localhost (`http://fleet_management.localhost:8000`) — MariaDB `fleet_mgmt_dev`, own DB user; tests disabled; never receives test records (SQLite history archived) |
-| Test site | fleet_management-test.localhost (`http://fleet_management-test.localhost:8000`) — MariaDB `fleet_mgmt_test`, own DB user; bench default site; only site allowing tests (SQLite history archived) |
+| Test site | fleet_management-test.localhost (`http://fleet_management-test.localhost:8000`) — **disposable**: built for each test session with `bench fleet-test-site up` (MariaDB `fleet_mgmt_test`, own DB user, fixed sample data from `fleet_management/sample_data.py`, logins from the 001 `CREDENTIALS.md`) and removed with `bench fleet-test-site down`; the only site allowing tests. History before 2026-09-25 is in `~/Backups` |
 | Required backend | MariaDB for both sites and all new acceptance evidence |
 | Services | systemd user units under `frappe-bench.target` (linger on; start at boot, restart on failure): apt Redis :13000/:11000, `bench serve` :8000, socketio, worker, scheduler, watch. Manage with `systemctl --user`; do not run `bench start` while the target is active. MariaDB is the system service. |
 | Backups | `~/Backups` (outside the repo; README and checksum manifest there). `bench backup` prunes a site's own backups older than 23 hours, so copy sets out after taking them. |

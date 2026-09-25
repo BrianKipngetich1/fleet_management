@@ -86,8 +86,9 @@ Record the verdict as one row in the phase record's review table.
    introducing a new pattern.
 5. Every phase is a thin vertical slice with an observable outcome. Never schema-only,
    backend-only, or UI-only.
-6. Run `bench --site fleet_management-test.localhost migrate` after any schema or fixture change,
-   before verifying, and confirm the site reports MariaDB before treating backend evidence as valid.
+6. Build a fresh test site (`bench fleet-test-site up --replace`) after any schema or fixture
+   change, before verifying — it installs from the current code, so no migrate is needed — and
+   confirm the site reports MariaDB before treating backend evidence as valid.
 7. Write proportional tests. `IntegrationTestCase` for database, document, permission, or hook
    behaviour on the test site; `UnitTestCase` only for logic needing no site context.
 8. Keep unrelated cleanup out of the active specification.
@@ -103,6 +104,10 @@ Record the verdict as one row in the phase record's review table.
   names only this approved secret location, never a credential value.
 - The test site mirrors each phase login and role. Both the test username and test password must
   contain the literal word `test`; test passwords must never reuse a main-site password.
+- The test site is rebuilt often, so its logins are recreated each time with the same credentials:
+  `bench fleet-test-site up` reads every test-site password (and the test-site Administrator and
+  database passwords) from `specs/001-fleet-fuel-management/verification/CREDENTIALS.md`. A test
+  login is added by adding it to the sample data and recording its password there.
 - Create or update the main-site and test-site entries together so the local inventory remains the
   source of truth for manual login testing. Passwordless `bench browse --user` remains preferred
   for automated test-site browser checks so credentials do not enter automation output.
@@ -125,17 +130,34 @@ disables the sandbox by default for the same reason).
 tenancy scoping, list and form rendering, create/submit/cancel, permission allow and deny. It
 is never per phase and must never encode one phase's acceptance criterion — its only job is
 proving a finished phase broke nothing. `e2e/fixtures.ts` is the only file that carries project
-facts. `npm run test:ui` before every push.
+facts, and every fact in it names a sample-data record: Philip, Vikas, and Amina as the suite's
+users, and the pool vehicle KDH 201A for its generic orders. The suite never creates users,
+permissions, or master data; its setup step only checks the sample data is present and stops with
+the rebuild command when it is not. `npm run test:ui` before every push.
 
-Sequence: implement → `agent-browser` walkthrough → local Playwright plus `bench --site
-fleet_management-test.localhost run-tests --app fleet_management` → push → PR, where the same
-checks are rerun before merge.
+Sequence: implement → `bench fleet-test-site up --replace` → `agent-browser` walkthrough → local
+Playwright plus `bench --site fleet_management-test.localhost run-tests --app fleet_management` →
+`bench fleet-test-site down` → push → PR, where the same checks are rerun before merge.
+`npm run test:all` (`scripts/test-cycle.sh`) runs the automated part — build, backend tests,
+Playwright, teardown — in one step; `--keep` leaves the site up for a walkthrough.
+Backend tests build their own records inside `IntegrationTestCase` and never rely on the sample
+data, so they also pass on the empty site CI builds.
 
 **Functional testing runs only on the test site.** Never write test records to the main
 site: a Desk walkthrough cannot be rolled back the way a document-API run can, so it leaves
 residue. `fleet_management-test.localhost` is the one home for every kind of test data — seeded
-and throwaway records, QA user creation and deletion, unauthorised-access probes — and it is kept,
-not reset, so its contents remain a record of the testing performed. Following Frappe's own UI
+and throwaway records, QA user creation and deletion, unauthorised-access probes.
+
+**The test site is disposable.** It exists only while testing is under way: build it with `bench
+fleet-test-site up` whenever a walkthrough, Playwright run, or backend test run is needed, and throw
+it away with `bench fleet-test-site down` when that testing is done. Each build installs the
+current code into an empty database, copies the main site's regional settings, completes the
+setup wizard, and loads the fixed sample data in `fleet_management/sample_data.py` — Philip
+(Fleet User) and Vikas (Fleet Approver) in Nairobi, Amina (Fleet Approver) in Mombasa, the
+Krystalline Salt locations, real vehicle models and standby generators, and about two months of
+fuelling history. Describe checks and walkthroughs in those terms ("as Philip, open KDA 412M").
+Nothing on the site is a record: evidence lives in CI, git, and the phase records. The build needs
+no MariaDB root access — the site's own database user rebuilds its one database. Following Frappe's own UI
 test convention, both tools reach it through the bench's standard web server (the `frappe-web`
 user service, equivalent to `bench start`) at
 `http://fleet_management-test.localhost:8000`; the site is selected by host name, and Playwright
@@ -151,7 +173,8 @@ is on — acceptable on the dedicated, non-production test site, a privilege-esc
 A site that never completed the setup wizard fails misleadingly: Desk re-routes everything to
 the wizard, so every DocType route resolves as a Page and returns `403 Not permitted` — for
 every user and DocType — while roles and `can_read` in the boot payload look perfectly correct.
-Run `bench --site <new-site> execute frappe.utils.install.complete_setup_wizard` on any new site
+`bench fleet-test-site up` does both steps below for the test site; they matter for any other new
+site. Run `bench --site <new-site> execute frappe.utils.install.complete_setup_wizard` on any new site
 first. It also needs `bench --site <new-site> set-config developer_mode 1`, without which `bench
 browse --user` refuses to mint a session for a non-Administrator — and it prints the refusal
 while exiting `0`, so check the output for `?sid=`, never the exit code.
@@ -240,8 +263,11 @@ location. There are no superseded documentation paths to keep closed.
   `fleet_management/fleet_management/doctype/`; use `IntegrationTestCase` on
   `fleet_management-test.localhost` for site-backed behavior.
 - Roles: `Fleet Admin`, `Fleet Approver`, and `Fleet User`.
-- Test commands: `bench --site fleet_management-test.localhost run-tests --app fleet_management`
-  and `npm run test:ui`.
+- Test commands: `bench fleet-test-site up --replace` / `down` (or `npm run test:site:up` /
+  `test:site:down`), `bench --site fleet_management-test.localhost run-tests --app fleet_management`,
+  `npm run test:ui`, and `npm run test:all` for the whole cycle.
+- Sample data: `fleet_management/sample_data.py` (describe checks with its people, vehicles, and
+  generators); disposable-site commands: `fleet_management/commands.py`.
 - Required pre-merge checks: backend tests, Playwright Desk tests, the phase's `agent-browser`
   walkthrough, and a human review of its recorded evidence. The repository currently has no
   committed `.github/workflows/` automation, so these checks remain local/manual until CI is added.

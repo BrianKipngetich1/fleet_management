@@ -78,8 +78,9 @@ discrepancies remain visible without silently changing source values.
   qualifying record outside the selected range.
 - D-14 — Every site shows and accepts dates as day/month/year; installing, setting up, or
   upgrading a site restores that format if anything changed it.
-- D-15 — All testing uses the one dedicated test site. It keeps its test data, users, and access
-  probes as a record of what was tested; the development site never receives test records.
+- D-15 — All testing uses the one dedicated test site; the development site never receives test
+  records. *Superseded 2026-09-25 by 002 D-14:* the test site is disposable — built from fixed
+  sample data for each test session and thrown away afterwards — and is no longer kept as a record.
 - D-16 — Phase 0 is only the tracer bullet planned on 2026-09-17: request, approve, print, fuel,
   attach, submit, and a first baseline. Each later capability is its own phase of one to four
   criteria, credited with any work built early. Chosen over the 2026-09-18 scope, which absorbed
@@ -384,9 +385,10 @@ reports use IntegrationTestCase on the test site, covering both sides of every b
 phase record lists its own rows and adds an `agent-browser` Desk walkthrough as its roles.
 
 ~~~sh
-bench --site fleet_management-test.localhost migrate
+bench fleet-test-site up --replace      # fresh test site from the current code and sample data
 bench --site fleet_management-test.localhost run-tests --app fleet_management
 npm run test:ui
+bench fleet-test-site down              # or: npm run test:all for the whole cycle
 ~~~
 
 A phase starts only after the one before it closes, or when the owner records another order in
