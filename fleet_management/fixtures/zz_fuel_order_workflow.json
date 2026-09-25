@@ -15,6 +15,11 @@
   "workflow_action_name": "Reject"
  },
  {
+  "doctype": "Workflow Action Master",
+  "name": "Withdraw",
+  "workflow_action_name": "Withdraw"
+ },
+ {
   "doctype": "Workflow State",
   "name": "Draft",
   "workflow_state_name": "Draft",
@@ -75,8 +80,26 @@
    {
     "doctype": "Workflow Transition",
     "state": "Draft",
+    "action": "Approve",
+    "next_state": "Approved",
+    "allowed": "Fleet User",
+    "allow_self_approval": 1,
+    "condition": "doc.signal == \"Green\""
+   },
+   {
+    "doctype": "Workflow Transition",
+    "state": "Draft",
     "action": "Submit for Approval",
     "next_state": "Pending Approval",
+    "allowed": "Fleet User",
+    "allow_self_approval": 1,
+    "condition": "doc.signal == \"Red\""
+   },
+   {
+    "doctype": "Workflow Transition",
+    "state": "Draft",
+    "action": "Reject",
+    "next_state": "Rejected",
     "allowed": "Fleet User",
     "allow_self_approval": 1
    },
@@ -95,7 +118,16 @@
     "next_state": "Rejected",
     "allowed": "Fleet Approver",
     "allow_self_approval": 0
+   },
+   {
+    "doctype": "Workflow Transition",
+    "state": "Pending Approval",
+    "action": "Withdraw",
+    "next_state": "Rejected",
+    "allowed": "Fleet User",
+    "allow_self_approval": 1
    }
-  ]
+  ],
+  "modified": "2026-09-25 20:00:00.000000"
  }
 ]

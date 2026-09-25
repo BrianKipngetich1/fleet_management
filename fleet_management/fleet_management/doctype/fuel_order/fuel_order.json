@@ -38,6 +38,10 @@
   "section_break_signal",
   "signal",
   "signal_reasons",
+  "send_up_explanation",
+  "decision_reason",
+  "decision_action",
+  "decision_reason_by",
   "section_break_approval_audit",
   "workflow_state",
   "fulfillment_status",
@@ -459,6 +463,39 @@
    "label": "Signal Reasons",
    "no_copy": 1,
    "read_only": 1
+  },
+  {
+   "description": "Why a red order is genuine; required to send it for sign-off.",
+   "fieldname": "send_up_explanation",
+   "fieldtype": "Small Text",
+   "label": "Explanation for Sign-off",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "description": "The written reason for the approval or rejection that closed this order.",
+   "fieldname": "decision_reason",
+   "fieldtype": "Small Text",
+   "label": "Decision Reason",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "decision_action",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Decision Action",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "decision_reason_by",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Decision Reason By",
+   "no_copy": 1,
+   "options": "User",
+   "read_only": 1
   }
  ],
  "is_submittable": 1,
@@ -482,6 +519,7 @@
   },
   {
    "create": 1,
+   "print": 1,
    "read": 1,
    "role": "Fleet User",
    "write": 1,
@@ -499,5 +537,5 @@
  "sort_field": "creation",
  "sort_order": "DESC",
  "track_changes": 1,
- "modified": "2026-09-25 19:00:00.000000"
+ "modified": "2026-09-25 20:00:00.000000"
 }

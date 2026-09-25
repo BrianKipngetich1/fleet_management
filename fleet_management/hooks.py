@@ -15,7 +15,7 @@ fixtures = [
 	},
 	{
 		"dt": "Workflow Action Master",
-		"filters": [["name", "in", ["Submit for Approval", "Approve", "Reject"]]],
+		"filters": [["name", "in", ["Submit for Approval", "Approve", "Reject", "Withdraw"]]],
 	},
 	{
 		"dt": "Workflow State",
