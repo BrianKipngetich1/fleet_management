@@ -105,13 +105,14 @@ class TestFuelOrder(IntegrationTestCase):
 			order = apply_workflow(order, "Approve")
 		return order, requester, approver
 
-	def _user(self, roles, location):
+	def _user(self, roles, location, first_name="AC03", last_name=None):
 		email = f"ac03-{frappe.generate_hash(length=8)}@example.com"
 		user = frappe.get_doc(
 			{
 				"doctype": "User",
 				"email": email,
-				"first_name": "AC03",
+				"first_name": first_name,
+				"last_name": last_name,
 				"send_welcome_email": 0,
 				"roles": [{"doctype": "Has Role", "role": role} for role in roles],
 			}
@@ -414,7 +415,7 @@ class TestFuelOrder(IntegrationTestCase):
 			"40%",
 			"Estimated litres to fill (from gauge):",
 			"36.0 litres",
-			approved.approved_by,
+			frappe.utils.get_fullname(approved.approved_by),
 			expected_approved_on,
 			expected_valid_until,
 			instruction,
@@ -427,6 +428,95 @@ class TestFuelOrder(IntegrationTestCase):
 			"Do not dispense after the valid-until timestamp",
 		):
 			self.assertIn(str(value), printed)
+
+	def test_approved_slip_reads_like_the_company_paper_slip(self):
+		suffix = frappe.generate_hash(length=8)
+		self._insert(
+			"Letter Head",
+			letter_head_name=f"AC01 Heading {suffix}",
+			source="HTML",
+			content="<p>KRYSTALLINE SALT LIMITED</p><p>PIN NO. P000000000T</p>",
+			is_default=1,
+		)
+		self._insert(
+			"Address",
+			address_title=self.station.name,
+			address_type="Postal",
+			address_line1="P.O Box 10001",
+			pincode="00100",
+			city="Nairobi",
+			country="Kenya",
+			email_id="station.test@example.com",
+			is_primary_address=1,
+			links=[{"link_doctype": "Fuel Station", "link_name": self.station.name}],
+		)
+		order, _requester, approver = self._make_approved_order()
+
+		with self.set_user(approver):
+			printed = frappe.get_print(
+				"Fuel Order",
+				order.name,
+				print_format="Fuel Order Approval Slip",
+				no_letterhead=0,
+			)
+			bare = frappe.get_print(
+				"Fuel Order",
+				order.name,
+				print_format="Fuel Order Approval Slip",
+				no_letterhead=1,
+			)
+
+		for value in (
+			"COPY TO BE ATTACHED WITH STATEMENT",
+			"FUEL ORDER SLIP",
+			"KRYSTALLINE SALT LIMITED",
+			"PIN NO. P000000000T",
+			order.name,
+			frappe.utils.formatdate(order.request_datetime),
+			self.station.name,
+			"P.O Box 10001 – 00100 NAIROBI",
+			"station.test@example.com",
+			"Please supply",
+			"FULL TANK",
+			"Ltrs of",
+			self.fuel_type.name,
+			"to the following motor vehicle",
+			"Reg No:",
+			self.asset.name,
+			"speedometer",
+			order.request_meter_reading,
+			"NAMES OF AUTHORISED PERSON",
+			"Company stamp",
+		):
+			with self.subTest(value=value):
+				self.assertIn(str(value), printed)
+
+		self.assertNotIn("KRYSTALLINE SALT LIMITED", bare)
+
+		css = frappe.db.get_value("Print Format", "Fuel Order Approval Slip", "css")
+		self.assertIn("page-size: A5", css)
+		self.assertIn("size: A5 portrait", css)
+
+	def test_slip_names_the_authorised_person_by_full_name(self):
+		requester = self._user(("Fleet User",), self.location.name)
+		approver = self._user(
+			("Fleet Approver",), self.location.name, first_name="Vikas", last_name="Test Approver"
+		)
+
+		with self.set_user(requester):
+			order = apply_workflow(self.make_order().insert(), "Submit for Approval")
+		with self.set_user(approver):
+			order = apply_workflow(order, "Approve")
+			printed = frappe.get_print(
+				"Fuel Order",
+				order.name,
+				print_format="Fuel Order Approval Slip",
+				no_letterhead=1,
+			)
+
+		self.assertEqual(order.approved_by, approver)
+		self.assertGreaterEqual(printed.count("Vikas Test Approver"), 2)
+		self.assertNotIn(approver, printed)
 
 	def test_vehicle_request_gauge_is_required_whole_and_estimates_litres(self):
 		with self.assertRaisesRegex(frappe.ValidationError, "Request gauge is required"):
