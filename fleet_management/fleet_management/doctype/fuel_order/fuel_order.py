@@ -9,6 +9,10 @@ from fleet_management.fleet_management.doctype.fleet_asset.fleet_asset import (
 	get_assignment_snapshot,
 	get_effective_assignment,
 )
+from fleet_management.fleet_management.doctype.fueling_transaction.fueling_transaction import (
+	resolve_attached_file,
+	validate_evidence_file,
+)
 from fleet_management.permissions import get_permitted_location_names
 from fleet_management.notifications import notify_fuel_order
 
@@ -42,6 +46,7 @@ SNAPSHOT_FIELDS = (
 	"asset_target_km_per_litre_snapshot",
 	"asset_tolerance_percent_snapshot",
 )
+REQUEST_PHOTO_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png"}
 
 
 class FuelOrder(Document):
@@ -99,6 +104,7 @@ class FuelOrder(Document):
 		self._validate_asset_fuel_type()
 		self._validate_quantity_authorization()
 		self._validate_request_gauge()
+		self._validate_request_photos()
 
 		for fieldname, label in (
 			("actual_requester", "Actual requester"),
@@ -181,6 +187,26 @@ class FuelOrder(Document):
 				frappe._("Request gauge must be a whole-number percent from 0 to 100."),
 				frappe.ValidationError,
 			)
+
+	def _validate_request_photos(self):
+		# A photo of each reading is needed before the order leaves Draft (spec 002 D-6). Only
+		# that transition is checked, so orders already past Draft are not invalidated.
+		if self._previous_workflow_state() != "Draft" or self.workflow_state not in {
+			"Pending Approval",
+			"Approved",
+		}:
+			return
+		photos = [("meter_photo", frappe._("Meter photo"))]
+		if self._asset_type() == "Vehicle":
+			photos.append(("gauge_photo", frappe._("Gauge photo")))
+		for fieldname, label in photos:
+			file_doc = resolve_attached_file(
+				self,
+				fieldname,
+				label,
+				frappe._("{0} is required before the order is approved or sent up.").format(label),
+			)
+			validate_evidence_file(file_doc, label, REQUEST_PHOTO_TYPES, frappe._("JPG or PNG"))
 
 	def _validate_assignment_snapshot(self):
 		asset_type = self._asset_type()

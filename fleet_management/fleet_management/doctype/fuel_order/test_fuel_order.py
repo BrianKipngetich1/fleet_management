@@ -10,6 +10,7 @@ from fleet_management.fleet_management.doctype.fuel_order.fuel_order import (
 	get_previous_entry,
 	get_request_facts,
 )
+from fleet_management.tests.utils import attach_request_photos, make_photo
 
 
 class TestFuelOrder(IntegrationTestCase):
@@ -105,7 +106,7 @@ class TestFuelOrder(IntegrationTestCase):
 		requester = self._user(("Fleet User",), self.location.name)
 		approver = self._user(("Fleet Approver",), self.location.name)
 		with self.set_user(requester):
-			order = apply_workflow(self.make_order().insert(), "Submit for Approval")
+			order = apply_workflow(attach_request_photos(self.make_order().insert()), "Submit for Approval")
 		with self.set_user(approver):
 			order = apply_workflow(order, "Approve")
 		return order, requester, approver
@@ -177,7 +178,7 @@ class TestFuelOrder(IntegrationTestCase):
 		approver = self._user(("Fleet Approver",), self.location.name)
 
 		with self.set_user(requester):
-			order = apply_workflow(self.make_order().insert(), "Submit for Approval")
+			order = apply_workflow(attach_request_photos(self.make_order().insert()), "Submit for Approval")
 
 		self.assertEqual(order.workflow_state, "Pending Approval")
 		self.assertEqual(order.submitted_by, requester)
@@ -193,7 +194,8 @@ class TestFuelOrder(IntegrationTestCase):
 
 		with self.set_user(requester):
 			rejected_order = apply_workflow(
-				self.make_order(request_meter_reading=2000).insert(), "Submit for Approval"
+				attach_request_photos(self.make_order(request_meter_reading=2000).insert()),
+				"Submit for Approval",
 			)
 
 		with self.set_user(approver):
@@ -208,7 +210,7 @@ class TestFuelOrder(IntegrationTestCase):
 		self_approver = self._user(("Fleet User", "Fleet Approver"), self.location.name)
 
 		with self.set_user(self_approver):
-			order = apply_workflow(self.make_order().insert(), "Submit for Approval")
+			order = apply_workflow(attach_request_photos(self.make_order().insert()), "Submit for Approval")
 			for action in ("Approve", "Reject"):
 				with self.subTest(action=action):
 					with self.assertRaises(frappe.ValidationError):
@@ -219,7 +221,7 @@ class TestFuelOrder(IntegrationTestCase):
 		owner = self._user(("Fleet User",), self.location.name)
 		submitter = self._user(("Fleet User", "Fleet Approver"), self.location.name)
 		with self.set_user(owner):
-			order = self.make_order().insert()
+			order = attach_request_photos(self.make_order().insert())
 		with self.set_user(submitter):
 			order = apply_workflow(order, "Submit for Approval")
 			with self.assertRaises(frappe.ValidationError):
@@ -233,7 +235,8 @@ class TestFuelOrder(IntegrationTestCase):
 
 		with self.set_user(requester):
 			order = apply_workflow(
-				self.make_order(actual_requester=linked_requester.name).insert(), "Submit for Approval"
+				attach_request_photos(self.make_order(actual_requester=linked_requester.name).insert()),
+				"Submit for Approval",
 			)
 
 		with self.set_user(approver):
@@ -246,7 +249,7 @@ class TestFuelOrder(IntegrationTestCase):
 		approver = self._user(("Fleet Approver",), self.location.name)
 
 		with self.set_user(requester):
-			order = apply_workflow(self.make_order().insert(), "Submit for Approval")
+			order = apply_workflow(attach_request_photos(self.make_order().insert()), "Submit for Approval")
 		with self.set_user(approver):
 			apply_workflow(order, "Approve")
 
@@ -392,9 +395,11 @@ class TestFuelOrder(IntegrationTestCase):
 
 		with self.set_user(requester):
 			order = apply_workflow(
-				self.make_order(
-					quantity_authorization="Partial", authorized_quantity_litres=42.5
-				).insert(),
+				attach_request_photos(
+					self.make_order(
+						quantity_authorization="Partial", authorized_quantity_litres=42.5
+					).insert()
+				),
 				"Submit for Approval",
 			)
 		with self.set_user(approver):
@@ -509,7 +514,7 @@ class TestFuelOrder(IntegrationTestCase):
 		)
 
 		with self.set_user(requester):
-			order = apply_workflow(self.make_order().insert(), "Submit for Approval")
+			order = apply_workflow(attach_request_photos(self.make_order().insert()), "Submit for Approval")
 		with self.set_user(approver):
 			order = apply_workflow(order, "Approve")
 			printed = frappe.get_print(
@@ -620,6 +625,59 @@ class TestFuelOrder(IntegrationTestCase):
 		)
 		self.assertIsNone(get_request_facts(asset.name)["suggested_station"])
 
+	def test_an_order_cannot_be_sent_up_without_its_photos(self):
+		requester = self._user(("Fleet User",), self.location.name)
+		with self.set_user(requester):
+			order = self.make_order().insert()
+			with self.assertRaisesRegex(frappe.ValidationError, "Meter photo is required"):
+				apply_workflow(order, "Submit for Approval")
+
+			order = frappe.get_doc("Fuel Order", order.name)
+			order.meter_photo = make_photo().file_url
+			order.save()
+			with self.assertRaisesRegex(frappe.ValidationError, "Gauge photo is required"):
+				apply_workflow(order, "Submit for Approval")
+
+			order = frappe.get_doc("Fuel Order", order.name)
+			attach_request_photos(order)
+			sent = apply_workflow(order, "Submit for Approval")
+
+		self.assertEqual(sent.workflow_state, "Pending Approval")
+		self.assertEqual(
+			frappe.db.get_value("File", {"file_url": sent.meter_photo}, "attached_to_name"),
+			sent.name,
+		)
+
+	def test_a_public_or_wrong_type_photo_is_refused(self):
+		requester = self._user(("Fleet User",), self.location.name)
+		with self.set_user(requester):
+			for case, kwargs, message in (
+				("public", {"private": False}, "must be a private attachment"),
+				("wrong type", {"extension": "pdf"}, "must be a JPG or PNG file"),
+			):
+				with self.subTest(case=case):
+					order = self.make_order().insert()
+					attach_request_photos(order, **kwargs)
+					order = frappe.get_doc("Fuel Order", order.name)
+					with self.assertRaisesRegex(frappe.ValidationError, message):
+						apply_workflow(order, "Submit for Approval")
+
+	def test_orders_already_past_draft_are_not_rechecked(self):
+		requester = self._user(("Fleet User",), self.location.name)
+		approver = self._user(("Fleet Approver",), self.location.name)
+		with self.set_user(requester):
+			pending = apply_workflow(
+				attach_request_photos(self.make_order().insert()), "Submit for Approval"
+			)
+
+		# Stands in for an order sent up before photos were required (spec 002 D-6).
+		frappe.db.set_value("Fuel Order", pending.name, {"meter_photo": None, "gauge_photo": None})
+
+		with self.set_user(approver):
+			approved = apply_workflow(frappe.get_doc("Fuel Order", pending.name), "Approve")
+
+		self.assertEqual(approved.workflow_state, "Approved")
+
 	def test_vehicle_request_gauge_is_required_whole_and_estimates_litres(self):
 		with self.assertRaisesRegex(frappe.ValidationError, "Request gauge is required"):
 			self.make_order(request_gauge_percent=None).insert(ignore_permissions=True)
@@ -688,7 +746,10 @@ class TestFuelOrder(IntegrationTestCase):
 
 		with self.set_user(requester):
 			draft = self.make_order().insert()
-			pending = apply_workflow(self.make_order(request_meter_reading=2000).insert(), "Submit for Approval")
+			pending = apply_workflow(
+				attach_request_photos(self.make_order(request_meter_reading=2000).insert()),
+				"Submit for Approval",
+			)
 		with self.set_user(approver):
 			with self.assertRaises(frappe.PermissionError):
 				frappe.get_print(
@@ -702,7 +763,8 @@ class TestFuelOrder(IntegrationTestCase):
 
 		with self.set_user(requester):
 			approved = apply_workflow(
-				self.make_order(request_meter_reading=3000).insert(), "Submit for Approval"
+				attach_request_photos(self.make_order(request_meter_reading=3000).insert()),
+				"Submit for Approval",
 			)
 		with self.set_user(approver):
 			approved = apply_workflow(approved, "Approve")
