@@ -13,6 +13,7 @@ from fleet_management.fleet_management.doctype.fueling_transaction.fueling_trans
 	resolve_attached_file,
 	validate_evidence_file,
 )
+from fleet_management.fuel_signal import evaluate_signal, signal_colour
 from fleet_management.permissions import get_permitted_location_names
 from fleet_management.notifications import notify_fuel_order
 
@@ -75,6 +76,7 @@ class FuelOrder(Document):
 		self._set_request_datetime()
 		self._set_asset_assignment_snapshot()
 		self._set_previous_entry()
+		self._set_signal()
 		if self.asset and not self.fuel_type:
 			self.fuel_type = frappe.db.get_value("Fleet Asset", self.asset, "fuel_type")
 		if not self.quantity_authorization:
@@ -154,6 +156,64 @@ class FuelOrder(Document):
 		if not self.asset or (self.docstatus == 1 and self.workflow_state == "Approved"):
 			return
 		self.update(get_previous_entry(self.asset, exclude_order=None if self.is_new() else self.name))
+
+	def _set_signal(self):
+		# Worked out by the server on every save until approval, then frozen (spec 002 D-8);
+		# the colour and its reasons are never chosen by a person.
+		previous = self.get_doc_before_save()
+		if (previous and previous.docstatus == 1) or not self.asset:
+			return
+
+		asset_type = self._asset_type()
+		is_vehicle = asset_type == "Vehicle"
+		intervals = get_mileage_intervals(self.asset) if is_vehicle else []
+		average = (
+			get_average_km_per_litre(intervals, self.asset_target_km_per_litre_snapshot)
+			if is_vehicle
+			else None
+		)
+		latest = frappe.get_all(
+			"Fueling Transaction",
+			filters={"asset": self.asset, "docstatus": 1},
+			fields=["full_tank_confirmed", "actual_fueling_datetime"],
+			order_by="actual_fueling_datetime desc, creation desc",
+			limit=1,
+		)
+		latest = latest[0] if latest else None
+		hours_since_last_fueling = None
+		if latest and latest.actual_fueling_datetime:
+			elapsed = now_datetime() - get_datetime(latest.actual_fueling_datetime)
+			hours_since_last_fueling = elapsed.total_seconds() / 3600
+		assignment = get_effective_assignment(self.asset, self.request_datetime)
+
+		facts = {
+			"asset_type": asset_type,
+			"tank_capacity": self.asset_tank_capacity_snapshot,
+			"gauge_percent": self.request_gauge_percent,
+			"current_reading": self.request_meter_reading,
+			"previous_reading": (
+				None if self.previous_entry_source == "none" else self.previous_meter_reading
+			),
+			"average_km_per_litre": average,
+			"requested_litres": (
+				self.authorized_quantity_litres if self.quantity_authorization == "Partial" else None
+			),
+			"last_fill_was_full": bool(latest.full_tank_confirmed) if latest else True,
+			"has_open_order": has_open_order(
+				self.asset, exclude_order=None if self.is_new() else self.name
+			),
+			"hours_since_last_fueling": hours_since_last_fueling,
+			"operational_location": self.operational_location,
+			"home_location": self.assigned_location_snapshot,
+			"driver": self.driver,
+			"usual_driver": assignment.primary_driver if assignment else None,
+			"last_interval_km_per_litre": intervals[0].km_per_litre if intervals else None,
+			"interval_count": len(intervals),
+		}
+		self.average_km_per_litre = average
+		reasons = evaluate_signal(facts, get_signal_limits())
+		self.signal = signal_colour(reasons)
+		self.signal_reasons = "\n".join(reasons)
 
 	def _asset_type(self):
 		return frappe.db.get_value("Fleet Asset", self.asset, "asset_type") if self.asset else None
@@ -539,6 +599,63 @@ def get_previous_entry(asset, exclude_order=None):
 			"previous_entry_date": order[0].approved_on,
 		}
 	return {"previous_entry_source": "none", "previous_meter_reading": None, "previous_entry_date": None}
+
+
+def get_signal_limits():
+	"""The signal limits from Fleet Management Settings; an unset one falls back to the default."""
+	return {
+		fieldname: frappe.db.get_single_value("Fleet Management Settings", fieldname)
+		for fieldname in (
+			"mileage_margin_percent",
+			"litres_excess_percent",
+			"gauge_limit_percent",
+			"min_hours_between_fuelings",
+		)
+	}
+
+
+def get_mileage_intervals(asset, limit=5):
+	"""The asset's completed full-to-full intervals, newest first."""
+	return frappe.get_all(
+		"Fueling Transaction",
+		filters={"asset": asset, "docstatus": 1, "km_per_litre": (">", 0)},
+		fields=["distance_km", "qualifying_litres", "km_per_litre"],
+		order_by="actual_fueling_datetime desc, creation desc",
+		limit=limit,
+	)
+
+
+def get_average_km_per_litre(intervals, target):
+	"""Average km/L (spec 002 D-7): total distance over total litres, else the asset's target."""
+	litres = sum(flt(row.get("qualifying_litres")) for row in intervals)
+	if not intervals or litres <= 0:
+		return target
+	return flt(sum(flt(row.get("distance_km")) for row in intervals) / litres, 2)
+
+
+def has_open_order(asset, exclude_order=None):
+	"""Another order waiting for approval, or approved, still valid, and not yet fuelled."""
+	filters = {
+		"asset": asset,
+		"docstatus": ("<", 2),
+		"workflow_state": ("in", ("Pending Approval", "Approved")),
+	}
+	if exclude_order:
+		filters["name"] = ("!=", exclude_order)
+	now = now_datetime()
+	for order in frappe.get_all(
+		"Fuel Order", filters=filters, fields=["name", "docstatus", "workflow_state", "valid_until"]
+	):
+		if order.workflow_state == "Pending Approval" and order.docstatus == 0:
+			return True
+		if (
+			order.workflow_state == "Approved"
+			and order.docstatus == 1
+			and (not order.valid_until or get_datetime(order.valid_until) > now)
+			and not frappe.db.exists("Fueling Transaction", {"fuel_order": order.name, "docstatus": 1})
+		):
+			return True
+	return False
 
 
 @frappe.whitelist()
