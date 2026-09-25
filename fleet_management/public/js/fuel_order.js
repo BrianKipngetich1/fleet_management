@@ -16,6 +16,31 @@ frappe.ui.form.on("Fuel Order", {
 	operational_location(frm) {
 		if (frm.doc.planned_station) frm.set_value("planned_station", null);
 	},
+	async asset(frm) {
+		if (!frm.doc.asset) return;
+		const { message: facts } = await frappe.call({
+			method: "fleet_management.fleet_management.doctype.fuel_order.fuel_order.get_request_facts",
+			args: { asset: frm.doc.asset },
+		});
+		if (!facts) return;
+		// What the system holds about the vehicle is shown read-only; the server sets it again on save.
+		await frm.set_value({
+			custodian: facts.custodian,
+			assigned_location_snapshot: facts.assigned_location_snapshot,
+			asset_tank_capacity_snapshot: facts.asset_tank_capacity_snapshot,
+			asset_target_km_per_litre_snapshot: facts.asset_target_km_per_litre_snapshot,
+			previous_entry_source: facts.previous_entry_source,
+			previous_meter_reading: facts.previous_meter_reading,
+			previous_entry_date: facts.previous_entry_date,
+		});
+		// Suggestions the user may change (spec 002 D-4). The station is set after the location,
+		// whose handler clears it.
+		if (facts.primary_driver) await frm.set_value("driver", facts.primary_driver);
+		if (facts.assigned_location_snapshot) {
+			await frm.set_value("operational_location", facts.assigned_location_snapshot);
+		}
+		if (facts.suggested_station) await frm.set_value("planned_station", facts.suggested_station);
+	},
 	refresh(frm) {
 		if (
 			frm.is_new() ||
