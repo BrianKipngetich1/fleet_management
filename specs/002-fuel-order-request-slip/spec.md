@@ -12,12 +12,12 @@ Keep the whole file under ~400 lines for its entire life.
 
 | | |
 |---|---|
-| Status | Draft |
+| Status | Implementing |
 | Owner | Fleet Management team |
 | Started | 2026-09-25 |
-| Approved by / date | — |
-| Approved revision | — |
-| Branch | spec/002-fuel-order-request-slip |
+| Approved by / date | @BrianKipngetich1, 2026-09-25 (PR #4) |
+| Approved revision | `3c37dbb` |
+| Branch | feature/002-fuel-order-request-slip |
 
 ## Problem
 
