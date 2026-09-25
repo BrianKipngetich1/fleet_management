@@ -58,7 +58,21 @@ Desk rows: `agent-browser` walkthrough on the test site as the named role.
 
 ## What we learned that the plan did not predict
 
+- Frappe lets only a System Manager edit a Letter Head; every desk user may read it. D-13 says a
+  Fleet Admin maintains the company heading, so today that needs a System Manager. Granting Fleet
+  Admin through a Custom DocPerm would replace Letter Head's standard permissions, so it was not
+  done here; the owner decides (see Known limitations). Station addresses have no such gap —
+  Frappe's Address allows every role to create and edit.
+- A custom Jinja print format must render the letter head itself: Frappe passes the default
+  Letter Head's HTML as `letter_head` and prints it only where the template places it.
+- The main site's copy of the slip had once been saved as a standard print format (an untracked
+  exported copy was found and deleted on 2026-09-25). The fixture, `standard: No`, is
+  authoritative.
+
 ## Known limitations — accepted, not fixed
+
+- The company heading is maintained by a System Manager, not a Fleet Admin (see above), until the
+  owner decides whether Fleet Admin gets Letter Head permissions.
 
 ## Review
 
