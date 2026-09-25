@@ -518,6 +518,40 @@ class TestFuelOrder(IntegrationTestCase):
 		self.assertGreaterEqual(printed.count("Vikas Test Approver"), 2)
 		self.assertNotIn(approver, printed)
 
+	def test_request_date_is_set_by_the_server_and_never_changes(self):
+		before = now_datetime().replace(microsecond=0)
+		order = self.make_order(request_datetime="2020-01-01 08:00:00").insert(ignore_permissions=True)
+		self.assertGreaterEqual(get_datetime(order.request_datetime), before)
+
+		saved = get_datetime(order.request_datetime)
+		order.request_datetime = "2021-06-01 09:00:00"
+		order.save(ignore_permissions=True)
+		self.assertEqual(get_datetime(order.request_datetime), saved)
+		self.assertEqual(
+			get_datetime(frappe.db.get_value("Fuel Order", order.name, "request_datetime")), saved
+		)
+
+		meta = frappe.get_meta("Fuel Order")
+		self.assertEqual(meta.get_field("request_datetime").read_only, 1)
+		self.assertEqual(meta.get_field("naming_series").read_only, 1)
+
+	def test_custodian_comes_from_the_effective_assignment(self):
+		other = self._insert(
+			"Fleet Person", person_name=f"AC05 Other Custodian {frappe.generate_hash(length=8)}"
+		)
+		order = self.make_order(custodian=other.name).insert(ignore_permissions=True)
+		self.assertEqual(order.custodian, self.custodian.name)
+		self.assertEqual(order.assigned_custodian_snapshot, self.custodian.name)
+
+		order.custodian = other.name
+		order.save(ignore_permissions=True)
+		self.assertEqual(order.custodian, self.custodian.name)
+
+		self.assertEqual(order.asset_tank_capacity_snapshot, 60)
+		self.assertEqual(order.asset_target_km_per_litre_snapshot, 10)
+		self.assertEqual(order.assigned_location_snapshot, self.location.name)
+		self.assertEqual(order.fuel_type, self.fuel_type.name)
+
 	def test_vehicle_request_gauge_is_required_whole_and_estimates_litres(self):
 		with self.assertRaisesRegex(frappe.ValidationError, "Request gauge is required"):
 			self.make_order(request_gauge_percent=None).insert(ignore_permissions=True)

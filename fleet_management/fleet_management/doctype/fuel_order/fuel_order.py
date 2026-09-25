@@ -66,6 +66,7 @@ class FuelOrder(Document):
 			notify_fuel_order(self, event)
 
 	def before_validate(self):
+		self._set_request_datetime()
 		self._set_asset_assignment_snapshot()
 		if self.asset and not self.fuel_type:
 			self.fuel_type = frappe.db.get_value("Fleet Asset", self.asset, "fuel_type")
@@ -77,6 +78,15 @@ class FuelOrder(Document):
 			self.slip_revision = self.slip_revision or 1
 			self.printed_slip_revision = self.printed_slip_revision or 0
 			self.validity_extension_history = "[]"
+
+	def _set_request_datetime(self):
+		# The request date is when the order was first saved (spec 002 D-3); a client value is ignored.
+		if self.is_new():
+			self.request_datetime = now_datetime()
+			return
+		previous = self.get_doc_before_save()
+		if previous and previous.request_datetime:
+			self.request_datetime = previous.request_datetime
 
 	def validate(self):
 		self._validate_approval_actor()
@@ -128,6 +138,8 @@ class FuelOrder(Document):
 			)
 		for fieldname, value in snapshot.items():
 			self.set(fieldname, value)
+		# The custodian is a fact of the effective assignment, not a choice (spec 002 D-4).
+		self.custodian = snapshot["assigned_custodian_snapshot"]
 
 	def _asset_type(self):
 		return frappe.db.get_value("Fleet Asset", self.asset, "asset_type") if self.asset else None
