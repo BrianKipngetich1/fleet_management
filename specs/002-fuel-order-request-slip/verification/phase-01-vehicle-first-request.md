@@ -8,7 +8,7 @@ verified, from what was actually observed. Procedure, not transcript. Never reco
 | | |
 |---|---|
 | Specification | [`../spec.md`](../spec.md) @ `3c37dbb` |
-| Status | In progress — built, not yet tested |
+| Status | In progress — verified, awaiting independent review |
 | Started / Closed | 2026-09-25 / — |
 | Author | Fleet Management team |
 | Reviewed by | — |
@@ -23,12 +23,30 @@ A Fleet User starts a request by picking a vehicle by its registration number, a
 
 ## The rule, as observed
 
-Not yet observed in this phase.
+```mermaid
+flowchart LR
+    NewOrder -->|row 1| RequestDateSetByServer
+    NewOrder -->|rows 6, 7| VehicleChosen
+    VehicleChosen -->|rows 2, 5, 6, 13| LockedVehicleFacts
+    VehicleChosen -->|rows 5, 6| EditableSuggestions
+    VehicleChosen -->|rows 3, 4, 6, 7, 11| PreviousEntry
+    Draft -->|rows 8, 9, 12| PhotoCheck
+    PhotoCheck -->|row 8| LeavesDraft
+    PhotoCheck -->|rows 8, 9, 12| Refused
+    PendingApproval -->|row 10| NoPhotoRecheck
+```
 
 ### Design vs. observed
 
+The specification's diagram is the approval workflow; this phase fills the Draft and gates every
+way out of it.
+
 | Specification edge | Observed | Verdict |
 |---|---|---|
+| `[*] → Draft` — the request is entered vehicle-first | rows 1–7 | As designed |
+| `Draft → Approved` and `Draft → PendingApproval` refused without both photos | rows 8, 9, 12 | As designed (the transitions themselves are Phase 3) |
+| `PendingApproval → Approved` for an order sent up before the photo rule | row 10 | As designed |
+| `Draft → Rejected`, `PendingApproval → Rejected`, `Approved → [*]`, `Rejected → [*]` | — | Not in scope (Phase 3) |
 
 ## Frappe-first / native-first
 
@@ -55,16 +73,33 @@ Not yet observed in this phase.
 | 9 | Attach a public photo, or a PDF, and send the order up | Refused as not a private attachment, or as not a JPG or PNG file | AC-07 — `test_a_public_or_wrong_type_photo_is_refused` |
 | 10 | An order already waiting for approval carries no photos (sent up before the rule) | The approver can still approve it; only leaving Draft is checked | AC-07 — `test_orders_already_past_draft_are_not_rechecked` |
 | 11 | A vehicle has a completed fueling; then that fueling is cancelled | Previous Entry names the fueling with its odometer and fueling date; after the cancellation it falls back to the vehicle's approved order | AC-06 — `test_previous_entry_is_the_last_completed_fueling` |
-| 12 | As Philip, open his draft for KCZ 908T (34,650 km, 23%); remove the gauge photo and choose Submit for Approval | The meter and gauge photos show on the form; sending up is refused, naming the gauge photo | AC-07 |
+| 12 | As Philip, open his green draft for KCZ 908T (34,650 km, 23%); clear the gauge photo and choose Actions → Approve | Both photos are listed on the form as private attachments; clearing one saves the draft; Approve is refused with "Gauge photo is required before the order is approved or sent up." and the order stays Draft | AC-07 |
+| 13 | Deactivate the fuel type of a vehicle; save a new order for it, naming any fuel type | The order takes the vehicle's fuel type and is refused because that fuel type is inactive | AC-05 — `test_rejects_inactive_references` |
 
 **How to run it.** Backend rows: `bench --site fleet_management-test.localhost run-tests --app fleet_management`.
 Desk rows: `agent-browser` walkthrough on the test site as the named role.
 
-**Result:** not yet run. All four phases are tested together once all are built (owner, 2026-09-25).
+**Result:** 13 of 13 observed on MariaDB with the site in Kenya / Africa/Nairobi / KES, on
+`feature/002-fuel-order-request-slip` at `a5e1492`.
 
 ## What we learned that the plan did not predict
 
+- A read-only `fetch_from` field is overwritten from its source on every save, so a typed fuel type
+  can never reach validation; the inactive-fuel-type rule is now reached through the vehicle.
+- Since Phase 3 a green draft offers Philip "Approve" and "Reject" only; "Submit for Approval"
+  appears only on a red draft. The photo gate is the same on both ways out of Draft.
+- Choosing a vehicle now shows its model under the registration in the autocomplete, so a script
+  that picks a link option by its exact text must match the option's `title` attribute instead.
+- Frappe keeps a single file for identical uploads: sample gauge photos with the same gauge and
+  vehicle point at the first order's file. Frappe keeps a shared file until nothing uses it.
+
 ## Known limitations — accepted, not fixed
+
+- `Attach Image` shows a private photo as a file link, not a thumbnail, on the order form.
+- The Current Gauge field is outlined red as soon as a vehicle is chosen, before anything is
+  typed (Frappe's mandatory highlight); it clears when a value is entered.
+- Several sample orders share one gauge photo file (see above); the sample data could give each
+  photo unique content if that matters for demonstrations.
 
 ## Review
 
@@ -73,4 +108,4 @@ Desk rows: `agent-browser` walkthrough on the test site as the named role.
 
 **Closure:** —
 
-**Next:** test this phase with the other three once the test site builds (see the Phase 0 record); then record what was observed here and request its review.
+**Next:** independent review of this phase.
