@@ -41,6 +41,30 @@ frappe.ui.form.on("Fuel Order", {
 		}
 		if (facts.suggested_station) await frm.set_value("planned_station", facts.suggested_station);
 	},
+	before_workflow_action(frm) {
+		// The workflow reloads the order before it moves, so a reason typed into the form would be lost:
+		// ask for it here and record it on the server first (spec 002 D-10, D-11).
+		const action = frm.selected_workflow_action;
+		const needs_reason = ["Submit for Approval", "Approve", "Reject", "Withdraw"].includes(action);
+		if (!needs_reason || (action === "Approve" && frm.doc.workflow_state === "Draft")) return;
+		frappe.dom.unfreeze();
+		const label =
+			action === "Submit for Approval" ? __("Why is this red order genuine?") : __("Reason");
+		return new Promise((resolve, reject) => {
+			frappe.prompt(
+				{ fieldname: "reason", fieldtype: "Small Text", label, reqd: 1 },
+				({ reason }) =>
+					frappe
+						.call({
+							method: "fleet_management.fleet_management.doctype.fuel_order.fuel_order.record_decision_reason",
+							args: { name: frm.doc.name, action, reason },
+						})
+						.then(resolve, reject),
+				__(action),
+				__(action),
+			);
+		});
+	},
 	refresh(frm) {
 		// The colour is the server's (spec 002 D-8); show it, with every reason, where the order starts.
 		if (frm.doc.signal) {

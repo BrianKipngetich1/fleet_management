@@ -50,6 +50,7 @@ Not yet observed in this phase.
 | 6 | Send a red order up, then save the pending order again | Exactly one notice for Vikas and one for the Fleet Admin, and no duplicates after the second save | AC-14 — `test_a_sent_up_order_notifies_the_approver_and_admin_once_each` |
 | 7 | Print a green order Philip approved and a red order Vikas approved | The first slip names Philip; the second names Vikas on the authorised line and the signature line | AC-15 — `test_the_slip_names_whoever_approved_it` |
 | 8 | Record a blank reason; record a reason for an action the user cannot take now; change a reason field by an ordinary save | Refused; refused; the saved reason is unchanged | AC-13, AC-14 — `test_record_decision_reason_refuses_blank_reasons_and_unavailable_actions` |
+| 9 | As Philip, open his green draft KCZ 908T (34,630 km) and choose Approve; open his red draft KCZ 908T (34,180 km, 80%) and choose Submit for Approval; as Vikas, open that order and choose Approve | The green draft is approved at once, with no question, and Philip can print its slip; Submit for Approval asks "Why is this red order genuine?" and the order waits for Vikas; Vikas is asked for a reason, the order is approved, and its slip names Vikas | AC-12, AC-13, AC-14, AC-15 |
 
 **How to run it.** Backend rows: `bench --site fleet_management-test.localhost run-tests --app fleet_management`.
 Desk rows: `agent-browser` walkthrough on the test site as the named role.
