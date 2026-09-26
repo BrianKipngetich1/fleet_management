@@ -3,13 +3,12 @@ from unittest.mock import patch
 from urllib.parse import quote
 
 import frappe
-from frappe.model.workflow import apply_workflow
 from frappe.tests import IntegrationTestCase
 from frappe.utils import now_datetime
 
 from fleet_management.notifications import notify_fuel_order, send_validity_notifications
 from fleet_management.permissions import get_permitted_location_names
-from fleet_management.tests.utils import attach_request_photos
+from fleet_management.tests.utils import attach_request_photos, decide, send_up
 
 
 class TestFuelOrderNotifications(IntegrationTestCase):
@@ -65,9 +64,22 @@ class TestFuelOrderNotifications(IntegrationTestCase):
 			("Fleet Admin", "Fleet Approver"), self.location.name
 		)
 		self.other_admin = self._user(("Fleet Admin",), self.other_location.name)
+		# Only red orders are sent up (spec 002 D-10), so the 40% gauge must read "Tank nearly full".
+		self._save_settings(
+			mileage_margin_percent=15,
+			litres_excess_percent=10,
+			gauge_limit_percent=30,
+			min_hours_between_fuelings=24,
+		)
 
 	def _insert(self, doctype, **values):
 		return frappe.get_doc({"doctype": doctype, **values}).insert(ignore_permissions=True)
+
+	def _save_settings(self, **values):
+		settings = frappe.get_single("Fleet Management Settings")
+		settings.update(values)
+		settings.save(ignore_permissions=True)
+		return settings
 
 	def _user(self, roles, *locations):
 		email = f"notify-{frappe.generate_hash(length=8)}@example.com"
@@ -111,11 +123,9 @@ class TestFuelOrderNotifications(IntegrationTestCase):
 
 	def _make_approved_order(self):
 		with self.set_user(self.requester):
-			order = apply_workflow(
-				attach_request_photos(self._make_order().insert()), "Submit for Approval"
-			)
+			order = send_up(attach_request_photos(self._make_order().insert()))
 		with self.set_user(self.approver):
-			order = apply_workflow(order, "Approve")
+			order = decide(order, "Approve")
 		return order
 
 	def _logs(self, order):
@@ -152,9 +162,7 @@ class TestFuelOrderNotifications(IntegrationTestCase):
 			msg=f"Other approver scope: {get_permitted_location_names(self.other_approver)}",
 		)
 		with self.set_user(self.requester):
-			order = apply_workflow(
-				attach_request_photos(self._make_order().insert()), "Submit for Approval"
-			)
+			order = send_up(attach_request_photos(self._make_order().insert()))
 
 		logs = [row for row in self._logs(order) if "requires approval" in row.subject]
 		admins = self._users_with_role("Fleet Admin")
@@ -172,16 +180,12 @@ class TestFuelOrderNotifications(IntegrationTestCase):
 
 	def test_approval_and_rejection_notify_submitter_and_fleet_admins(self):
 		with self.set_user(self.requester):
-			approved_order = apply_workflow(
-				attach_request_photos(self._make_order().insert()), "Submit for Approval"
-			)
-			rejected_order = apply_workflow(
-				attach_request_photos(self._make_order().insert()), "Submit for Approval"
-			)
+			approved_order = send_up(attach_request_photos(self._make_order().insert()))
+			rejected_order = send_up(attach_request_photos(self._make_order().insert()))
 
 		with self.set_user(self.approver):
-			apply_workflow(approved_order, "Approve")
-			apply_workflow(rejected_order, "Reject")
+			decide(approved_order, "Approve")
+			decide(rejected_order, "Reject")
 
 		admins = self._users_with_role("Fleet Admin")
 		self.assertEqual(
