@@ -9,9 +9,9 @@ User Permissions that belong to them), then creates the same sample fleet every 
 Krystalline Salt locations, real vehicle models with their real tank sizes, a Nairobi fleet with
 about two months of fuelling history, and a few open orders in each workflow state.
 
-The fleet includes vehicles and standby generators. Philip (Fleet User) enters every Nairobi
-order; Vikas (Fleet Approver) approves them. Amina
-(Fleet Approver) covers Mombasa, whose orders are entered by Administrator. History runs
+The fleet includes vehicles and standby generators. Philip (Fleet User) enters every Nairobi order
+and approves the green ones himself; red ones go to Vikas (Fleet Approver) with his explanation.
+Amina (Fleet Approver) covers Mombasa, whose orders are entered by Administrator. History runs
 through the real document rules and is then dated back, so each vehicle shows realistic
 kilometres per litre. Dates are relative to the day the script runs. Users are created without
 passwords and keep any password already set; `CREDENTIALS.md` is the password inventory.
@@ -26,8 +26,16 @@ import frappe
 from frappe.model.workflow import apply_workflow
 from frappe.utils import add_days, get_datetime, now_datetime
 
+from fleet_management.fleet_management.doctype.fuel_order.fuel_order import record_decision_reason
+
 TEST_SITE = "fleet_management-test.localhost"
 PRINT_FORMAT = "Fuel Order Approval Slip"
+
+# Written reasons recorded before a workflow decision (spec 002 D-10, D-11).
+SEND_UP_EXPLANATION = "Long-distance delivery run; mileage confirmed with the driver."
+COVER_DRIVER_EXPLANATION = "Usual driver on leave; {} is covering the route."
+APPROVAL_REASON = "Explanation checked; approved."
+REJECTION_REASON = "Tank still 70% full; refuel after the Thika delivery run."
 
 FLEET_DOCTYPES = (
 	"Fueling Transaction",
@@ -484,7 +492,7 @@ def _home_location(asset):
 
 
 def _actors(location):
-	# Nairobi: Philip enters, Vikas approves. Mombasa: Administrator enters, Amina approves.
+	# Nairobi: Philip enters, Vikas signs off red orders. Mombasa: Administrator enters, Amina signs off.
 	return (PHILIP, VIKAS) if location == "Nairobi" else (ADMIN, AMINA)
 
 
@@ -534,12 +542,27 @@ def _new_order(asset, meter, gauge, station, partial_litres=None, driver=None):
 	return order
 
 
-def _submit_and_approve(order):
-	entered_by, approver = _actors(order.operational_location)
+def _send_up(order, explanation=SEND_UP_EXPLANATION):
+	"""As the entering user, record the explanation for a red order and send it for sign-off."""
+	entered_by, _approver = _actors(order.operational_location)
 	frappe.set_user(entered_by)
-	order = apply_workflow(order, "Submit for Approval")
-	frappe.set_user(approver)
-	order = apply_workflow(order, "Approve")
+	record_decision_reason(order.name, "Submit for Approval", explanation)
+	return apply_workflow(frappe.get_doc("Fuel Order", order.name), "Submit for Approval")
+
+
+def _submit_and_approve(order):
+	# The colour decides the route: green is approved by whoever entered it; red is explained, sent
+	# up, and approved with a written reason. The slip is printed by the user who approved.
+	entered_by, approver = _actors(order.operational_location)
+	order = frappe.get_doc("Fuel Order", order.name)
+	if order.signal == "Green":
+		frappe.set_user(entered_by)
+		order = apply_workflow(order, "Approve")
+	else:
+		_send_up(order)
+		frappe.set_user(approver)
+		record_decision_reason(order.name, "Approve", APPROVAL_REASON)
+		order = apply_workflow(frappe.get_doc("Fuel Order", order.name), "Approve")
 	frappe.get_print("Fuel Order", order.name, print_format=PRINT_FORMAT, no_letterhead=1)
 	return frappe.get_doc("Fuel Order", order.name)
 
@@ -622,7 +645,7 @@ def _date_back(order, transaction, days_ago, hours_ago=None):
 		order.name,
 		{
 			"request_datetime": requested,
-			"submitted_on": requested + timedelta(minutes=5),
+			"submitted_on": requested + timedelta(minutes=5) if order.submitted_by else None,
 			"approved_on": approved,
 			"valid_until": valid_until,
 			"last_slip_printed_on": approved + timedelta(minutes=5),
@@ -674,18 +697,15 @@ def _open_orders():
 	expired = _submit_and_approve(_new_order("KCZ 908T", 34580, 24, "Industrial Area Fuel Centre"))
 	_date_back(expired, None, 5)
 
-	# Waiting for Vikas.
-	pending = _new_order("KCY 230L", 217760, 20, "Industrial Area Fuel Centre")
-	frappe.set_user(PHILIP)
-	apply_workflow(pending, "Submit for Approval")
+	# Waiting for Vikas: Joseph Mutua covers Samuel Kiprono's truck, which turns the order red.
+	pending = _new_order("KCY 230L", 217760, 20, "Industrial Area Fuel Centre", driver="Joseph Mutua")
+	_send_up(pending, COVER_DRIVER_EXPLANATION.format("Joseph Mutua"))
 
-	# Rejected by Vikas: the tank was still 70% full.
+	# Rejected by Philip: tank still 70% full; refuel after the Thika delivery run.
 	rejected = _new_order("KDB 551Q", 105300, 70, "Mombasa Road Service Station")
 	frappe.set_user(PHILIP)
-	rejected = apply_workflow(rejected, "Submit for Approval")
-	frappe.set_user(VIKAS)
-	rejected.add_comment("Comment", "Rejected: tank still 70% full; refuel after the Thika delivery run.")
-	apply_workflow(rejected, "Reject")
+	record_decision_reason(rejected.name, "Reject", REJECTION_REASON)
+	apply_workflow(frappe.get_doc("Fuel Order", rejected.name), "Reject")
 
 	# Philip's draft, not yet sent.
 	_new_order("KCZ 908T", 34650, 23, "Industrial Area Fuel Centre")
@@ -693,10 +713,12 @@ def _open_orders():
 	# Head office generator: approved for up to 200 litres after a long outage, not yet fuelled.
 	_submit_and_approve(_new_order("GEN-NRB-01 Cummins 100 kVA", 1283.5, None, "Mombasa Road Service Station"))
 
-	# Mombasa order waiting for Amina; Philip and Vikas cannot see it.
-	pending_mombasa = _new_order("KDE 774H", 389310, 22, "Changamwe Service Station")
-	frappe.set_user(ADMIN)
-	apply_workflow(pending_mombasa, "Submit for Approval")
+	# Mombasa order waiting for Amina; Philip and Vikas cannot see it. Fatuma Abdalla covers
+	# Hassan Omar's truck, which turns the order red.
+	pending_mombasa = _new_order(
+		"KDE 774H", 389310, 22, "Changamwe Service Station", driver="Fatuma Abdalla"
+	)
+	_send_up(pending_mombasa, COVER_DRIVER_EXPLANATION.format("Fatuma Abdalla"))
 
 	_signal_cases()
 
