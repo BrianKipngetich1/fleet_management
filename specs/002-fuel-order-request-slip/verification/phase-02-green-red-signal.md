@@ -8,7 +8,7 @@ verified, from what was actually observed. Procedure, not transcript. Never reco
 | | |
 |---|---|
 | Specification | [`../spec.md`](../spec.md) @ `3c37dbb` |
-| Status | In progress — built, not yet tested |
+| Status | In progress — verified, awaiting independent review |
 | Started / Closed | 2026-09-25 / — |
 | Author | Fleet Management team |
 | Reviewed by | — |
@@ -23,12 +23,30 @@ When Philip enters an order, the system colours it green or red and, when red, l
 
 ## The rule, as observed
 
-Not yet observed in this phase.
+```mermaid
+flowchart LR
+    DraftSaved -->|rows 2, 5, 6, 9, 12| EightChecks
+    Settings -->|rows 1, 7| EightChecks
+    History -->|row 10| EightChecks
+    EightChecks -->|rows 2, 5, 6, 12| Green
+    EightChecks -->|rows 2, 3, 4, 6, 8, 9, 12| RedWithReasons
+    Green -->|row 6| EightChecks
+    RedWithReasons -->|row 6| EightChecks
+    Approved -->|row 11| ColourFrozen
+```
 
 ### Design vs. observed
 
+The specification's diagram is the approval workflow; this phase computes the colour its two Draft
+transitions depend on.
+
 | Specification edge | Observed | Verdict |
 |---|---|---|
+| Colour recomputed on every save of an order not yet approved | rows 6, 12 | As designed |
+| Colour frozen with the approval snapshot | row 11 | As designed |
+| The eight D-8 checks, each at and just past its limit | rows 2, 3, 8, 9, 10, 12 | As designed |
+| `Draft → Approved` only when green; `Draft → PendingApproval` only when red | — | Not in scope (Phase 3) |
+| Every other workflow edge | — | Not in scope (Phase 3) |
 
 ## Frappe-first / native-first
 
@@ -59,12 +77,20 @@ Not yet observed in this phase.
 **How to run it.** Backend rows: `bench --site fleet_management-test.localhost run-tests --app fleet_management`.
 Desk rows: `agent-browser` walkthrough on the test site as the named role.
 
-**Result:** not yet run. All four phases are tested together once all are built (owner, 2026-09-25).
+**Result:** 12 of 12 observed on MariaDB with the site in Kenya / Africa/Nairobi / KES, on
+`feature/002-fuel-order-request-slip` at `a5e1492`. Row 1's refusal reads "Gauge Limit must be
+below 100%."; row 4's note reads "Open order exists: another order for this asset is waiting for
+approval, or approved and not yet fuelled."
 
 ## What we learned that the plan did not predict
 
 - 001 has no meter-reset record yet (its Phase 7), so D-7's "after any meter reset" has nothing to
   read; the average uses the last five completed intervals regardless.
+- A reason's percentage is rounded to a whole number, so an order 15.17% off reads "15% off;
+  limit 15%" and looks as if it sits exactly on the limit. The comparison itself uses the exact
+  value (sample approved order for KDJ 507K: 268 km against 232.7 km expected).
+- A reason is written when the order is saved and not refreshed until the next save, so the
+  sample "Too soon" draft keeps the hours it had at build time.
 
 ## Known limitations — accepted, not fixed
 
@@ -72,9 +98,12 @@ Desk rows: `agent-browser` walkthrough on the test site as the named role.
   vehicles at Nairobi, so he cannot meet it; it is covered by a backend row only.
 - The sample "Too soon since the last fueling" draft (KDG 118X) is red only for about 18 hours
   after the site is built; a later save turns it green.
-
 - Average km/L ignores meter resets until 001 Phase 7 adds them; intervals before a reset must then
   be excluded.
+- Straight after the first save of a new order the colour note appears twice; a reload shows it
+  once. Cosmetic.
+- The list view's Signal column is only visible on a wide window; at about 1400 px it is cut off.
+- Reasons round percentages to whole numbers (see above).
 
 ## Review
 
@@ -83,4 +112,4 @@ Desk rows: `agent-browser` walkthrough on the test site as the named role.
 
 **Closure:** —
 
-**Next:** test this phase with the other three once the test site builds (see the Phase 0 record); then record what was observed here and request its review.
+**Next:** independent review of this phase.
