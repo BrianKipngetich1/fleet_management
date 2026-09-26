@@ -15,6 +15,8 @@ order; Vikas (Fleet Approver) approves them. Amina
 through the real document rules and is then dated back, so each vehicle shows realistic
 kilometres per litre. Dates are relative to the day the script runs. Users are created without
 passwords and keep any password already set; `CREDENTIALS.md` is the password inventory.
+Philip's drafts include one red example of each signal check a Nairobi-scoped user can meet
+(every check but away from home) and one green one.
 """
 
 from datetime import timedelta
@@ -166,6 +168,16 @@ ASSETS = (
 		"KDH 201A", "Vehicle", 1, "Diesel", "Isuzu - D-Max 3.0 Double Cab", 10,
 		[_assignment("Grace Wanjiku", "Nairobi", "2026-09-01", "Joseph Mutua", reason="New pool vehicle")],
 	),
+	# Two Nairobi pick-ups kept for the signal examples: KDG 118X was fuelled a few hours before
+	# the script runs; KDJ 507K's last interval is well off its own average.
+	(
+		"KDG 118X", "Vehicle", 1, "Diesel", "Toyota - Hilux Double Cab 2.4 GD-6", 10,
+		[_assignment("Grace Wanjiku", "Nairobi", "2026-01-05", "John Mwangi")],
+	),
+	(
+		"KDJ 507K", "Vehicle", 1, "Diesel", "Toyota - Hilux Double Cab 2.4 GD-6", 10,
+		[_assignment("Grace Wanjiku", "Nairobi", "2026-01-05", "Samuel Kiprono")],
+	),
 	(
 		"KBZ 615J", "Vehicle", 0, "Diesel", "Isuzu - D-Max 3.0 Double Cab", 10,
 		[_assignment("Grace Wanjiku", "Nairobi", "2024-03-01", "Michael Onyango", "2026-06-30")],
@@ -200,7 +212,8 @@ GENERATOR_MAX_LITRES = {"GEN-NRB-01 Cummins 100 kVA": 200, "GEN-GON-01 Perkins 2
 # Completed fuelling history, oldest first. Each row: days ago, request meter reading (odometer km
 # for vehicles, hour meter for generators), request gauge % (vehicles only), invoice litres, full
 # tank (vehicles only), station. Vehicle rows give realistic km/L for each model; the standby
-# generator runs about 10 hours a fortnight at about 16 litres an hour.
+# generator runs about 10 hours a fortnight at about 16 litres an hour. A row 0 days ago is dated
+# a few hours before the script runs.
 HISTORY = {
 	"KDA 412M": [
 		(58, 48210, 20, 64.2, 1, "Mombasa Road Service Station"),
@@ -244,6 +257,20 @@ HISTORY = {
 		(28, 1260.5, None, 150.0, 0, "Industrial Area Fuel Centre"),
 		(14, 1271.0, None, 168.0, 0, "Mombasa Road Service Station"),
 	],
+	"KDG 118X": [
+		(30, 70000, 20, 64.0, 1, "Industrial Area Fuel Centre"),
+		(20, 70640, 22, 63.0, 1, "Mombasa Road Service Station"),
+		(10, 71265, 21, 62.5, 1, "Industrial Area Fuel Centre"),
+		(0, 71900, 20, 64.0, 1, "Mombasa Road Service Station"),
+	],
+	"KDJ 507K": [
+		(52, 60000, 20, 64.0, 1, "Industrial Area Fuel Centre"),
+		(42, 60600, 18, 66.0, 1, "Industrial Area Fuel Centre"),
+		(32, 61205, 20, 66.5, 1, "Mombasa Road Service Station"),
+		(22, 61800, 19, 65.5, 1, "Industrial Area Fuel Centre"),
+		(12, 62400, 17, 66.0, 1, "Industrial Area Fuel Centre"),
+		(3, 62672, 68, 25.0, 1, "Mombasa Road Service Station"),  # 10.9 km/L against about 9.1
+	],
 }
 
 REQUESTERS = {
@@ -252,6 +279,8 @@ REQUESTERS = {
 	"KDB 551Q": "Joseph Mutua",
 	"KCY 230L": "Samuel Kiprono",
 	"KDE 774H": "Hassan Omar",
+	"KDG 118X": "Grace Wanjiku",
+	"KDJ 507K": "Daniel Kiptoo",
 	"GEN-NRB-01 Cummins 100 kVA": "Grace Wanjiku",
 	"GEN-GON-01 Perkins 250 kVA": "James Karisa",
 }
@@ -317,6 +346,10 @@ def reset():
 			"default_validity_days": 3,
 			"print_instruction": "Do not dispense after the valid-until timestamp.",
 			"transaction_entry_sla_hours": 48,
+			"mileage_margin_percent": 15,
+			"litres_excess_percent": 10,
+			"gauge_limit_percent": 75,
+			"min_hours_between_fuelings": 24,
 		}
 	)
 	settings.save(ignore_permissions=True)
@@ -337,7 +370,10 @@ def seed():
 	sequence = iter(range(1, 10_000))
 	for asset, rows in HISTORY.items():
 		for days_ago, odometer, gauge, litres, full, station in rows:
-			_completed_cycle(asset, days_ago, odometer, gauge, litres, full, station, next(sequence))
+			_completed_cycle(
+				asset, days_ago, odometer, gauge, litres, full, station, next(sequence),
+				hours_ago=8 if days_ago == 0 else None,
+			)
 	_open_orders()
 	frappe.set_user(ADMIN)
 	frappe.db.commit()
@@ -456,8 +492,8 @@ def _is_generator(asset):
 	return frappe.db.get_value("Fleet Asset", asset, "asset_type") == "Generator"
 
 
-def _new_order(asset, meter, gauge, station, partial_litres=None):
-	location, custodian, driver = _people(asset)
+def _new_order(asset, meter, gauge, station, partial_litres=None, driver=None):
+	location, custodian, usual_driver = _people(asset)
 	if _is_generator(asset):
 		partial_litres = GENERATOR_MAX_LITRES[asset]
 	order = frappe.get_doc(
@@ -466,7 +502,7 @@ def _new_order(asset, meter, gauge, station, partial_litres=None):
 			"request_datetime": now_datetime(),
 			"asset": asset,
 			"actual_requester": REQUESTERS[asset],
-			"driver": driver,
+			"driver": driver or usual_driver,
 			"custodian": custodian,
 			"company_representative": REPRESENTATIVE[location],
 			"operational_location": location,
@@ -508,7 +544,7 @@ def _submit_and_approve(order):
 	return frappe.get_doc("Fuel Order", order.name)
 
 
-def _completed_cycle(asset, days_ago, meter, gauge, litres, full, station, sequence):
+def _completed_cycle(asset, days_ago, meter, gauge, litres, full, station, sequence, hours_ago=None):
 	generator = _is_generator(asset)
 	order = _new_order(asset, meter, gauge, station, partial_litres=None if full else litres)
 	order = _submit_and_approve(order)
@@ -550,7 +586,7 @@ def _completed_cycle(asset, days_ago, meter, gauge, litres, full, station, seque
 	transaction.save()
 	transaction.submit()
 
-	_date_back(order, transaction, days_ago)
+	_date_back(order, transaction, days_ago, hours_ago)
 
 
 def _evidence(file_name, lines):
@@ -570,9 +606,12 @@ def _evidence(file_name, lines):
 	return file_doc.file_url
 
 
-def _date_back(order, transaction, days_ago):
+def _date_back(order, transaction, days_ago, hours_ago=None):
 	"""Move a finished cycle to a realistic past working day, keeping its validity window intact."""
 	requested = get_datetime(add_days(now_datetime().date(), -days_ago)).replace(hour=8, minute=15)
+	if hours_ago is not None:
+		# Earlier today: requested this many hours before the script runs, fuelled 2 h 40 min later.
+		requested = now_datetime() - timedelta(hours=hours_ago)
 	approved = requested + timedelta(minutes=40)
 	validity_days = frappe.db.get_single_value("Fleet Management Settings", "default_validity_days") or 3
 	valid_until = approved + timedelta(days=validity_days)
@@ -658,3 +697,41 @@ def _open_orders():
 	pending_mombasa = _new_order("KDE 774H", 389310, 22, "Changamwe Service Station")
 	frappe.set_user(ADMIN)
 	apply_workflow(pending_mombasa, "Submit for Approval")
+
+	_signal_cases()
+
+
+def _signal_cases():
+	"""Philip's drafts that each fail one signal check (spec 002 D-8, AC-08), and one that is green.
+
+	Last fuelled at, average km/L, tank: KCZ 908T 34,024 km, 8.98, 87 L; KDA 412M 52,024 km, 9.96,
+	80 L; KDG 118X 71,904 km, 10.03, 80 L; KDJ 507K 62,676 km, 9.25, 80 L. Away from home cannot
+	be shown: Philip may use only Nairobi vehicles at Nairobi.
+	"""
+	station = "Industrial Area Fuel Centre"
+
+	# Green: 606 km on 66.99 L of room is within 1% of the 602 km expected.
+	_new_order("KCZ 908T", 34630, 23, station)
+
+	# Check 1, "Mileage does not add up": 876 km against 586 km expected.
+	_new_order("KCZ 908T", 34900, 25, station)
+
+	# Check 2, "More litres than the tank has room for": 80 L against 65.25 L of room plus 8.7 L.
+	_new_order("KCZ 908T", 34610, 25, station, partial_litres=80)
+
+	# Check 3, "Tank nearly full": gauge 80%; 156 km matches the 17.4 L of room.
+	_new_order("KCZ 908T", 34180, 80, station)
+
+	# Check 4, "Open order exists": its approved order at 52,650 km still awaits fuel.
+	_new_order("KDA 412M", 52655, 21, "Mombasa Road Service Station")
+
+	# Check 5, "Too soon since the last fueling": filled about five hours before the script ran;
+	# 241 km matches the 24 L of room.
+	_new_order("KDG 118X", 72145, 70, station)
+
+	# Check 7, "Not the usual driver": John Mwangi drives Peter Otieno's vehicle.
+	_new_order("KCZ 908T", 34634, 22, station, driver="John Mwangi")
+
+	# Check 8, "Mileage off its own trend": last interval 10.88 km/L against 9.25 (18% off);
+	# 558 km matches the 60 L of room.
+	_new_order("KDJ 507K", 63234, 25, station)

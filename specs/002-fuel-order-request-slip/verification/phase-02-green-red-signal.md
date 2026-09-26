@@ -54,6 +54,7 @@ Not yet observed in this phase.
 | 9 | Save an order fuelling away from the vehicle's home location with a driver other than its usual one | Red with "Away from home" and "Not the usual driver", in that order | AC-08 — `test_away_from_home_and_not_the_usual_driver` |
 | 10 | The vehicle has six completed intervals: the oldest at 5 km/L, the five newest at 10 km/L | Average km/L is 10.0 — only the last five count; with no interval it is the target | AC-10 — `test_average_is_taken_over_the_last_five_intervals` |
 | 11 | Approve a green order; lower the Gauge Limit to 10%; extend the order's validity | The order stays Green with no reasons | AC-11 — `test_signal_is_frozen_once_approved` |
+| 12 | Build the test site. As Philip, open his drafts, newest first | KCZ 908T at 34,630 km / 23% is green; KCZ 908T 34,900 / 25% red "Mileage does not add up"; KCZ 908T 34,610 / 25% for 80 L red "More litres than the tank has room for"; KCZ 908T 34,180 / 80% red "Tank nearly full"; KDA 412M 52,655 / 21% red "Open order exists"; KDG 118X 72,145 / 70% red "Too soon since the last fueling" (within 18 hours of the build); KCZ 908T 34,634 / 22% driven by John Mwangi red "Not the usual driver"; KDJ 507K 63,234 / 25% red "Mileage off its own trend" — each with that one reason only | AC-08 |
 
 **How to run it.** Backend rows: `bench --site fleet_management-test.localhost run-tests --app fleet_management`.
 Desk rows: `agent-browser` walkthrough on the test site as the named role.
@@ -66,6 +67,11 @@ Desk rows: `agent-browser` walkthrough on the test site as the named role.
   read; the average uses the last five completed intervals regardless.
 
 ## Known limitations — accepted, not fixed
+
+- "Away from home" has no sample example: Philip is scoped to Nairobi and may only use Nairobi
+  vehicles at Nairobi, so he cannot meet it; it is covered by a backend row only.
+- The sample "Too soon since the last fueling" draft (KDG 118X) is red only for about 18 hours
+  after the site is built; a later save turns it green.
 
 - Average km/L ignores meter resets until 001 Phase 7 adds them; intervals before a reset must then
   be excluded.
