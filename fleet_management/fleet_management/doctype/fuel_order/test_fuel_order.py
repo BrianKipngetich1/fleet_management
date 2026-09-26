@@ -2,7 +2,6 @@ import json
 from datetime import timedelta
 
 import frappe
-from frappe.model.workflow import apply_workflow
 from frappe.tests import IntegrationTestCase
 from frappe.utils import get_datetime, getdate, now_datetime
 
@@ -10,7 +9,7 @@ from fleet_management.fleet_management.doctype.fuel_order.fuel_order import (
 	get_previous_entry,
 	get_request_facts,
 )
-from fleet_management.tests.utils import attach_request_photos, make_photo
+from fleet_management.tests.utils import attach_request_photos, decide, make_photo, send_up
 
 
 class TestFuelOrder(IntegrationTestCase):
@@ -74,6 +73,13 @@ class TestFuelOrder(IntegrationTestCase):
 			assignments=[dict(assignment)],
 			active=0,
 		)
+		# The 001 tests below exercise the sign-off route, which only red orders take (spec 002 D-10).
+		self._save_settings(
+			gauge_limit_percent=30,
+			mileage_margin_percent=15,
+			litres_excess_percent=10,
+			min_hours_between_fuelings=24,
+		)
 
 	def _insert(self, doctype, **values):
 		return frappe.get_doc({"doctype": doctype, **values}).insert(ignore_permissions=True)
@@ -106,9 +112,9 @@ class TestFuelOrder(IntegrationTestCase):
 		requester = self._user(("Fleet User",), self.location.name)
 		approver = self._user(("Fleet Approver",), self.location.name)
 		with self.set_user(requester):
-			order = apply_workflow(attach_request_photos(self.make_order().insert()), "Submit for Approval")
+			order = send_up(attach_request_photos(self.make_order().insert()))
 		with self.set_user(approver):
-			order = apply_workflow(order, "Approve")
+			order = decide(order, "Approve")
 		return order, requester, approver
 
 	def _user(self, roles, location, first_name="AC03", last_name=None):
@@ -178,14 +184,14 @@ class TestFuelOrder(IntegrationTestCase):
 		approver = self._user(("Fleet Approver",), self.location.name)
 
 		with self.set_user(requester):
-			order = apply_workflow(attach_request_photos(self.make_order().insert()), "Submit for Approval")
+			order = send_up(attach_request_photos(self.make_order().insert()))
 
 		self.assertEqual(order.workflow_state, "Pending Approval")
 		self.assertEqual(order.submitted_by, requester)
 		self.assertTrue(order.submitted_on)
 
 		with self.set_user(approver):
-			approved = apply_workflow(order, "Approve")
+			approved = decide(order, "Approve")
 
 		self.assertEqual(approved.workflow_state, "Approved")
 		self.assertEqual(approved.docstatus, 1)
@@ -193,13 +199,12 @@ class TestFuelOrder(IntegrationTestCase):
 		self.assertTrue(approved.approved_on)
 
 		with self.set_user(requester):
-			rejected_order = apply_workflow(
-				attach_request_photos(self.make_order(request_meter_reading=2000).insert()),
-				"Submit for Approval",
+			rejected_order = send_up(
+				attach_request_photos(self.make_order(request_meter_reading=2000).insert())
 			)
 
 		with self.set_user(approver):
-			rejected = apply_workflow(rejected_order, "Reject")
+			rejected = decide(rejected_order, "Reject")
 
 		self.assertEqual(rejected.workflow_state, "Rejected")
 		self.assertEqual(rejected.docstatus, 0)
@@ -210,11 +215,11 @@ class TestFuelOrder(IntegrationTestCase):
 		self_approver = self._user(("Fleet User", "Fleet Approver"), self.location.name)
 
 		with self.set_user(self_approver):
-			order = apply_workflow(attach_request_photos(self.make_order().insert()), "Submit for Approval")
+			order = send_up(attach_request_photos(self.make_order().insert()))
 			for action in ("Approve", "Reject"):
 				with self.subTest(action=action):
 					with self.assertRaises(frappe.ValidationError):
-						apply_workflow(order, action)
+						decide(order, action)
 
 		self.assertEqual(frappe.db.get_value("Fuel Order", order.name, "workflow_state"), "Pending Approval")
 
@@ -223,9 +228,9 @@ class TestFuelOrder(IntegrationTestCase):
 		with self.set_user(owner):
 			order = attach_request_photos(self.make_order().insert())
 		with self.set_user(submitter):
-			order = apply_workflow(order, "Submit for Approval")
+			order = send_up(order)
 			with self.assertRaises(frappe.ValidationError):
-				apply_workflow(order, "Approve")
+				decide(order, "Approve")
 
 		approver = self._user(("Fleet Approver",), self.location.name)
 		requester = self._user(("Fleet User",), self.location.name)
@@ -234,14 +239,13 @@ class TestFuelOrder(IntegrationTestCase):
 		)
 
 		with self.set_user(requester):
-			order = apply_workflow(
-				attach_request_photos(self.make_order(actual_requester=linked_requester.name).insert()),
-				"Submit for Approval",
+			order = send_up(
+				attach_request_photos(self.make_order(actual_requester=linked_requester.name).insert())
 			)
 
 		with self.set_user(approver):
 			with self.assertRaises(frappe.ValidationError):
-				apply_workflow(order, "Approve")
+				decide(order, "Approve")
 
 	def test_approval_persists_valid_until_from_approval_timestamp(self):
 		self._save_settings(default_validity_days=5)
@@ -249,9 +253,9 @@ class TestFuelOrder(IntegrationTestCase):
 		approver = self._user(("Fleet Approver",), self.location.name)
 
 		with self.set_user(requester):
-			order = apply_workflow(attach_request_photos(self.make_order().insert()), "Submit for Approval")
+			order = send_up(attach_request_photos(self.make_order().insert()))
 		with self.set_user(approver):
-			apply_workflow(order, "Approve")
+			decide(order, "Approve")
 
 		persisted = frappe.get_doc("Fuel Order", order.name)
 		expected_valid_until = get_datetime(persisted.approved_on) + timedelta(days=5)
@@ -394,16 +398,15 @@ class TestFuelOrder(IntegrationTestCase):
 		approver = self._user(("Fleet Approver",), self.location.name)
 
 		with self.set_user(requester):
-			order = apply_workflow(
+			order = send_up(
 				attach_request_photos(
 					self.make_order(
 						quantity_authorization="Partial", authorized_quantity_litres=42.5
 					).insert()
-				),
-				"Submit for Approval",
+				)
 			)
 		with self.set_user(approver):
-			approved = apply_workflow(order, "Approve")
+			approved = decide(order, "Approve")
 			printed = frappe.get_print(
 				"Fuel Order",
 				approved.name,
@@ -514,9 +517,9 @@ class TestFuelOrder(IntegrationTestCase):
 		)
 
 		with self.set_user(requester):
-			order = apply_workflow(attach_request_photos(self.make_order().insert()), "Submit for Approval")
+			order = send_up(attach_request_photos(self.make_order().insert()))
 		with self.set_user(approver):
-			order = apply_workflow(order, "Approve")
+			order = decide(order, "Approve")
 			printed = frappe.get_print(
 				"Fuel Order",
 				order.name,
@@ -630,17 +633,17 @@ class TestFuelOrder(IntegrationTestCase):
 		with self.set_user(requester):
 			order = self.make_order().insert()
 			with self.assertRaisesRegex(frappe.ValidationError, "Meter photo is required"):
-				apply_workflow(order, "Submit for Approval")
+				send_up(order)
 
 			order = frappe.get_doc("Fuel Order", order.name)
 			order.meter_photo = make_photo().file_url
 			order.save()
 			with self.assertRaisesRegex(frappe.ValidationError, "Gauge photo is required"):
-				apply_workflow(order, "Submit for Approval")
+				send_up(order)
 
 			order = frappe.get_doc("Fuel Order", order.name)
 			attach_request_photos(order)
-			sent = apply_workflow(order, "Submit for Approval")
+			sent = send_up(order)
 
 		self.assertEqual(sent.workflow_state, "Pending Approval")
 		self.assertEqual(
@@ -660,21 +663,19 @@ class TestFuelOrder(IntegrationTestCase):
 					attach_request_photos(order, **kwargs)
 					order = frappe.get_doc("Fuel Order", order.name)
 					with self.assertRaisesRegex(frappe.ValidationError, message):
-						apply_workflow(order, "Submit for Approval")
+						send_up(order)
 
 	def test_orders_already_past_draft_are_not_rechecked(self):
 		requester = self._user(("Fleet User",), self.location.name)
 		approver = self._user(("Fleet Approver",), self.location.name)
 		with self.set_user(requester):
-			pending = apply_workflow(
-				attach_request_photos(self.make_order().insert()), "Submit for Approval"
-			)
+			pending = send_up(attach_request_photos(self.make_order().insert()))
 
 		# Stands in for an order sent up before photos were required (spec 002 D-6).
 		frappe.db.set_value("Fuel Order", pending.name, {"meter_photo": None, "gauge_photo": None})
 
 		with self.set_user(approver):
-			approved = apply_workflow(frappe.get_doc("Fuel Order", pending.name), "Approve")
+			approved = decide(pending, "Approve")
 
 		self.assertEqual(approved.workflow_state, "Approved")
 
@@ -746,34 +747,29 @@ class TestFuelOrder(IntegrationTestCase):
 
 		with self.set_user(requester):
 			draft = self.make_order().insert()
-			pending = apply_workflow(
-				attach_request_photos(self.make_order(request_meter_reading=2000).insert()),
-				"Submit for Approval",
-			)
+			pending = send_up(attach_request_photos(self.make_order(request_meter_reading=2000).insert()))
 		with self.set_user(approver):
 			with self.assertRaises(frappe.PermissionError):
 				frappe.get_print(
 					"Fuel Order", draft.name, print_format="Fuel Order Approval Slip", no_letterhead=1
 				)
-			rejected = apply_workflow(pending, "Reject")
+			rejected = decide(pending, "Reject")
 			with self.assertRaises(frappe.PermissionError):
 				frappe.get_print(
 					"Fuel Order", rejected.name, print_format="Fuel Order Approval Slip", no_letterhead=1
 				)
 
 		with self.set_user(requester):
-			approved = apply_workflow(
-				attach_request_photos(self.make_order(request_meter_reading=3000).insert()),
-				"Submit for Approval",
-			)
+			approved = send_up(attach_request_photos(self.make_order(request_meter_reading=3000).insert()))
 		with self.set_user(approver):
-			approved = apply_workflow(approved, "Approve")
+			approved = decide(approved, "Approve")
 
+		# A Fleet User may print an approved order at his permitted location (spec 002 D-10).
 		with self.set_user(requester):
-			with self.assertRaises(frappe.PermissionError):
-				frappe.get_print(
-					"Fuel Order", approved.name, print_format="Fuel Order Approval Slip", no_letterhead=1
-				)
+			printed = frappe.get_print(
+				"Fuel Order", approved.name, print_format="Fuel Order Approval Slip", no_letterhead=1
+			)
+		self.assertIn(approved.name, printed)
 
 		with self.set_user(unauthorized):
 			with self.assertRaises(frappe.PermissionError):
