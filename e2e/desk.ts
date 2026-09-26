@@ -128,9 +128,9 @@ export async function setValue(page: Page, fieldname: string, value: string) {
 export async function setLink(page: Page, fieldname: string, value: string) {
 	const input = await focusField(page, fieldname);
 	await input.fill(value);
+	// Frappe sets the option's title to its plain label; a search-field description follows it in the text.
 	await optionsFor(page, fieldname)
-		.locator("p[title]")
-		.filter({ hasText: new RegExp(`^${value}$`) })
+		.locator(`p[title="${value.replace(/["\\]/g, "\\$&")}"]`)
 		.first()
 		.click();
 	await page.waitForFunction(([f, v]) => window.cur_frm.doc[f] === v, [fieldname, value]);
