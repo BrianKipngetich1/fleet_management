@@ -81,4 +81,4 @@ Desk rows: `agent-browser` walkthrough on the test site as the named role.
 
 **Closure:** —
 
-**Next:** —
+**Next:** resume at: C1 — rebuild the test site with `bench fleet-test-site up --replace` (the first build on 2026-09-26 stopped before the app's tables were created; its output was lost), then run the backend suite.
