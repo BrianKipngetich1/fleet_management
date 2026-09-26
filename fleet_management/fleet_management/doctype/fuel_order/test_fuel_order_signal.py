@@ -1,7 +1,6 @@
 from datetime import timedelta
 
 import frappe
-from frappe.model.workflow import apply_workflow
 from frappe.tests import IntegrationTestCase
 from frappe.utils import get_datetime, now_datetime
 
@@ -10,7 +9,7 @@ from fleet_management.fleet_management.doctype.fuel_order.fuel_order import (
 	get_mileage_intervals,
 	has_open_order,
 )
-from fleet_management.tests.utils import attach_request_photos
+from fleet_management.tests.utils import attach_request_photos, decide, send_up
 
 
 class TestFuelOrderSignal(IntegrationTestCase):
@@ -108,17 +107,11 @@ class TestFuelOrderSignal(IntegrationTestCase):
 		frappe.clear_cache(user=user.name)
 		return user.name
 
-	def _send_up(self, **overrides):
+	def _approve_green(self, **overrides):
+		# A green order is approved straight from Draft by the Fleet User who entered it.
 		requester = self._user(("Fleet User",), self.location.name)
 		with self.set_user(requester):
-			return apply_workflow(
-				attach_request_photos(self.make_order(**overrides).insert()), "Submit for Approval"
-			)
-
-	def _approve(self, order):
-		approver = self._user(("Fleet Approver",), self.location.name)
-		with self.set_user(approver):
-			return apply_workflow(order, "Approve"), approver
+			return decide(attach_request_photos(self.make_order(**overrides).insert()), "Approve")
 
 	def _reasons(self, order):
 		return order.signal_reasons.split("\n") if order.signal_reasons else []
@@ -161,12 +154,11 @@ class TestFuelOrderSignal(IntegrationTestCase):
 		draft = self.make_order().insert(ignore_permissions=True)
 		self.assertFalse(has_open_order(self.asset.name))
 
-		pending = self._send_up()
-		self.assertTrue(has_open_order(self.asset.name, exclude_order=draft.name))
-		self.assertFalse(has_open_order(self.asset.name, exclude_order=pending.name))
-
-		approved, _approver = self._approve(pending)
+		approved = self._approve_green()
 		self.assertEqual(approved.workflow_state, "Approved")
+		self.assertTrue(has_open_order(self.asset.name, exclude_order=draft.name))
+		self.assertFalse(has_open_order(self.asset.name, exclude_order=approved.name))
+
 		# The approved order is never counted against itself.
 		self.assertEqual(approved.signal, "Green")
 		self.assertEqual(frappe.db.get_value("Fuel Order", approved.name, "signal"), "Green")
@@ -177,6 +169,25 @@ class TestFuelOrderSignal(IntegrationTestCase):
 		reasons = self._reasons(order)
 		self.assertEqual(len(reasons), 1, reasons)
 		self.assertTrue(reasons[0].startswith("Open order exists"), reasons)
+
+	def test_an_order_waiting_for_sign_off_counts_as_open(self):
+		requester = self._user(("Fleet User",), self.location.name)
+		with self.set_user(requester):
+			pending = attach_request_photos(self.make_order(request_gauge_percent=80).insert())
+			pending = send_up(pending)
+			self.assertEqual(pending.workflow_state, "Pending Approval")
+
+			order = self.make_order(request_gauge_percent=40).insert()
+			self.assertEqual(order.signal, "Red")
+			reasons = self._reasons(order)
+			self.assertEqual(len(reasons), 1, reasons)
+			self.assertTrue(reasons[0].startswith("Open order exists"), reasons)
+
+			pending = decide(pending, "Withdraw")
+			self.assertEqual(pending.workflow_state, "Rejected")
+
+			order.save()
+			self.assertEqual(order.signal, "Green")
 
 	def test_away_from_home_and_not_the_usual_driver(self):
 		away = self._insert("Fleet Location", location_name=f"AC09 Away {self.suffix}")
@@ -226,8 +237,9 @@ class TestFuelOrderSignal(IntegrationTestCase):
 		self.assertEqual(order.average_km_per_litre, 10.0)
 
 	def test_signal_is_frozen_once_approved(self):
-		approved, approver = self._approve(self._send_up())
+		approved = self._approve_green()
 		self.assertEqual(approved.signal, "Green")
+		approver = self._user(("Fleet Approver",), self.location.name)
 
 		self._save_settings(gauge_limit_percent=10)
 		new_valid_until = get_datetime(approved.valid_until) + timedelta(hours=1)
