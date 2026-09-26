@@ -448,6 +448,8 @@ def _seed_masters():
 		content=LETTER_HEAD_CONTENT,
 		is_default=1,
 	)
+	# Letter Head.before_insert switches a new letter head to "Image"; keep the sample one HTML-based.
+	frappe.db.set_value("Letter Head", LETTER_HEAD, "source", "HTML")
 	for make, model, engine_cc, tank in VEHICLE_MODELS:
 		_insert(
 			"Vehicle Model", make=make, model=model, engine_capacity_cc=engine_cc, tank_capacity_litres=tank
