@@ -8,7 +8,7 @@ verified, from what was actually observed. Procedure, not transcript. Never reco
 | | |
 |---|---|
 | Specification | [`../spec.md`](../spec.md) @ `3c37dbb` |
-| Status | Built — awaiting Stage C |
+| Status | In progress — built, not yet tested |
 | Started / Closed | 2026-09-25 / — |
 | Author | Fleet Management team |
 | Reviewed by | — |
@@ -54,7 +54,7 @@ Not yet observed in this phase.
 **How to run it.** Backend rows: `bench --site fleet_management-test.localhost run-tests --app fleet_management`.
 Desk rows: `agent-browser` walkthrough on the test site as the named role.
 
-**Result:** not yet run.
+**Result:** not yet run. All four phases are tested together once all are built (owner, 2026-09-25).
 
 ## What we learned that the plan did not predict
 
@@ -81,4 +81,4 @@ Desk rows: `agent-browser` walkthrough on the test site as the named role.
 
 **Closure:** —
 
-**Next:** resume at: C1 — rebuild the test site with `bench fleet-test-site up --replace` (the first build on 2026-09-26 stopped before the app's tables were created; its output was lost), then run the backend suite.
+**Next:** rebuild the test site with `bench fleet-test-site up --replace` and confirm it reports MariaDB and dd/mm/yyyy (the first build on 2026-09-26 stopped before the app's tables were created; its output was lost); then run the backend suite, Playwright, and each phase's Desk rows, and record what was observed.

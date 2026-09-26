@@ -8,7 +8,7 @@ verified, from what was actually observed. Procedure, not transcript. Never reco
 | | |
 |---|---|
 | Specification | [`../spec.md`](../spec.md) @ `3c37dbb` |
-| Status | Built — awaiting Stage C |
+| Status | In progress — built, not yet tested |
 | Started / Closed | 2026-09-25 / — |
 | Author | Fleet Management team |
 | Reviewed by | — |
@@ -56,7 +56,7 @@ Not yet observed in this phase.
 **How to run it.** Backend rows: `bench --site fleet_management-test.localhost run-tests --app fleet_management`.
 Desk rows: `agent-browser` walkthrough on the test site as the named role.
 
-**Result:** not yet run.
+**Result:** not yet run. All four phases are tested together once all are built (owner, 2026-09-25).
 
 ## What we learned that the plan did not predict
 
@@ -69,4 +69,4 @@ Desk rows: `agent-browser` walkthrough on the test site as the named role.
 
 **Closure:** —
 
-**Next:** —
+**Next:** test this phase with the other three once the test site builds (see the Phase 0 record); then record what was observed here and request its review.
