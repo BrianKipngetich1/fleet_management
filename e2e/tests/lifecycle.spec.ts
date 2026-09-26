@@ -67,18 +67,18 @@ test("a Fuel Order goes draft -> approved -> cancelled", async ({ page }) => {
 		() => !!window.cur_frm?.doc?.meter_photo && !!window.cur_frm?.doc?.gauge_photo,
 	);
 
-	await page.getByRole("button", { name: "Actions", exact: true }).click();
-	await page.locator(".actions-btn-group .dropdown-menu").getByText("Submit for Approval", { exact: true }).click();
-	await page.waitForFunction(() => window.cur_frm?.doc?.workflow_state === "Pending Approval");
-	expect(await page.evaluate(() => window.cur_frm.doc.docstatus)).toBe(0);
-
-	await loginAs(page, USERS.approver.email);
-	await page.goto(`/app/fuel-order/${encodeURIComponent(name)}`);
-	await page.waitForFunction((docname) => window.cur_frm?.doc?.name === docname, name);
+	// Guards the suite's premise (this vehicle/location combination is green), not an
+	// acceptance criterion: a green Draft is approved by the Fleet User directly.
+	expect(await page.evaluate(() => window.cur_frm.doc.signal)).toBe("Green");
 	await page.getByRole("button", { name: "Actions", exact: true }).click();
 	await page.locator(".actions-btn-group .dropdown-menu").getByText("Approve", { exact: true }).click();
 	await page.waitForFunction(() => window.cur_frm?.doc?.workflow_state === "Approved");
 	expect(await page.evaluate(() => window.cur_frm.doc.docstatus)).toBe(1);
+
+	// Extending validity is restricted to Fleet Approver/Fleet Admin; switch sessions here.
+	await loginAs(page, USERS.approver.email);
+	await page.goto(`/app/fuel-order/${encodeURIComponent(name)}`);
+	await page.waitForFunction((docname) => window.cur_frm?.doc?.name === docname, name);
 
 	// The app's own "Actions" button group, not Frappe's workflow-actions button of the same
 	// name, which can be present at the same time once the approved form refreshes.

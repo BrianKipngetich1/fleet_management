@@ -99,16 +99,8 @@ async function createApprovedOrder(page: Page, refs: Record<string, string>, met
 	});
 	const order = await resourceData<Resource>(create, "Fuel Order creation");
 	await attachRequestPhotos(page, order.name);
-	const submit = await page.request.post("/api/method/frappe.model.workflow.apply_workflow", {
-		data: {
-			doc: JSON.stringify({ doctype: "Fuel Order", name: order.name }),
-			action: "Submit for Approval",
-		},
-		headers: { "X-Frappe-CSRF-Token": await csrf(page) },
-	});
-	await resourceData(submit, "Fuel Order submission");
-
-	await authenticate(page, USERS.approver.email, `/app/fuel-order/${encodeURIComponent(order.name)}`);
+	// The order is green (no history/open order for this asset at its home location), so the
+	// Fleet User who entered it approves it directly; no Fleet Approver session is needed.
 	const approve = await page.request.post("/api/method/frappe.model.workflow.apply_workflow", {
 		data: {
 			doc: JSON.stringify({ doctype: "Fuel Order", name: order.name }),
@@ -117,11 +109,11 @@ async function createApprovedOrder(page: Page, refs: Record<string, string>, met
 		headers: { "X-Frappe-CSRF-Token": await csrf(page) },
 	});
 	await resourceData(approve, "Fuel Order approval");
+	// A Fleet User may print an approved order; stay authenticated as the primary user.
 	const print = await page.request.get(
 		`/printview?doctype=${encodeURIComponent("Fuel Order")}&name=${encodeURIComponent(order.name)}&format=${encodeURIComponent("Fuel Order Approval Slip")}&no_letterhead=1`,
 	);
 	expect(print.ok(), "approved Fuel Order slip must be printed before fueling").toBeTruthy();
-	await authenticate(page, USERS.primary.email, `/app/fuel-order/${encodeURIComponent(order.name)}`);
 	return order.name;
 }
 
