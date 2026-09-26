@@ -42,6 +42,14 @@ Not yet observed in this phase.
 
 | # | Put the system in this state | Expect | Covers |
 |---|---|---|---|
+| 1 | As Philip, approve a green order he entered | Approved, with Philip as approver and a validity set; no "waiting for approval" notice is created | AC-12 — `test_fuel_order_decisions.py` `test_philip_approves_his_own_green_order` |
+| 2 | Offer Philip a red draft; then let a green draft turn red because another order for the vehicle is approved meanwhile, and have Philip approve it | Approve is not offered on the red draft and is refused if forced; the turned-red draft is refused "has turned red" and stays Draft | AC-12 — `test_philip_can_never_approve_a_red_order` |
+| 3 | Send up a green draft; a red draft without an explanation; the red draft with one | Refused; refused; Pending Approval with the explanation kept | AC-13 — `test_only_a_red_order_with_an_explanation_is_sent_up` |
+| 4 | As Philip, reject a draft without and then with a written reason; withdraw a pending order with a reason | Refused without a reason; with one it is Rejected with Philip as rejecter and the reason kept; the withdrawn order is Rejected | AC-13 — `test_philip_rejects_or_withdraws_only_with_a_reason` |
+| 5 | A red order is waiting for sign-off: Vikas decides without and then with a reason; Amina (Mombasa) tries; a user holding both roles who entered it tries; an approver who asked for it tries | Vikas is refused without a reason and approves with one; the other three are refused | AC-14 — `test_only_a_permitted_independent_approver_decides_a_sent_up_order` |
+| 6 | Send a red order up, then save the pending order again | Exactly one notice for Vikas and one for the Fleet Admin, and no duplicates after the second save | AC-14 — `test_a_sent_up_order_notifies_the_approver_and_admin_once_each` |
+| 7 | Print a green order Philip approved and a red order Vikas approved | The first slip names Philip; the second names Vikas on the authorised line and the signature line | AC-15 — `test_the_slip_names_whoever_approved_it` |
+| 8 | Record a blank reason; record a reason for an action the user cannot take now; change a reason field by an ordinary save | Refused; refused; the saved reason is unchanged | AC-13, AC-14 — `test_record_decision_reason_refuses_blank_reasons_and_unavailable_actions` |
 
 **How to run it.** Backend rows: `bench --site fleet_management-test.localhost run-tests --app fleet_management`.
 Desk rows: `agent-browser` walkthrough on the test site as the named role.

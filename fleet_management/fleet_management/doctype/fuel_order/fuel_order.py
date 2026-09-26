@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 import frappe
 from frappe.model.document import Document
+from frappe.model.workflow import get_transitions
 from frappe.utils import flt, get_datetime, now_datetime
 
 from fleet_management.fleet_management.doctype.fleet_asset.fleet_asset import (
@@ -19,6 +20,8 @@ from fleet_management.notifications import notify_fuel_order
 
 
 APPROVAL_TRANSITION_STATES = {"Approved", "Rejected"}
+# The states an order can be approved or rejected from (spec 002 D-10, D-11).
+DECISION_STATES = frozenset({"Draft", "Pending Approval"})
 AUDIT_FIELDS = (
 	"submitted_by",
 	"submitted_on",
@@ -37,6 +40,9 @@ EXTENSION_FIELDS = frozenset(
 	{"valid_until", "reprint_required", "slip_revision", "validity_extension_history"}
 )
 EXTENSION_ROLES = frozenset({"Fleet Admin", "Fleet Approver"})
+ENTRY_ROLES = frozenset({"Fleet Admin", "Fleet User"})
+# Written only by record_decision_reason; every save restores them (spec 002 D-10, D-11).
+DECISION_FIELDS = ("send_up_explanation", "decision_reason", "decision_action", "decision_reason_by")
 SNAPSHOT_FIELDS = (
 	"assigned_location_snapshot",
 	"assigned_custodian_snapshot",
@@ -98,7 +104,8 @@ class FuelOrder(Document):
 			self.request_datetime = previous.request_datetime
 
 	def validate(self):
-		self._validate_approval_actor()
+		self._restore_decision_fields()
+		self._validate_transition()
 		self._record_approval_audit()
 		self._restore_audit_fields()
 		self._validate_immutable_snapshots()
@@ -314,12 +321,70 @@ class FuelOrder(Document):
 					frappe.ValidationError,
 				)
 
-	def _validate_approval_actor(self):
+	def _restore_decision_fields(self):
 		previous = getattr(self, "_doc_before_save", None)
-		previous_state = previous.get("workflow_state") if previous else None
-		if previous_state != "Pending Approval" or self.workflow_state not in APPROVAL_TRANSITION_STATES:
-			return
+		for fieldname in DECISION_FIELDS:
+			self.set(fieldname, previous.get(fieldname) if previous else None)
 
+	def _validate_transition(self):
+		# Who may move an order between states, and what each move needs (spec 002 D-10, D-11).
+		previous_state = self._previous_workflow_state()
+		if previous_state == "Draft" and self.workflow_state == "Approved":
+			self._validate_entry_actor()
+			if self.signal != "Green":
+				reasons = "; ".join(filter(None, (self.signal_reasons or "").split("\n")))
+				frappe.throw(
+					frappe._("This order has turned red and cannot be approved: {0}").format(reasons),
+					frappe.ValidationError,
+				)
+		elif previous_state == "Draft" and self.workflow_state == "Pending Approval":
+			if self.signal != "Red":
+				frappe.throw(
+					frappe._("A green order is approved, not sent for sign-off."), frappe.ValidationError
+				)
+			if not (self.send_up_explanation or "").strip():
+				frappe.throw(
+					frappe._("An explanation is required to send a red order for sign-off."),
+					frappe.ValidationError,
+				)
+		elif self.workflow_state == "Rejected" and (
+			previous_state == "Draft"
+			or (previous_state == "Pending Approval" and self._is_withdrawal())
+		):
+			self._validate_entry_actor()
+			self._validate_recorded_reason(
+				"Reject" if previous_state == "Draft" else "Withdraw",
+				frappe._("A written reason is required to reject this order."),
+			)
+		elif previous_state == "Pending Approval" and self.workflow_state in APPROVAL_TRANSITION_STATES:
+			self._validate_approval_actor()
+			self._validate_recorded_reason(
+				"Approve" if self.workflow_state == "Approved" else "Reject",
+				frappe._("A written reason is required for this decision."),
+			)
+
+	def _is_withdrawal(self):
+		# Reject and Withdraw both lead to Rejected; the recorded action tells them apart, and a user
+		# without an approver role can only have withdrawn.
+		return self.decision_action == "Withdraw" or not EXTENSION_ROLES.intersection(frappe.get_roles())
+
+	def _validate_entry_actor(self):
+		if not ENTRY_ROLES.intersection(frappe.get_roles()):
+			frappe.throw(
+				frappe._("Only Fleet Users can approve, reject, or withdraw the orders they enter."),
+				frappe.PermissionError,
+			)
+
+	def _validate_recorded_reason(self, action, message):
+		if (
+			self.decision_action != action
+			or self.decision_reason_by != frappe.session.user
+			or not (self.decision_reason or "").strip()
+		):
+			frappe.throw(message, frappe.ValidationError)
+
+	def _validate_approval_actor(self):
+		previous = self._doc_before_save
 		roles = set(frappe.get_roles())
 		if not EXTENSION_ROLES.intersection(roles):
 			frappe.throw(frappe._("Only Fleet Approvers can approve or reject Fuel Orders."), frappe.PermissionError)
@@ -342,7 +407,7 @@ class FuelOrder(Document):
 		if previous_state == "Draft" and self.workflow_state == "Pending Approval":
 			self.submitted_by = frappe.session.user
 			self.submitted_on = now_datetime()
-		elif previous_state == "Pending Approval" and self.workflow_state == "Approved":
+		elif previous_state in DECISION_STATES and self.workflow_state == "Approved":
 			self.approved_by = frappe.session.user
 			self.approved_on = now_datetime()
 			validity_days = frappe.db.get_single_value(
@@ -351,7 +416,7 @@ class FuelOrder(Document):
 			if validity_days is None:
 				validity_days = 3
 			self.valid_until = self.approved_on + timedelta(days=int(validity_days))
-		elif previous_state == "Pending Approval" and self.workflow_state == "Rejected":
+		elif previous_state in DECISION_STATES and self.workflow_state == "Rejected":
 			self.rejected_by = frappe.session.user
 			self.rejected_on = now_datetime()
 
@@ -374,11 +439,11 @@ class FuelOrder(Document):
 			and self.workflow_state == "Pending Approval"
 			and fieldname in {"submitted_by", "submitted_on"}
 		) or (
-			previous_state == "Pending Approval"
+			previous_state in DECISION_STATES
 			and self.workflow_state == "Approved"
 			and fieldname in {"approved_by", "approved_on", "valid_until"}
 		) or (
-			previous_state == "Pending Approval"
+			previous_state in DECISION_STATES
 			and self.workflow_state == "Rejected"
 			and fieldname in {"rejected_by", "rejected_on"}
 		)
@@ -533,7 +598,8 @@ class FuelOrder(Document):
 			)
 
 	def before_print(self, print_settings=None):
-		if not ({"Fleet Admin", "Fleet Approver", "System Manager"} & set(frappe.get_roles())):
+		# Fleet Users print the green orders they approve (spec 002 D-10).
+		if not ({"Fleet Admin", "Fleet Approver", "Fleet User", "System Manager"} & set(frappe.get_roles())):
 			frappe.throw(
 				frappe._("Only Fleet Approvers and Fleet Admins can print Fuel Orders."),
 				frappe.PermissionError,
@@ -679,3 +745,31 @@ def get_request_facts(asset: str):
 		"suggested_station": stations[0] if len(stations) == 1 else None,
 		**get_previous_entry(asset_doc.name),
 	}
+
+
+@frappe.whitelist(methods=["POST"])
+def record_decision_reason(name: str, action: str, reason: str):
+	"""Store the written reason for a workflow action before it is applied (spec 002 D-10, D-11).
+
+	The workflow action reloads the order from the database, so the reason is written first, and this
+	is the only writer of the decision fields."""
+	doc = frappe.get_doc("Fuel Order", name)
+	doc.check_permission("read")
+	reason = str(reason or "").strip()
+	if not reason:
+		frappe.throw(frappe._("A written reason is required."), frappe.ValidationError)
+	if action not in {transition.action for transition in get_transitions(doc)}:
+		frappe.throw(frappe._("You cannot take this action on this order now."), frappe.PermissionError)
+
+	if action == "Submit for Approval":
+		updates = {"send_up_explanation": reason}
+	elif action == "Approve" and doc.workflow_state == "Draft":
+		# A green order is approved by its clerk without a written reason (spec 002 D-10).
+		return
+	else:
+		updates = {
+			"decision_reason": reason,
+			"decision_action": action,
+			"decision_reason_by": frappe.session.user,
+		}
+	doc.db_set(updates, update_modified=False)
