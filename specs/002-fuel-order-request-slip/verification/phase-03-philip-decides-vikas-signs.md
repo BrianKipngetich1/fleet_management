@@ -8,7 +8,7 @@ verified, from what was actually observed. Procedure, not transcript. Never reco
 | | |
 |---|---|
 | Specification | [`../spec.md`](../spec.md) @ `3c37dbb` |
-| Status | Building on `feature/002-fuel-order-request-slip` |
+| Status | Built — awaiting Stage C |
 | Started / Closed | 2026-09-25 / — |
 | Author | Fleet Management team |
 | Reviewed by | — |
@@ -36,6 +36,7 @@ Not yet observed in this phase.
 |---|---|---|
 | Green/red routing | Workflow states, actions, allowed roles, conditions | Reason on send-up and decisions; narrowed self-approval check |
 | Notices | Notification Log | Recipient helper from 001 |
+| Written reasons | `before_workflow_action` form hook and read-only fields | One whitelisted call records the reason first, because Frappe's workflow action reloads the order and drops unsaved input |
 
 
 ## Verification

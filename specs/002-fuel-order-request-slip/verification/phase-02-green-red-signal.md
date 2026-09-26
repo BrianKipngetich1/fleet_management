@@ -8,7 +8,7 @@ verified, from what was actually observed. Procedure, not transcript. Never reco
 | | |
 |---|---|
 | Specification | [`../spec.md`](../spec.md) @ `3c37dbb` |
-| Status | Building on `feature/002-fuel-order-request-slip` |
+| Status | Built — awaiting Stage C |
 | Started / Closed | 2026-09-25 / — |
 | Author | Fleet Management team |
 | Reviewed by | — |
