@@ -322,7 +322,7 @@ class TestFuelOrder(IntegrationTestCase):
 		self.assertEqual(history[0]["actor"], approver)
 		self.assertEqual(history[0]["reason"], reason)
 		self.assertTrue(history[0]["timestamp"])
-		self.assertIn(new_valid_until.strftime("%Y-%m-%d %H:%M:%S"), printed)
+		self.assertIn(frappe.utils.format_datetime(new_valid_until), printed)
 
 	def test_extension_requires_non_blank_reason(self):
 		order, _requester, approver = self._make_approved_order()
@@ -417,8 +417,8 @@ class TestFuelOrder(IntegrationTestCase):
 				no_letterhead=1,
 			)
 
-		expected_valid_until = get_datetime(approved.valid_until).strftime("%Y-%m-%d %H:%M:%S")
-		expected_approved_on = get_datetime(approved.approved_on).strftime("%Y-%m-%d %H:%M:%S")
+		expected_valid_until = frappe.utils.format_datetime(approved.valid_until)
+		expected_approved_on = frappe.utils.format_datetime(approved.approved_on)
 		for value in (
 			approved.name,
 			self.asset.name,
@@ -430,7 +430,7 @@ class TestFuelOrder(IntegrationTestCase):
 			"Request gauge",
 			"40%",
 			"Estimated litres to fill (from gauge):",
-			"36.0 litres",
+			"36 litres",
 			frappe.utils.get_fullname(approved.approved_by),
 			expected_approved_on,
 			expected_valid_until,
@@ -444,6 +444,10 @@ class TestFuelOrder(IntegrationTestCase):
 			"Do not dispense after the valid-until timestamp",
 		):
 			self.assertIn(str(value), printed)
+
+		# Readings print without a trailing ".0" and timestamps in the site's dd/mm/yyyy format.
+		self.assertIn(">1000<", printed)
+		self.assertNotIn(get_datetime(approved.valid_until).strftime("%Y-%m-%d"), printed)
 
 	def test_approved_slip_reads_like_the_company_paper_slip(self):
 		suffix = frappe.generate_hash(length=8)
@@ -500,7 +504,7 @@ class TestFuelOrder(IntegrationTestCase):
 			"Reg No:",
 			self.asset.name,
 			"speedometer",
-			order.request_meter_reading,
+			f"{order.request_meter_reading:g}",
 			"NAMES OF AUTHORISED PERSON",
 			"Company stamp",
 		):
@@ -512,6 +516,9 @@ class TestFuelOrder(IntegrationTestCase):
 		css = frappe.db.get_value("Print Format", "Fuel Order Approval Slip", "css")
 		self.assertIn("page-size: A5", css)
 		self.assertIn("size: A5 portrait", css)
+		self.assertEqual(
+			frappe.db.get_value("Print Format", "Fuel Order Approval Slip", "pdf_generator"), "chrome"
+		)
 
 	def test_slip_names_the_authorised_person_by_full_name(self):
 		requester = self._user(("Fleet User",), self.location.name)
