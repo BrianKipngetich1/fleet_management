@@ -1,18 +1,35 @@
 """Shared helpers for fleet_management tests."""
 
+import io
+
 import frappe
 from frappe.model.workflow import apply_workflow
+from pypdf import PdfWriter
 
 from fleet_management.fleet_management.doctype.fuel_order.fuel_order import record_decision_reason
 
 PNG_CONTENT = bytes.fromhex("89504e470d0a1a0a0000000d49484452")
-PDF_CONTENT = b"%PDF-1.4\n"
+
+
+def _pdf_content(marker):
+	"""A minimal, parseable one-page PDF; the marker keeps each file's content unique."""
+	writer = PdfWriter()
+	writer.add_blank_page(72, 72)
+	writer.add_metadata({"/Title": marker})
+	buffer = io.BytesIO()
+	writer.write(buffer)
+	return buffer.getvalue()
 
 
 def make_photo(extension="png", private=True):
 	"""A File that stands in for an uploaded photo; PNG content by default."""
-	content = {"png": PNG_CONTENT, "pdf": PDF_CONTENT}.get(extension, b"plain text")
-	content += frappe.generate_hash(length=8).encode()
+	marker = frappe.generate_hash(length=8)
+	if extension == "pdf":
+		content = _pdf_content(marker)
+	elif extension == "png":
+		content = PNG_CONTENT + marker.encode()
+	else:
+		content = b"plain text" + marker.encode()
 	return frappe.get_doc(
 		{
 			"doctype": "File",

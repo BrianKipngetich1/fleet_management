@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import timedelta
 
 import frappe
@@ -26,9 +27,6 @@ class TestFuelOrder(IntegrationTestCase):
 			make=f"AC01 Make {suffix}",
 			model=f"AC01 Model {suffix}",
 			tank_capacity_litres=60,
-		)
-		self.inactive_fuel_type = self._insert(
-			"Fuel Type", fuel_type_name=f"AC01 Inactive Fuel {suffix}", active=0
 		)
 		self.station = self._insert(
 			"Fuel Station",
@@ -167,13 +165,18 @@ class TestFuelOrder(IntegrationTestCase):
 			("asset", self.inactive_asset.name),
 			("operational_location", self.inactive_location.name),
 			("planned_station", self.inactive_station.name),
-			("fuel_type", self.inactive_fuel_type.name),
 		)
 
 		for fieldname, value in invalid_references:
 			with self.subTest(fieldname=fieldname):
 				with self.assertRaises(frappe.ValidationError):
 					self.make_order(**{fieldname: value}).insert(ignore_permissions=True)
+
+		with self.subTest(fieldname="fuel_type"):
+			# The fuel type comes from the vehicle (spec 002 D-4), so it is refused when the vehicle's is inactive.
+			frappe.db.set_value("Fuel Type", self.fuel_type.name, "active", 0)
+			with self.assertRaises(frappe.ValidationError):
+				self.make_order().insert(ignore_permissions=True)
 
 	def test_rejects_missing_participant_reference(self):
 		with self.assertRaises(frappe.ValidationError):
@@ -529,7 +532,8 @@ class TestFuelOrder(IntegrationTestCase):
 
 		self.assertEqual(order.approved_by, approver)
 		self.assertGreaterEqual(printed.count("Vikas Test Approver"), 2)
-		self.assertNotIn(approver, printed)
+		# Frappe's print view closes the page with an HTML comment naming the viewer; it is never printed.
+		self.assertNotIn(approver, re.sub(r"<!--.*?-->", "", printed, flags=re.S))
 
 	def test_request_date_is_set_by_the_server_and_never_changes(self):
 		before = now_datetime().replace(microsecond=0)
