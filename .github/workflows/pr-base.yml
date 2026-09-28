@@ -1,0 +1,17 @@
+name: Pull request base
+
+on:
+  pull_request:
+
+jobs:
+  develop-only:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require develop base
+        env:
+          BASE: ${{ github.base_ref }}
+        run: |
+          if [ "$BASE" != develop ]; then
+            echo "Pull requests must target develop, not $BASE." >&2
+            exit 1
+          fi

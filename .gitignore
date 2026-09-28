@@ -81,3 +81,10 @@ specs/*/verification/screenshots/
 # Bench build symlink to the repository node_modules (machine-specific)
 /fleet_management/public/node_modules
 /specs/001-fleet-fuel-management/To Build/
+# Screenshots go in screenshots/<task>/; pr-screenshots/ holds only the current PR's set,
+# which the PR script attaches with gh --attach.
+specs/*/verification/pr-screenshots/
+# Local login inventory at the repository root — mode 0600, never committed
+CREDENTIALS.md
+# graphify-out/ is committed as the app map; only its cache stays local.
+graphify-out/cache/
