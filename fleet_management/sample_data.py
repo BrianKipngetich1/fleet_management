@@ -9,12 +9,14 @@ User Permissions that belong to them), then creates the same sample fleet every 
 Krystalline Salt locations, real vehicle models with their real tank sizes, a Nairobi fleet with
 about two months of fuelling history, and a few open orders in each workflow state.
 
-The fleet includes vehicles and standby generators. Philip (Fleet User) enters every Nairobi
-order; Vikas (Fleet Approver) approves them. Amina
-(Fleet Approver) covers Mombasa, whose orders are entered by Administrator. History runs
+The fleet includes vehicles and standby generators. Philip (Fleet User) enters every Nairobi order
+and approves the green ones himself; red ones go to Vikas (Fleet Approver) with his explanation.
+Amina (Fleet Approver) covers Mombasa, whose orders are entered by Administrator. History runs
 through the real document rules and is then dated back, so each vehicle shows realistic
 kilometres per litre. Dates are relative to the day the script runs. Users are created without
 passwords and keep any password already set; `CREDENTIALS.md` is the password inventory.
+Philip's drafts include one red example of each signal check a Nairobi-scoped user can meet
+(every check but away from home) and one green one.
 """
 
 from datetime import timedelta
@@ -24,8 +26,16 @@ import frappe
 from frappe.model.workflow import apply_workflow
 from frappe.utils import add_days, get_datetime, now_datetime
 
+from fleet_management.fleet_management.doctype.fuel_order.fuel_order import record_decision_reason
+
 TEST_SITE = "fleet_management-test.localhost"
 PRINT_FORMAT = "Fuel Order Approval Slip"
+
+# Written reasons recorded before a workflow decision (spec 002 D-10, D-11).
+SEND_UP_EXPLANATION = "Long-distance delivery run; mileage confirmed with the driver."
+COVER_DRIVER_EXPLANATION = "Usual driver on leave; {} is covering the route."
+APPROVAL_REASON = "Explanation checked; approved."
+REJECTION_REASON = "Tank still 70% full; refuel after the Thika delivery run."
 
 FLEET_DOCTYPES = (
 	"Fueling Transaction",
@@ -72,6 +82,24 @@ STATIONS = (
 	("Marereni Service Station", "Marereni", 1, "MSS"),
 )
 INVOICE_PREFIX = {name: prefix for name, _location, _approved, prefix in STATIONS}
+
+# Synthetic company heading and station postal addresses (002 D-13: site data, never real values).
+LETTER_HEAD = "Krystalline Salt Fuel Order Slip"
+LETTER_HEAD_CONTENT = (
+	'<div class="company-heading">'
+	"<p><strong>KRYSTALLINE SALT LIMITED</strong><br><strong>PIN NO. P000000000T</strong></p>"
+	"<p>P.O Box 00000-00100<br>NAIROBI.<br>Tel: 020-0000000<br>Email: fuel.test@example.com</p>"
+	"</div>"
+)
+STATION_ADDRESSES = {
+	# station: P.O. Box, postal code, town, email
+	"Mombasa Road Service Station": ("P.O Box 10001", "00100", "Nairobi", "mombasa-road.test@example.com"),
+	"Industrial Area Fuel Centre": ("P.O Box 10002", "00500", "Nairobi", "industrial-area.test@example.com"),
+	"Githurai Roadside Kiosk": ("P.O Box 10003", "00609", "Nairobi", "githurai.test@example.com"),
+	"Changamwe Service Station": ("P.O Box 20001", "80100", "Mombasa", "changamwe.test@example.com"),
+	"Gongoni Fuel Point": ("P.O Box 30001", "80200", "Malindi", "gongoni.test@example.com"),
+	"Marereni Service Station": ("P.O Box 30002", "80207", "Marereni", "marereni.test@example.com"),
+}
 
 VEHICLE_MODELS = (
 	# make, model, engine cc, tank litres
@@ -148,6 +176,16 @@ ASSETS = (
 		"KDH 201A", "Vehicle", 1, "Diesel", "Isuzu - D-Max 3.0 Double Cab", 10,
 		[_assignment("Grace Wanjiku", "Nairobi", "2026-09-01", "Joseph Mutua", reason="New pool vehicle")],
 	),
+	# Two Nairobi pick-ups kept for the signal examples: KDG 118X was fuelled a few hours before
+	# the script runs; KDJ 507K's last interval is well off its own average.
+	(
+		"KDG 118X", "Vehicle", 1, "Diesel", "Toyota - Hilux Double Cab 2.4 GD-6", 10,
+		[_assignment("Grace Wanjiku", "Nairobi", "2026-01-05", "John Mwangi")],
+	),
+	(
+		"KDJ 507K", "Vehicle", 1, "Diesel", "Toyota - Hilux Double Cab 2.4 GD-6", 10,
+		[_assignment("Grace Wanjiku", "Nairobi", "2026-01-05", "Samuel Kiprono")],
+	),
 	(
 		"KBZ 615J", "Vehicle", 0, "Diesel", "Isuzu - D-Max 3.0 Double Cab", 10,
 		[_assignment("Grace Wanjiku", "Nairobi", "2024-03-01", "Michael Onyango", "2026-06-30")],
@@ -182,7 +220,8 @@ GENERATOR_MAX_LITRES = {"GEN-NRB-01 Cummins 100 kVA": 200, "GEN-GON-01 Perkins 2
 # Completed fuelling history, oldest first. Each row: days ago, request meter reading (odometer km
 # for vehicles, hour meter for generators), request gauge % (vehicles only), invoice litres, full
 # tank (vehicles only), station. Vehicle rows give realistic km/L for each model; the standby
-# generator runs about 10 hours a fortnight at about 16 litres an hour.
+# generator runs about 10 hours a fortnight at about 16 litres an hour. A row 0 days ago is dated
+# a few hours before the script runs.
 HISTORY = {
 	"KDA 412M": [
 		(58, 48210, 20, 64.2, 1, "Mombasa Road Service Station"),
@@ -226,6 +265,20 @@ HISTORY = {
 		(28, 1260.5, None, 150.0, 0, "Industrial Area Fuel Centre"),
 		(14, 1271.0, None, 168.0, 0, "Mombasa Road Service Station"),
 	],
+	"KDG 118X": [
+		(30, 70000, 20, 64.0, 1, "Industrial Area Fuel Centre"),
+		(20, 70640, 22, 63.0, 1, "Mombasa Road Service Station"),
+		(10, 71265, 21, 62.5, 1, "Industrial Area Fuel Centre"),
+		(0, 71900, 20, 64.0, 1, "Mombasa Road Service Station"),
+	],
+	"KDJ 507K": [
+		(52, 60000, 20, 64.0, 1, "Industrial Area Fuel Centre"),
+		(42, 60600, 18, 66.0, 1, "Industrial Area Fuel Centre"),
+		(32, 61205, 20, 66.5, 1, "Mombasa Road Service Station"),
+		(22, 61800, 19, 65.5, 1, "Industrial Area Fuel Centre"),
+		(12, 62400, 17, 66.0, 1, "Industrial Area Fuel Centre"),
+		(3, 62672, 68, 25.0, 1, "Mombasa Road Service Station"),  # 10.9 km/L against about 9.1
+	],
 }
 
 REQUESTERS = {
@@ -234,6 +287,8 @@ REQUESTERS = {
 	"KDB 551Q": "Joseph Mutua",
 	"KCY 230L": "Samuel Kiprono",
 	"KDE 774H": "Hassan Omar",
+	"KDG 118X": "Grace Wanjiku",
+	"KDJ 507K": "Daniel Kiptoo",
 	"GEN-NRB-01 Cummins 100 kVA": "Grace Wanjiku",
 	"GEN-GON-01 Perkins 250 kVA": "James Karisa",
 }
@@ -275,6 +330,15 @@ def reset():
 	):
 		frappe.db.delete(doctype, {field: ("in", FLEET_DOCTYPES)})
 
+	addresses = frappe.get_all(
+		"Dynamic Link",
+		filters={"parenttype": "Address", "link_doctype": ("in", FLEET_DOCTYPES)},
+		pluck="parent",
+	)
+	for name in set(addresses):
+		frappe.delete_doc("Address", name, force=True, ignore_permissions=True)
+	frappe.db.delete("Letter Head", {"name": LETTER_HEAD})
+
 	frappe.db.delete("User Permission", {"allow": ("in", FLEET_DOCTYPES)})
 	for doctype in FLEET_DOCTYPES:
 		frappe.db.delete(doctype)
@@ -290,6 +354,10 @@ def reset():
 			"default_validity_days": 3,
 			"print_instruction": "Do not dispense after the valid-until timestamp.",
 			"transaction_entry_sla_hours": 48,
+			"mileage_margin_percent": 15,
+			"litres_excess_percent": 10,
+			"gauge_limit_percent": 75,
+			"min_hours_between_fuelings": 24,
 		}
 	)
 	settings.save(ignore_permissions=True)
@@ -310,7 +378,10 @@ def seed():
 	sequence = iter(range(1, 10_000))
 	for asset, rows in HISTORY.items():
 		for days_ago, odometer, gauge, litres, full, station in rows:
-			_completed_cycle(asset, days_ago, odometer, gauge, litres, full, station, next(sequence))
+			_completed_cycle(
+				asset, days_ago, odometer, gauge, litres, full, station, next(sequence),
+				hours_ago=8 if days_ago == 0 else None,
+			)
 	_open_orders()
 	frappe.set_user(ADMIN)
 	frappe.db.commit()
@@ -357,6 +428,28 @@ def _seed_masters():
 		_insert(
 			"Fuel Station", station_name=name, operational_location=location, active=1, approved=approved
 		)
+	for station, (box, postal_code, town, email) in STATION_ADDRESSES.items():
+		_insert(
+			"Address",
+			address_title=station,
+			address_type="Postal",
+			address_line1=box,
+			pincode=postal_code,
+			city=town,
+			country="Kenya",
+			email_id=email,
+			is_primary_address=1,
+			links=[{"link_doctype": "Fuel Station", "link_name": station}],
+		)
+	_insert(
+		"Letter Head",
+		letter_head_name=LETTER_HEAD,
+		source="HTML",
+		content=LETTER_HEAD_CONTENT,
+		is_default=1,
+	)
+	# Letter Head.before_insert switches a new letter head to "Image"; keep the sample one HTML-based.
+	frappe.db.set_value("Letter Head", LETTER_HEAD, "source", "HTML")
 	for make, model, engine_cc, tank in VEHICLE_MODELS:
 		_insert(
 			"Vehicle Model", make=make, model=model, engine_capacity_cc=engine_cc, tank_capacity_litres=tank
@@ -401,7 +494,7 @@ def _home_location(asset):
 
 
 def _actors(location):
-	# Nairobi: Philip enters, Vikas approves. Mombasa: Administrator enters, Amina approves.
+	# Nairobi: Philip enters, Vikas signs off red orders. Mombasa: Administrator enters, Amina signs off.
 	return (PHILIP, VIKAS) if location == "Nairobi" else (ADMIN, AMINA)
 
 
@@ -409,8 +502,8 @@ def _is_generator(asset):
 	return frappe.db.get_value("Fleet Asset", asset, "asset_type") == "Generator"
 
 
-def _new_order(asset, meter, gauge, station, partial_litres=None):
-	location, custodian, driver = _people(asset)
+def _new_order(asset, meter, gauge, station, partial_litres=None, driver=None):
+	location, custodian, usual_driver = _people(asset)
 	if _is_generator(asset):
 		partial_litres = GENERATOR_MAX_LITRES[asset]
 	order = frappe.get_doc(
@@ -419,7 +512,7 @@ def _new_order(asset, meter, gauge, station, partial_litres=None):
 			"request_datetime": now_datetime(),
 			"asset": asset,
 			"actual_requester": REQUESTERS[asset],
-			"driver": driver,
+			"driver": driver or usual_driver,
 			"custodian": custodian,
 			"company_representative": REPRESENTATIVE[location],
 			"operational_location": location,
@@ -434,20 +527,49 @@ def _new_order(asset, meter, gauge, station, partial_litres=None):
 	entered_by, _approver = _actors(location)
 	frappe.set_user(entered_by)
 	order.insert()
+	# Philip photographs the meter and, for a vehicle, the gauge (spec 002 D-6).
+	generator = _is_generator(asset)
+	photos = {
+		"meter_photo": _evidence(
+			f"{order.name}-meter.png",
+			["METER PHOTO", f"{'Hour meter' if generator else 'Odometer'} {meter}", f"Asset {asset}"],
+		)
+	}
+	if not generator:
+		photos["gauge_photo"] = _evidence(
+			f"{order.name}-gauge.png", ["GAUGE PHOTO", f"Fuel gauge {gauge}%", f"Asset {asset}"]
+		)
+	order.update(photos)
+	order.save()
 	return order
 
 
-def _submit_and_approve(order):
-	entered_by, approver = _actors(order.operational_location)
+def _send_up(order, explanation=SEND_UP_EXPLANATION):
+	"""As the entering user, record the explanation for a red order and send it for sign-off."""
+	entered_by, _approver = _actors(order.operational_location)
 	frappe.set_user(entered_by)
-	order = apply_workflow(order, "Submit for Approval")
-	frappe.set_user(approver)
-	order = apply_workflow(order, "Approve")
+	record_decision_reason(order.name, "Submit for Approval", explanation)
+	return apply_workflow(frappe.get_doc("Fuel Order", order.name), "Submit for Approval")
+
+
+def _submit_and_approve(order):
+	# The colour decides the route: green is approved by whoever entered it; red is explained, sent
+	# up, and approved with a written reason. The slip is printed by the user who approved.
+	entered_by, approver = _actors(order.operational_location)
+	order = frappe.get_doc("Fuel Order", order.name)
+	if order.signal == "Green":
+		frappe.set_user(entered_by)
+		order = apply_workflow(order, "Approve")
+	else:
+		_send_up(order)
+		frappe.set_user(approver)
+		record_decision_reason(order.name, "Approve", APPROVAL_REASON)
+		order = apply_workflow(frappe.get_doc("Fuel Order", order.name), "Approve")
 	frappe.get_print("Fuel Order", order.name, print_format=PRINT_FORMAT, no_letterhead=1)
 	return frappe.get_doc("Fuel Order", order.name)
 
 
-def _completed_cycle(asset, days_ago, meter, gauge, litres, full, station, sequence):
+def _completed_cycle(asset, days_ago, meter, gauge, litres, full, station, sequence, hours_ago=None):
 	generator = _is_generator(asset)
 	order = _new_order(asset, meter, gauge, station, partial_litres=None if full else litres)
 	order = _submit_and_approve(order)
@@ -489,7 +611,7 @@ def _completed_cycle(asset, days_ago, meter, gauge, litres, full, station, seque
 	transaction.save()
 	transaction.submit()
 
-	_date_back(order, transaction, days_ago)
+	_date_back(order, transaction, days_ago, hours_ago)
 
 
 def _evidence(file_name, lines):
@@ -509,9 +631,12 @@ def _evidence(file_name, lines):
 	return file_doc.file_url
 
 
-def _date_back(order, transaction, days_ago):
+def _date_back(order, transaction, days_ago, hours_ago=None):
 	"""Move a finished cycle to a realistic past working day, keeping its validity window intact."""
 	requested = get_datetime(add_days(now_datetime().date(), -days_ago)).replace(hour=8, minute=15)
+	if hours_ago is not None:
+		# Earlier today: requested this many hours before the script runs, fuelled 2 h 40 min later.
+		requested = now_datetime() - timedelta(hours=hours_ago)
 	approved = requested + timedelta(minutes=40)
 	validity_days = frappe.db.get_single_value("Fleet Management Settings", "default_validity_days") or 3
 	valid_until = approved + timedelta(days=validity_days)
@@ -522,7 +647,7 @@ def _date_back(order, transaction, days_ago):
 		order.name,
 		{
 			"request_datetime": requested,
-			"submitted_on": requested + timedelta(minutes=5),
+			"submitted_on": requested + timedelta(minutes=5) if order.submitted_by else None,
 			"approved_on": approved,
 			"valid_until": valid_until,
 			"last_slip_printed_on": approved + timedelta(minutes=5),
@@ -574,18 +699,15 @@ def _open_orders():
 	expired = _submit_and_approve(_new_order("KCZ 908T", 34580, 24, "Industrial Area Fuel Centre"))
 	_date_back(expired, None, 5)
 
-	# Waiting for Vikas.
-	pending = _new_order("KCY 230L", 217760, 20, "Industrial Area Fuel Centre")
-	frappe.set_user(PHILIP)
-	apply_workflow(pending, "Submit for Approval")
+	# Waiting for Vikas: Joseph Mutua covers Samuel Kiprono's truck, which turns the order red.
+	pending = _new_order("KCY 230L", 217760, 20, "Industrial Area Fuel Centre", driver="Joseph Mutua")
+	_send_up(pending, COVER_DRIVER_EXPLANATION.format("Joseph Mutua"))
 
-	# Rejected by Vikas: the tank was still 70% full.
+	# Rejected by Philip: tank still 70% full; refuel after the Thika delivery run.
 	rejected = _new_order("KDB 551Q", 105300, 70, "Mombasa Road Service Station")
 	frappe.set_user(PHILIP)
-	rejected = apply_workflow(rejected, "Submit for Approval")
-	frappe.set_user(VIKAS)
-	rejected.add_comment("Comment", "Rejected: tank still 70% full; refuel after the Thika delivery run.")
-	apply_workflow(rejected, "Reject")
+	record_decision_reason(rejected.name, "Reject", REJECTION_REASON)
+	apply_workflow(frappe.get_doc("Fuel Order", rejected.name), "Reject")
 
 	# Philip's draft, not yet sent.
 	_new_order("KCZ 908T", 34650, 23, "Industrial Area Fuel Centre")
@@ -593,7 +715,47 @@ def _open_orders():
 	# Head office generator: approved for up to 200 litres after a long outage, not yet fuelled.
 	_submit_and_approve(_new_order("GEN-NRB-01 Cummins 100 kVA", 1283.5, None, "Mombasa Road Service Station"))
 
-	# Mombasa order waiting for Amina; Philip and Vikas cannot see it.
-	pending_mombasa = _new_order("KDE 774H", 389310, 22, "Changamwe Service Station")
-	frappe.set_user(ADMIN)
-	apply_workflow(pending_mombasa, "Submit for Approval")
+	# Mombasa order waiting for Amina; Philip and Vikas cannot see it. Fatuma Abdalla covers
+	# Hassan Omar's truck, which turns the order red.
+	pending_mombasa = _new_order(
+		"KDE 774H", 389310, 22, "Changamwe Service Station", driver="Fatuma Abdalla"
+	)
+	_send_up(pending_mombasa, COVER_DRIVER_EXPLANATION.format("Fatuma Abdalla"))
+
+	_signal_cases()
+
+
+def _signal_cases():
+	"""Philip's drafts that each fail one signal check (spec 002 D-8, AC-08), and one that is green.
+
+	Last fuelled at, average km/L, tank: KCZ 908T 34,024 km, 8.98, 87 L; KDA 412M 52,024 km, 9.96,
+	80 L; KDG 118X 71,904 km, 10.03, 80 L; KDJ 507K 62,676 km, 9.25, 80 L. Away from home cannot
+	be shown: Philip may use only Nairobi vehicles at Nairobi.
+	"""
+	station = "Industrial Area Fuel Centre"
+
+	# Green: 606 km on 66.99 L of room is within 1% of the 602 km expected.
+	_new_order("KCZ 908T", 34630, 23, station)
+
+	# Check 1, "Mileage does not add up": 876 km against 586 km expected.
+	_new_order("KCZ 908T", 34900, 25, station)
+
+	# Check 2, "More litres than the tank has room for": 80 L against 65.25 L of room plus 8.7 L.
+	_new_order("KCZ 908T", 34610, 25, station, partial_litres=80)
+
+	# Check 3, "Tank nearly full": gauge 80%; 156 km matches the 17.4 L of room.
+	_new_order("KCZ 908T", 34180, 80, station)
+
+	# Check 4, "Open order exists": its approved order at 52,650 km still awaits fuel.
+	_new_order("KDA 412M", 52655, 21, "Mombasa Road Service Station")
+
+	# Check 5, "Too soon since the last fueling": filled about five hours before the script ran;
+	# 241 km matches the 24 L of room.
+	_new_order("KDG 118X", 72145, 70, station)
+
+	# Check 7, "Not the usual driver": John Mwangi drives Peter Otieno's vehicle.
+	_new_order("KCZ 908T", 34634, 22, station, driver="John Mwangi")
+
+	# Check 8, "Mileage off its own trend": last interval 10.88 km/L against 9.25 (18% off);
+	# 558 km matches the 60 L of room.
+	_new_order("KDJ 507K", 63234, 25, station)

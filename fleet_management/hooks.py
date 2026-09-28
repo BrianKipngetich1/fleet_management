@@ -15,7 +15,7 @@ fixtures = [
 	},
 	{
 		"dt": "Workflow Action Master",
-		"filters": [["name", "in", ["Submit for Approval", "Approve", "Reject"]]],
+		"filters": [["name", "in", ["Submit for Approval", "Approve", "Reject", "Withdraw"]]],
 	},
 	{
 		"dt": "Workflow State",
@@ -110,8 +110,20 @@ fixtures = [
 
 # before_install = "fleet_management.install.before_install"
 after_install = "fleet_management.site_defaults.ensure_date_format"
-setup_wizard_complete = "fleet_management.site_defaults.ensure_date_format"
-after_migrate = "fleet_management.site_defaults.ensure_date_format"
+# Roles arrive with the fixtures, which Frappe syncs after after_install on a fresh install.
+after_sync = [
+	"fleet_management.site_defaults.ensure_address_permissions",
+	"fleet_management.site_defaults.ensure_address_template",
+]
+setup_wizard_complete = [
+	"fleet_management.site_defaults.ensure_date_format",
+	"fleet_management.site_defaults.ensure_address_template",
+]
+after_migrate = [
+	"fleet_management.site_defaults.ensure_date_format",
+	"fleet_management.site_defaults.ensure_address_permissions",
+	"fleet_management.site_defaults.ensure_address_template",
+]
 
 # Uninstallation
 # ------------

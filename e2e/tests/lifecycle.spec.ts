@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { authenticate } from "../auth";
-import { cancelDoc, openNew, save, setLink, setValue, userDate } from "../desk";
+import { attachRequestPhotos, cancelDoc, openNew, save, setLink, setValue, userDate } from "../desk";
 import { QA_FIXTURES, USERS } from "../fixtures";
 
 // The one spec in this suite that must be written per project: it drives the
@@ -39,41 +39,46 @@ async function loginAs(page: Parameters<typeof openNew>[0], email: string) {
 test("a Fuel Order goes draft -> approved -> cancelled", async ({ page }) => {
 	const location = await firstName(page, "Fleet Location", "Nairobi");
 	const station = await firstName(page, "Fuel Station", QA_FIXTURES.station);
-	const fuelType = await firstName(page, "Fuel Type", QA_FIXTURES.fuelTypes[0]);
 	const asset = await firstName(page, "Fleet Asset", QA_FIXTURES.asset);
 	const requester = await firstName(page, "Fleet Person", QA_FIXTURES.requester);
 	const driver = await firstName(page, "Fleet Person", QA_FIXTURES.driver);
-	const custodian = await firstName(page, "Fleet Person", QA_FIXTURES.custodian);
 	const representative = await firstName(page, "Fleet Person", QA_FIXTURES.representative);
 
 	await openNew(page, "Fuel Order");
 
+	await setLink(page, "asset", asset);
+	// Choosing the vehicle fills in its facts and suggestions; let that finish before typing.
+	await page.waitForFunction(
+		() => !!window.cur_frm?.doc?.custodian && !!window.cur_frm?.doc?.operational_location,
+	);
 	await setLink(page, "actual_requester", requester);
 	await setLink(page, "driver", driver);
-	await setLink(page, "custodian", custodian);
 	await setLink(page, "company_representative", representative);
-	await setLink(page, "asset", asset);
 	await setLink(page, "operational_location", location);
 	await setLink(page, "planned_station", station);
-	await setLink(page, "fuel_type", fuelType);
 	await setValue(page, "request_meter_reading", "1000");
 	await setValue(page, "request_gauge_percent", "40");
 
 	const name = await save(page);
 	expect(name).toBeTruthy();
+	await attachRequestPhotos(page, name);
+	await page.evaluate(() => window.cur_frm.reload_doc());
+	await page.waitForFunction(
+		() => !!window.cur_frm?.doc?.meter_photo && !!window.cur_frm?.doc?.gauge_photo,
+	);
 
-	await page.getByRole("button", { name: "Actions", exact: true }).click();
-	await page.locator(".actions-btn-group .dropdown-menu").getByText("Submit for Approval", { exact: true }).click();
-	await page.waitForFunction(() => window.cur_frm?.doc?.workflow_state === "Pending Approval");
-	expect(await page.evaluate(() => window.cur_frm.doc.docstatus)).toBe(0);
-
-	await loginAs(page, USERS.approver.email);
-	await page.goto(`/app/fuel-order/${encodeURIComponent(name)}`);
-	await page.waitForFunction((docname) => window.cur_frm?.doc?.name === docname, name);
+	// Guards the suite's premise (this vehicle/location combination is green), not an
+	// acceptance criterion: a green Draft is approved by the Fleet User directly.
+	expect(await page.evaluate(() => window.cur_frm.doc.signal)).toBe("Green");
 	await page.getByRole("button", { name: "Actions", exact: true }).click();
 	await page.locator(".actions-btn-group .dropdown-menu").getByText("Approve", { exact: true }).click();
 	await page.waitForFunction(() => window.cur_frm?.doc?.workflow_state === "Approved");
 	expect(await page.evaluate(() => window.cur_frm.doc.docstatus)).toBe(1);
+
+	// Extending validity is restricted to Fleet Approver/Fleet Admin; switch sessions here.
+	await loginAs(page, USERS.approver.email);
+	await page.goto(`/app/fuel-order/${encodeURIComponent(name)}`);
+	await page.waitForFunction((docname) => window.cur_frm?.doc?.name === docname, name);
 
 	// The app's own "Actions" button group, not Frappe's workflow-actions button of the same
 	// name, which can be present at the same time once the approved form refreshes.

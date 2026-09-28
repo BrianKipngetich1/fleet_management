@@ -5,20 +5,21 @@ from itertools import count
 from unittest.mock import patch
 
 import frappe
-from frappe.model.workflow import apply_workflow
 from frappe.tests import IntegrationTestCase, UnitTestCase
 from frappe.utils import get_datetime, now_datetime
 from PIL import Image
 
+from fleet_management.fleet_management.doctype.fuel_order.fuel_order import get_previous_entry
+from fleet_management.fleet_management.doctype.fueling_transaction.fueling_transaction import (
+	calculate_vehicle_interval,
+)
 from fleet_management.tests.concurrency_proof import (
 	EXPECTED_UNIQUE_INDEXES,
 	assert_concurrency_site,
 	run_locked_order_overlap,
 	unique_index_names,
 )
-from fleet_management.fleet_management.doctype.fueling_transaction.fueling_transaction import (
-	calculate_vehicle_interval,
-)
+from fleet_management.tests.utils import attach_request_photos, decide, send_up
 
 
 PDF_CONTENT = (
@@ -144,10 +145,24 @@ class TestFuelingTransaction(IntegrationTestCase):
 		self.approver = self._user(("Fleet Approver",), self.location.name)
 		self.other_user = self._user(("Fleet User",), self.other_location.name)
 		self.other_approver = self._user(("Fleet Approver",), self.other_location.name)
+		# Only red orders are sent up (spec 002 D-10), so the 40% vehicle gauge must read
+		# "Tank nearly full" to keep 001's approver route; a first generator order stays green.
+		self._save_settings(
+			mileage_margin_percent=15,
+			litres_excess_percent=10,
+			gauge_limit_percent=30,
+			min_hours_between_fuelings=24,
+		)
 		self.order = self._make_approved_order(self.location, self.station, self.user, self.approver)
 
 	def _insert(self, doctype, **values):
 		return frappe.get_doc({"doctype": doctype, **values}).insert(ignore_permissions=True)
+
+	def _save_settings(self, **values):
+		settings = frappe.get_single("Fleet Management Settings")
+		settings.update(values)
+		settings.save(ignore_permissions=True)
+		return settings
 
 	def _user(self, roles, location):
 		email = f"ac05-{frappe.generate_hash(length=8)}@example.com"
@@ -188,12 +203,16 @@ class TestFuelingTransaction(IntegrationTestCase):
 		return frappe.get_doc(values)
 
 	def _make_approved_order(self, location, station, requester, approver, asset=None):
+		# The order follows its colour: a green one is approved by its requester straight from
+		# Draft, a red one is sent up and approved by the approver.
 		with self.set_user(requester):
-			order = apply_workflow(
-				self._make_order(location, station, asset=asset).insert(), "Submit for Approval"
-			)
-		with self.set_user(approver):
-			order = apply_workflow(order, "Approve")
+			order = attach_request_photos(self._make_order(location, station, asset=asset).insert())
+			order.reload()
+			green = order.signal == "Green"
+			if not green:
+				order = send_up(order)
+		with self.set_user(requester if green else approver):
+			order = decide(order, "Approve")
 			frappe.get_print(
 				"Fuel Order", order.name, print_format="Fuel Order Approval Slip", no_letterhead=1
 			)
@@ -362,6 +381,23 @@ class TestFuelingTransaction(IntegrationTestCase):
 							},
 						)
 					)
+
+	def test_previous_entry_is_the_last_completed_fueling(self):
+		# 002 AC-06: the last completed, not cancelled fueling; after cancelling it, the approved order.
+		transaction = self._submit_valid_transaction()
+		order = frappe.get_doc("Fuel Order", transaction.fuel_order)
+
+		entry = get_previous_entry(order.asset)
+		self.assertEqual(entry["previous_entry_source"], f"Fueling {transaction.name}")
+		self.assertEqual(entry["previous_meter_reading"], transaction.vehicle_odometer)
+		self.assertEqual(
+			get_datetime(entry["previous_entry_date"]), get_datetime(transaction.actual_fueling_datetime)
+		)
+
+		admin = self._user(("Fleet Admin",), self.location.name)
+		with self.set_user(admin):
+			frappe.get_doc("Fueling Transaction", transaction.name).cancel()
+		self.assertEqual(get_previous_entry(order.asset)["previous_entry_source"], f"Approved order {order.name}")
 
 	def test_extension_requires_current_print_and_rejects_stale_signed_slip(self):
 		order = self._make_approved_order(self.location, self.station, self.user, self.approver)

@@ -128,9 +128,9 @@ export async function setValue(page: Page, fieldname: string, value: string) {
 export async function setLink(page: Page, fieldname: string, value: string) {
 	const input = await focusField(page, fieldname);
 	await input.fill(value);
+	// Frappe sets the option's title to its plain label; a search-field description follows it in the text.
 	await optionsFor(page, fieldname)
-		.locator("p[title]")
-		.filter({ hasText: new RegExp(`^${value}$`) })
+		.locator(`p[title="${value.replace(/["\\]/g, "\\$&")}"]`)
 		.first()
 		.click();
 	await page.waitForFunction(([f, v]) => window.cur_frm.doc[f] === v, [fieldname, value]);
@@ -192,4 +192,36 @@ export async function cancelDoc(page: Page) {
 export async function apiPost(page: Page, path: string, data: object) {
 	const csrf = await page.evaluate(() => window.frappe.csrf_token);
 	return page.request.post(path, { data, headers: { "X-Frappe-CSRF-Token": csrf } });
+}
+
+// A genuine 1x1 PNG: enough for the server's private, real-image check on request photos.
+const PNG_1PX = Buffer.from(
+	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==",
+	"base64",
+);
+
+// Upload the photos a Fuel Order needs before it can be sent up, through the standard upload API.
+export async function attachRequestPhotos(page: Page, name: string, isVehicle = true) {
+	for (const fieldname of isVehicle ? ["meter_photo", "gauge_photo"] : ["meter_photo"]) {
+		const csrf = await page.evaluate(() => window.frappe.csrf_token);
+		const upload = await page.request.post("/api/method/upload_file", {
+			multipart: {
+				file: { name: `${fieldname}.png`, mimeType: "image/png", buffer: PNG_1PX },
+				is_private: "1",
+				doctype: "Fuel Order",
+				docname: name,
+				fieldname,
+			},
+			headers: { "X-Frappe-CSRF-Token": csrf },
+		});
+		expect(upload.ok(), `${fieldname} upload`).toBeTruthy();
+		const fileUrl = (await upload.json()).message.file_url as string;
+		const set = await apiPost(page, "/api/method/frappe.client.set_value", {
+			doctype: "Fuel Order",
+			name,
+			fieldname,
+			value: fileUrl,
+		});
+		expect(set.ok(), `${fieldname} set`).toBeTruthy();
+	}
 }

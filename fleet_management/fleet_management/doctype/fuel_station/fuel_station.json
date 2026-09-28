@@ -5,7 +5,9 @@
   "station_name",
   "operational_location",
   "active",
-  "approved"
+  "approved",
+  "address_section",
+  "address_html"
  ],
  "fields": [
   {
@@ -37,6 +39,16 @@
    "fieldtype": "Check",
    "in_list_view": 1,
    "label": "Approved"
+  },
+  {
+   "fieldname": "address_section",
+   "fieldtype": "Section Break",
+   "label": "Address"
+  },
+  {
+   "fieldname": "address_html",
+   "fieldtype": "HTML",
+   "label": "Address HTML"
   }
  ],
  "module": "Fleet Management",

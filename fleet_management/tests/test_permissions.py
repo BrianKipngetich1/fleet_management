@@ -236,7 +236,8 @@ class TestFleetPermissionIntegration(IntegrationTestCase):
 		user = self._user("Fleet User")
 		with self.set_user(user):
 			self.assertFalse(frappe.has_permission("Fuel Order", "report", self.north_order))
-			self.assertFalse(frappe.has_permission("Fuel Order", "print", self.north_order))
+			# Spec 002 D-10: the clerk prints the slip of an order at a permitted location.
+			self.assertTrue(frappe.has_permission("Fuel Order", "print", self.north_order))
 
 	def test_fleet_user_can_request_location_list_without_report_permission(self):
 		user = self._user("Fleet User")

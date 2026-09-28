@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { authenticate } from "../auth";
-import { openNew } from "../desk";
+import { attachRequestPhotos, openNew } from "../desk";
 import { QA_FIXTURES, USERS } from "../fixtures";
 
 test.use({ storageState: USERS.primary.state });
@@ -79,6 +79,22 @@ async function createQaAsset(page: Page, fuelType: string, location: string, cus
 	return asset.name;
 }
 
+// Record the written reason a workflow action needs, then apply the action as the current user.
+async function workflowAction(page: Page, name: string, action: string, reason?: string) {
+	if (reason) {
+		const recorded = await page.request.post(
+			"/api/method/fleet_management.fleet_management.doctype.fuel_order.fuel_order.record_decision_reason",
+			{ data: { name, action, reason }, headers: { "X-Frappe-CSRF-Token": await csrf(page) } },
+		);
+		expect(recorded.ok(), `${action} reason`).toBeTruthy();
+	}
+	const applied = await page.request.post("/api/method/frappe.model.workflow.apply_workflow", {
+		data: { doc: JSON.stringify({ doctype: "Fuel Order", name }), action },
+		headers: { "X-Frappe-CSRF-Token": await csrf(page) },
+	});
+	await resourceData(applied, `Fuel Order ${action}`);
+}
+
 async function createApprovedOrder(page: Page, refs: Record<string, string>, meter: number) {
 	const create = await page.request.post("/api/resource/Fuel Order", {
 		data: {
@@ -98,29 +114,26 @@ async function createApprovedOrder(page: Page, refs: Record<string, string>, met
 		headers: { "X-Frappe-CSRF-Token": await csrf(page) },
 	});
 	const order = await resourceData<Resource>(create, "Fuel Order creation");
-	const submit = await page.request.post("/api/method/frappe.model.workflow.apply_workflow", {
-		data: {
-			doc: JSON.stringify({ doctype: "Fuel Order", name: order.name }),
-			action: "Submit for Approval",
-		},
-		headers: { "X-Frappe-CSRF-Token": await csrf(page) },
-	});
-	await resourceData(submit, "Fuel Order submission");
-
-	await authenticate(page, USERS.approver.email, `/app/fuel-order/${encodeURIComponent(order.name)}`);
-	const approve = await page.request.post("/api/method/frappe.model.workflow.apply_workflow", {
-		data: {
-			doc: JSON.stringify({ doctype: "Fuel Order", name: order.name }),
-			action: "Approve",
-		},
-		headers: { "X-Frappe-CSRF-Token": await csrf(page) },
-	});
-	await resourceData(approve, "Fuel Order approval");
+	await attachRequestPhotos(page, order.name);
+	const saved = await resourceData<Resource & { signal?: string }>(
+		await page.request.get(`/api/resource/Fuel Order/${encodeURIComponent(order.name)}`),
+		"Fuel Order reload",
+	);
+	if (saved.signal === "Red") {
+		// A red order goes to an independent approver with written reasons; the clerk cannot approve it.
+		await workflowAction(page, order.name, "Submit for Approval", "E2E: consecutive test orders for one QA vehicle.");
+		await authenticate(page, USERS.approver.email, "/app/fuel-order");
+		await workflowAction(page, order.name, "Approve", "E2E: reviewed the consecutive test order.");
+		await authenticate(page, USERS.primary.email, "/app/fuel-order");
+	} else {
+		// A green order is approved directly by the Fleet User who entered it.
+		await workflowAction(page, order.name, "Approve");
+	}
+	// A Fleet User may print an approved order; stay authenticated as the primary user.
 	const print = await page.request.get(
 		`/printview?doctype=${encodeURIComponent("Fuel Order")}&name=${encodeURIComponent(order.name)}&format=${encodeURIComponent("Fuel Order Approval Slip")}&no_letterhead=1`,
 	);
 	expect(print.ok(), "approved Fuel Order slip must be printed before fueling").toBeTruthy();
-	await authenticate(page, USERS.primary.email, `/app/fuel-order/${encodeURIComponent(order.name)}`);
 	return order.name;
 }
 

@@ -113,5 +113,6 @@
  ],
  "sort_field": "asset_identifier",
  "sort_order": "ASC",
- "track_changes": 1
+ "track_changes": 1,
+ "search_fields": "vehicle_model"
 }
