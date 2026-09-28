@@ -8,13 +8,22 @@
 
 #### How should this be manually tested?
 
+<!--
+Build a fresh test site first: `bench fleet-test-site up --replace`. Describe each step with the
+sample data, e.g. "as Philip, create an order for KDA 412M at 52,650 km and 21%; as Vikas,
+approve it and print the slip". Throw the site away afterwards: `bench fleet-test-site down`.
+-->
+
 #### Any background context you want to provide?
 
 #### Verification
 
 <!--
-- `bench --site [test site] run-tests --app [app_name]` — N passed
-- `npm run test:ui` — N passed
+- `bench fleet-test-site up --replace` — test site built from the sample data
+- `bench --site fleet_management-test.localhost run-tests --app fleet_management` — N passed
+- `npm run test:ui` — N passed (or `npm run test:all` for build, both suites, and teardown)
+- `agent-browser` walkthrough as [sample user, e.g. Philip / Vikas]
+- `bench fleet-test-site down` — test site removed
 - Phase verification record: `specs/[NNN-name]/verification/phase-NN-slug.md`
 -->
 
