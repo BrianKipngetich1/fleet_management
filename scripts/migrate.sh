@@ -3,6 +3,7 @@
 set -euo pipefail
 source "$(dirname "$0")/project-env.sh"
 
+require_locale
 sites=("$@")
 ((${#sites[@]})) || { require_conf MAIN_SITE; sites=("$MAIN_SITE"); }
 status=0

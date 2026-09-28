@@ -4,9 +4,11 @@ Read when the requester asks to publish ("push", "open a PR", "send it for revie
 done"). This is step 4 of the Kaysalt workflow; nothing here runs after an ordinary task.
 
 1. **At the same time:**
-   - **A. Test site:** `scripts/rebuild-test-site.sh`. If the app has no
-     `tests/sample_data.py`, ask the requester for sample data first (who uses the app and one
-     sample name per role), store it there and in `e2e/fixtures.ts`, then rebuild.
+   - **A. Test site:** `scripts/rebuild-test-site.sh`. It runs the app's own build when
+     `TEST_SITE_BUILD` is set; otherwise the kit build seeds `SAMPLE_DATA_SEED` (default
+     `[app_name].tests.sample_data.seed`). Only when neither finds sample data, ask the requester
+     for it first (who uses the app and one sample name per role), store it in that module and
+     in `e2e/fixtures.ts`, then rebuild.
    - **B. Documentation:** overwrite the spec's `PROGRESS.md` row, run `graphify update .`, and
      for a feature finish the phase's verification record.
 2. **After A, at the same time:**

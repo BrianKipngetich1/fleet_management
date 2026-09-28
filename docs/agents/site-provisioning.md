@@ -8,15 +8,26 @@ format looks wrong.
 - `[app-name].localhost` is the main site, for the requester's own checks. `scripts/migrate.sh`
   migrates it after each task and reports Locale drift.
 - `[app-name]-test.localhost` is the test site, for every functional test. Rebuild it before a
-  PR with `scripts/rebuild-test-site.sh`, which:
+  PR with `scripts/rebuild-test-site.sh`. By default it runs the kit build, which:
   1. drops and recreates the site and installs the app;
   2. completes the setup wizard with the Locale from `.kaysalt/project.conf`;
   3. turns on `developer_mode`;
-  4. seeds `[app_name].tests.sample_data.seed` when that module exists;
+  4. seeds `SAMPLE_DATA_SEED` (default `[app_name].tests.sample_data.seed`) when that module
+     exists;
   5. fails if System Settings still differ from the Locale.
 
-  It needs `KAYSALT_DB_ROOT_PASSWORD` and `KAYSALT_TEST_ADMIN_PASSWORD` (containing the word
-  `test`) in the environment. Neither is stored in the repository.
+  The kit build needs `KAYSALT_DB_ROOT_PASSWORD` and `KAYSALT_TEST_ADMIN_PASSWORD` (containing
+  the word `test`) in the environment. Neither is stored in the repository.
+
+  An app that already builds its own test site names that command in `TEST_SITE_BUILD`, for
+  example `bench [app-name]-test-site up --replace`. The script then runs it instead of steps 1-4,
+  needs neither password, turns on `developer_mode`, and still fails on Locale drift. The
+  command must start with `bench`, may name only the test site, and must not run `drop-site`,
+  `reinstall`, or `restore`.
+
+- A blank Locale value fails `scripts/migrate.sh` and the rebuild and names the key. A kit
+  update fills a blank Locale from the main site's System Settings and says so in its pull
+  request; when the main site cannot be read, the pull request says which keys to fill.
 
 Every script runs bench through `BENCH_EXEC` from `.kaysalt/project.conf`: empty on a host
 bench, or a prefix such as `docker compose exec -w /home/frappe/frappe-bench backend` for a
