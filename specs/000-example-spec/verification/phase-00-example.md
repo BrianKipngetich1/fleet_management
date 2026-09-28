@@ -2,14 +2,14 @@
 
 | | |
 |---|---|
-| Specification | [`../spec.md`](../spec.md) @ `a1c4e02` |
+| Specification | [`../requirements.md`](../requirements.md) · [`../design.md`](../design.md) @ `a1c4e02` |
 | Status | Complete |
 | Started / Closed | 2026-08-12 / 2026-08-14 |
 | Author | Jordan Lee |
-| Reviewed by | Independent review, fresh context |
+| Reviewed by | @example-reviewer · 14/08/2026 · model human |
 | Signed off | Jordan Lee, 2026-08-14 |
 | Landed in | [PR #12](https://github.com/example-org/equipment-checkout/pull/12) |
-| Covers | AC-1 – AC-5 |
+| Covers | Requirements 1.1 – 2.3 |
 
 ## What this phase makes true
 
@@ -47,14 +47,14 @@ stateDiagram-v2
 | `Issued → Overdue: due date passes unreturned` | not observed | Not in scope — phase 2 delivers it |
 | `Overdue → Returned: custodian records return` | not observed | Not in scope — phase 2 delivers it |
 
-**1. The duplicate-issue guard was built, not queried.** The Frappe-first table in `spec.md`
+**1. The duplicate-issue guard was built, not queried.** The Frappe-first table in `design.md`
 assumed a live check at validate time — no other `Equipment Checkout` against this item
 currently Issued — read straight off sibling documents. Under a genuine race (row 4 below) two
 Issue calls landing in the same instant both read "no sibling Issued" and both would have
 written it. The shipped guard instead denormalizes state onto `Equipment Item.on_loan`, set and
 cleared by the Issue and Return transitions, and reads it with `for_update` inside the Issue
 guard — the second caller blocks on the first's row lock instead of racing its read. Nobody
-proposed this back into `spec.md` at the time it was made. **Action:** update the Frappe-first
+proposed this back into `design.md` at the time it was made. **Action:** update the Frappe-first
 table and add a decision recording the lock.
 
 ## Frappe-first / native-first
@@ -74,13 +74,13 @@ permission surface with no caller yet.
 
 | # | Put the system in this state | Expect | Covers |
 |---|---|---|---|
-| 1 | As Equipment Borrower, submit a checkout request for an available item | Checkout reaches Requested; the item's on-loan flag stays unset | AC-1 |
-| 2 | As Equipment Custodian, issue a Requested checkout for an available item | Checkout reaches Issued; the item's on-loan flag becomes set | AC-2 |
-| 3 | As Equipment Custodian, issue a second checkout against an item whose first checkout is already Issued | Rejected; the second checkout stays Requested, the item's on-loan flag is unchanged | AC-3 |
-| 4 | Two Equipment Custodians submit the Issue action on the same item at the same moment | Exactly one succeeds; the other is rejected with the same message as row 3 — never two Issued checkouts against one item | AC-3 |
-| 5 | As Equipment Borrower, cancel a checkout still in Requested | Checkout reaches Cancelled; the item's on-loan flag is unaffected | AC-4 |
-| 6 | As Equipment Borrower, attempt to cancel a checkout that is already Issued | Rejected; cancellation is only allowed before Issue | AC-4 |
-| 7 | As Equipment Borrower, attempt to issue a Requested checkout | Rejected for role; only Equipment Custodian may issue | AC-5 |
+| 1 | As Equipment Borrower, submit a checkout request for an available item | Checkout reaches Requested; the item's on-loan flag stays unset | 1.1 |
+| 2 | As Equipment Custodian, issue a Requested checkout for an available item | Checkout reaches Issued; the item's on-loan flag becomes set | 2.1 |
+| 3 | As Equipment Custodian, issue a second checkout against an item whose first checkout is already Issued | Rejected; the second checkout stays Requested, the item's on-loan flag is unchanged | 2.2 |
+| 4 | Two Equipment Custodians submit the Issue action on the same item at the same moment | Exactly one succeeds; the other is rejected with the same message as row 3 — never two Issued checkouts against one item | 2.2 |
+| 5 | As Equipment Borrower, cancel a checkout still in Requested | Checkout reaches Cancelled; the item's on-loan flag is unaffected | 1.2 |
+| 6 | As Equipment Borrower, attempt to cancel a checkout that is already Issued | Rejected; cancellation is only allowed before Issue | 1.3 |
+| 7 | As Equipment Borrower, attempt to issue a Requested checkout | Rejected for role; only Equipment Custodian may issue | 2.3 |
 
 **How to run it.** Rows 1, 2, 3, 5, 6 and 7 run through the `IntegrationTestCase` suite on the
 test site — each is a document-API call that rolls back cleanly. Row 4 needs two genuinely

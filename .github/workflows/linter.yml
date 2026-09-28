@@ -1,0 +1,78 @@
+# Replace [app_name] and the module path in the monkeypatch scan below.
+name: Linters
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linter:
+    name: 'Frappe Linter'
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+          cache: pip
+      - uses: pre-commit/action@v3.0.0
+
+      - name: Download Semgrep rules
+        run: git clone --depth 1 https://github.com/frappe/semgrep-rules.git frappe-semgrep-rules
+
+      - name: Run Semgrep rules
+        run: |
+          pip install semgrep
+          semgrep ci --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness
+
+  no-core-tinkering:
+    name: 'No Frappe monkeypatching outside tests'
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Scan changed files for monkeypatch patterns
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          changed=$(git diff --name-only "$base"...HEAD -- '*.py' | grep -v '/tests/' || true)
+          [ -z "$changed" ] && exit 0
+
+          pattern='setattr\(\s*frappe\b|mock\.patch\([^)]*["'"'"']frappe\.|monkeypatch\.(setattr|setitem)\(\s*frappe\b|sys\.modules\[.?frappe'
+          offenders=$(echo "$changed" | xargs -r grep -lE "$pattern" || true)
+
+          if [ -n "$offenders" ]; then
+            echo "::error::Application code must not monkeypatch Frappe internals — only test files may. Offending files:"
+            echo "$offenders"
+            exit 1
+          fi
+          echo "Clean — no monkeypatching of frappe.* found outside tests."
+
+  deps-vulnerable-check:
+    name: 'Vulnerable Dependency Check'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - uses: actions/checkout@v6
+
+      - name: Install and run pip-audit
+        run: |
+          pip install pip-audit
+          cd ${GITHUB_WORKSPACE}
+          pip-audit --desc on .

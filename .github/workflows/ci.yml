@@ -1,0 +1,189 @@
+# Replace [app_name] throughout, and rename the branches below if this project does not
+# use develop/main. Every pull request runs the whole set: there is deliberately no
+# paths-ignore fast path, because a skipped required check reports as "not run", which
+# reads as "not blocking", and a change misfiled as documentation would ship unverified.
+name: CI
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    name: Server
+
+    services:
+      redis-cache:
+        image: redis:alpine
+        ports:
+          - 13000:6379
+      redis-queue:
+        image: redis:alpine
+        ports:
+          - 11000:6379
+      mariadb:
+        image: mariadb:11.8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: --health-cmd="mariadb-admin ping" --health-interval=5s --health-timeout=2s --health-retries=3
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          check-latest: true
+
+      - name: Install MariaDB Client
+        run: |
+          sudo apt update
+          sudo apt-get install mariadb-client
+
+      - name: Setup
+        run: |
+          pip install frappe-bench
+          bench init --skip-redis-config-generation --skip-assets --frappe-branch version-16 --python "$(which python)" ~/frappe-bench
+
+      - name: Install
+        working-directory: /home/runner/frappe-bench
+        run: |
+          bench get-app [app_name] $GITHUB_WORKSPACE
+          bench setup requirements --dev
+          bench new-site --db-root-password root --admin-password admin test_site
+          bench --site test_site install-app [app_name]
+        env:
+          CI: 'Yes'
+
+      - name: Run Tests
+        working-directory: /home/runner/frappe-bench
+        run: |
+          bench --site test_site set-config allow_tests true
+          bench --site test_site run-tests --app [app_name]
+        env:
+          TYPE: server
+
+  ui:
+    runs-on: ubuntu-latest
+    name: UI
+
+    services:
+      redis-cache:
+        image: redis:alpine
+        ports:
+          - 13000:6379
+      redis-queue:
+        image: redis:alpine
+        ports:
+          - 11000:6379
+      mariadb:
+        image: mariadb:11.8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: --health-cmd="mariadb-admin ping" --health-interval=5s --health-timeout=2s --health-retries=3
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          check-latest: true
+
+      - name: Install MariaDB Client
+        run: |
+          sudo apt update
+          sudo apt-get install mariadb-client
+
+      - name: Setup
+        run: |
+          pip install frappe-bench
+          bench init --skip-redis-config-generation --skip-assets --frappe-branch version-16 --python "$(which python)" ~/frappe-bench
+
+      - name: Install
+        working-directory: /home/runner/frappe-bench
+        run: |
+          bench get-app [app_name] $GITHUB_WORKSPACE
+          bench setup requirements --dev
+          bench new-site --db-root-password root --admin-password admin test_site
+          bench --site test_site install-app [app_name]
+          bench build
+          # bench browse --user refuses to mint a session id for a non-Administrator
+          # user unless developer mode is on. That is the passwordless login the suite
+          # uses, and it is why this runs only against a disposable CI site.
+          bench --site test_site set-config developer_mode 1
+          # A site that has never completed the setup wizard makes Desk re-route every
+          # request to it, so every DocType route resolves as a Page and 403s — for
+          # every user and every DocType, while roles and can_read look correct.
+          bench --site test_site execute frappe.utils.install.complete_setup_wizard
+        env:
+          CI: 'Yes'
+
+      - name: Seed test users and roles
+        working-directory: /home/runner/frappe-bench
+        # Create the users named in e2e/fixtures.ts, with their roles and any
+        # row-level User Permissions the suite asserts.
+        run: bench --site test_site execute [app_name].tests.fixtures.seed_e2e_users
+
+      - name: Serve the site
+        working-directory: /home/runner/frappe-bench
+        run: |
+          echo "127.0.0.1 test_site" | sudo tee -a /etc/hosts
+          nohup bench serve --port 8000 > /home/runner/bench-serve.log 2>&1 &
+          for _ in $(seq 1 60); do
+            curl -sf http://test_site:8000/api/method/ping && break
+            sleep 2
+          done
+          curl -sf http://test_site:8000/api/method/ping
+
+      - name: Install Playwright
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run UI regression suite
+        run: npx playwright test
+        env:
+          BASE_URL: http://test_site:8000
+          PC_SID_CMD: cd /home/runner/frappe-bench && BROWSER=echo bench browse test_site --user "$PC_USER"
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload bench log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-serve-log
+          path: /home/runner/bench-serve.log

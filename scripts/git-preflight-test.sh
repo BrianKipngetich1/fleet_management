@@ -26,5 +26,38 @@ EOF
 git -C "$TMP/app" add .kaysalt/project.conf
 git -C "$TMP/app" commit -qm config
 git -C "$TMP/app" push -qu origin feature/test
-"$SCRIPT" "$TMP/app"
+export KAYSALT_AGENT_HOME=$TMP/agent
+mkdir -p "$TMP/agent/policy"
+printf '# Kaysalt workflow\n\nStep one.\n' > "$TMP/agent/policy/KAYSALT_WORKFLOW.md"
+(cd "$TMP/app" && "$SCRIPT" "$TMP/app")
+
+mkdir -p "$TMP/elsewhere"
+if (cd "$TMP/elsewhere" && "$SCRIPT" "$TMP/app") 2>/dev/null; then
+	printf 'preflight passed outside the repository\n' >&2
+	exit 1
+fi
+
+mkdir -p "$TMP/bench/apps" "$TMP/bench/sites"
+bench_output=$(cd "$TMP/bench" && "$SCRIPT" "$TMP/app" 2>&1)
+[[ $bench_output == *'started at a bench root'* ]]
+
+stale_output=$(cd "$TMP/app" && "$SCRIPT" "$TMP/app" 2>&1)
+[[ $stale_output == *'workflow in AGENTS.md is missing or stale'* ]]
+{
+	printf '# Rules\n\n<!-- kaysalt:workflow:begin -->\n'
+	cat "$TMP/agent/policy/KAYSALT_WORKFLOW.md"
+	printf '<!-- kaysalt:workflow:end -->\n'
+} > "$TMP/app/AGENTS.md"
+git -C "$TMP/app" add AGENTS.md
+git -C "$TMP/app" commit -qm agents
+current_output=$(cd "$TMP/app" && "$SCRIPT" "$TMP/app" 2>&1)
+[[ $current_output != *'stale'* ]]
+
+git clone -q "$TMP/remote.git" "$TMP/other"
+git -C "$TMP/other" switch -q develop
+git -C "$TMP/other" -c user.name=Test -c user.email=test@example.com commit -q --allow-empty -m moved
+git -C "$TMP/other" push -q origin develop
+git -C "$TMP/app" fetch -q origin develop:develop
+moved_output=$(cd "$TMP/app" && "$SCRIPT" "$TMP/app" 2>&1)
+[[ $moved_output == *'has moved on'* && $moved_output == *'Preflight passed'* ]]
 printf 'git-preflight self-check passed\n'
