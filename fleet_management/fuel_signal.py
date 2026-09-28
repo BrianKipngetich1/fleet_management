@@ -60,7 +60,7 @@ def _check_litres(facts, limits):
 		return None
 
 	excess = limits["litres_excess_percent"]
-	if requested > room + excess / 100 * tank_capacity:
+	if round(requested - (room + excess / 100 * tank_capacity), 6) > 0:
 		room_rounded = round(room, 1)
 		return (
 			f"More litres than the tank has room for: {requested:g} L requested, room for "

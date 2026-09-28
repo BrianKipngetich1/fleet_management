@@ -74,6 +74,15 @@ class TestFuelSignal(UnitTestCase):
 		self.assertEqual(len(reasons), 1)
 		self.assertTrue(reasons[0].startswith("More litres than the tank has room for"))
 
+	def test_litres_at_a_limit_float_arithmetic_misses_passes(self):
+		# 64 L at 17% leaves 53.12 L of room plus 6.4 L; 53.12 + 6.4 is 59.519999... in floating point.
+		reasons = evaluate_signal(self._vehicle(tank_capacity=64, gauge_percent=17, requested_litres=59.52))
+		self.assertFalse([r for r in reasons if r.startswith("More litres")])
+
+	def test_litres_just_past_that_limit_fails(self):
+		reasons = evaluate_signal(self._vehicle(tank_capacity=64, gauge_percent=17, requested_litres=59.53))
+		self.assertTrue([r for r in reasons if r.startswith("More litres")])
+
 	def test_litres_none_skips(self):
 		reasons = evaluate_signal(self._vehicle(requested_litres=None))
 		self.assertEqual(reasons, [])
