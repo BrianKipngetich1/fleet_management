@@ -19,7 +19,7 @@ test site without the owner's browser opening.
 - [x] 1.1 Show the bug: the login file is in the 001 records with five table shapes; the kit's
   rebuild prints "No CREDENTIALS.md"; `scripts/ab-login.sh` stops with `ERR_MODULE_NOT_FOUND`
   - _Requirements: 1.5, 1.6_
-- [ ] 1.2 Write the root `CREDENTIALS.md` in the D-6 shape at mode 0600; a script compares every
+- [x] 1.2 Write the root `CREDENTIALS.md` in the D-6 shape at mode 0600; a script compares every
   moved value with the old file, printing names only
   - _Requirements: 2.7, 3.4, 3.7_
 - [ ] 1.3 `commands.py` reads the root file (D-7); Test Property 4
@@ -82,3 +82,7 @@ test site without the owner's browser opening.
   `ERR_MODULE_NOT_FOUND` for `e2e/target`. The desktop-browser half of 1.6 is shown by Frappe
   16.22's `browse` calling `click.launch`, not reproduced, to keep the owner's browser untouched.
   Next: 1.2 (orchestrator) with 1.3 and 1.4 alongside.
+- `29/09/2026`: 1.2 done: root `CREDENTIALS.md` written at mode 600 (gitignored) in the D-6 shape —
+  4 main-site and 6 test-site logins, 2 database rows; a script compared all 12 values with the
+  old file (no mismatch, nothing extra) and every test login keeps "test" in username and
+  password. Framework fixture accounts not carried over (D-6). Next: 1.3.
