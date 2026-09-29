@@ -21,7 +21,7 @@ Approved by: pending
 
 | | |
 |---|---|
-| Tier | `Small` |
+| Tier | `Heavy` (three phases; one approval each for bugfix and design) |
 | Branch | `fix/005-fleet-desk-page` |
 
 ## How to reproduce
