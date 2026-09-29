@@ -20,9 +20,7 @@ class TestFuelOrderNotifications(IntegrationTestCase):
 
 		suffix = frappe.generate_hash(length=8)
 		self.location = self._insert("Fleet Location", location_name=f"Notify Location {suffix}")
-		self.other_location = self._insert(
-			"Fleet Location", location_name=f"Notify Other Location {suffix}"
-		)
+		self.other_location = self._insert("Fleet Location", location_name=f"Notify Other Location {suffix}")
 		self.fuel_type = self._insert("Fuel Type", fuel_type_name=f"Notify Diesel {suffix}")
 		self.vehicle_model = self._insert(
 			"Vehicle Model",
@@ -60,9 +58,7 @@ class TestFuelOrderNotifications(IntegrationTestCase):
 		frappe.db.set_value("User", self.disabled_approver, "enabled", 0)
 		frappe.clear_cache(user=self.disabled_approver)
 		self.other_approver = self._user(("Fleet Approver",), self.other_location.name)
-		self.local_admin = self._user(
-			("Fleet Admin", "Fleet Approver"), self.location.name
-		)
+		self.local_admin = self._user(("Fleet Admin", "Fleet Approver"), self.location.name)
 		self.other_admin = self._user(("Fleet Admin",), self.other_location.name)
 		# Only red orders are sent up (spec 002 D-10), so the 40% gauge must read "Tank nearly full".
 		self._save_settings(
@@ -139,9 +135,7 @@ class TestFuelOrderNotifications(IntegrationTestCase):
 		return {row.for_user for row in self._logs(order) if text in row.subject}
 
 	def _users_with_role(self, role):
-		users = frappe.get_all(
-			"User", filters={"enabled": 1, "user_type": "System User"}, pluck="name"
-		)
+		users = frappe.get_all("User", filters={"enabled": 1, "user_type": "System User"}, pluck="name")
 		return {user for user in users if user != "Administrator" and role in frappe.get_roles(user)}
 
 	def test_pending_approval_is_location_scoped_deduplicated_and_secure(self):
@@ -154,11 +148,13 @@ class TestFuelOrderNotifications(IntegrationTestCase):
 		}
 		self.assertEqual(permitted_approvers, {self.approver, self.local_admin})
 		self.assertEqual(
-			get_permitted_location_names(self.approver), {self.location.name},
+			get_permitted_location_names(self.approver),
+			{self.location.name},
 			msg=f"Approver scope: {get_permitted_location_names(self.approver)}",
 		)
 		self.assertEqual(
-			get_permitted_location_names(self.other_approver), {self.other_location.name},
+			get_permitted_location_names(self.other_approver),
+			{self.other_location.name},
 			msg=f"Other approver scope: {get_permitted_location_names(self.other_approver)}",
 		)
 		with self.set_user(self.requester):
@@ -250,7 +246,10 @@ class TestFuelOrderNotifications(IntegrationTestCase):
 		valid_until_text = new_valid_until.strftime("%Y-%m-%d %H:%M:%S")
 		self.assertTrue(all(valid_until_text in row.subject for row in extension_logs))
 		self.assertTrue(
-			all("Reprint the updated approval slip before fueling" in row.email_content for row in extension_logs)
+			all(
+				"Reprint the updated approval slip before fueling" in row.email_content
+				for row in extension_logs
+			)
 		)
 
 		# A scheduler run after extension uses the new deadline, so the old due date is obsolete.

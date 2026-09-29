@@ -79,10 +79,64 @@ EOF
 	grep -q '^via-prefix bench browse shop-test.localhost --user jane.test@example.com$' "$BENCH_LOG"
 fi
 
-sed -i 's/^TEST_SITE=.*/TEST_SITE=shop.localhost/' "$TMP/app/.kaysalt/project.conf"
-if KAYSALT_DB_ROOT_PASSWORD=root KAYSALT_TEST_ADMIN_PASSWORD=admin-test \
-	"$TMP/app/scripts/rebuild-test-site.sh" >/dev/null 2>&1; then
-	printf 'rebuild-test-site.sh would have dropped the main site\n' >&2
+CONF=$TMP/app/.kaysalt/project.conf
+set_conf() { sed -i "/^$1=/d" "$CONF"; printf '%s=%s\n' "$1" "$2" >> "$CONF"; }
+rebuild_fails() { # rebuild_fails <what went wrong> <expected error>; the rebuild stops before bench runs
+	: > "$BENCH_LOG"
+	if "$TMP/app/scripts/rebuild-test-site.sh" >/dev/null 2>"$TMP/rebuild.err"; then
+		printf 'rebuild-test-site.sh %s\n' "$1" >&2
+		exit 1
+	fi
+	grep -qF -- "$2" "$TMP/rebuild.err"
+	[[ ! -s $BENCH_LOG ]]
+}
+
+# The kit build seeds the module SAMPLE_DATA_SEED names, when the app has it.
+mkdir -p "$TMP/bench/apps/shop/shop"
+touch "$TMP/bench/apps/shop/shop/sample_data.py"
+set_conf SAMPLE_DATA_SEED shop.sample_data.seed
+: > "$BENCH_LOG"
+KAYSALT_DB_ROOT_PASSWORD=root KAYSALT_TEST_ADMIN_PASSWORD=admin-test \
+	"$TMP/app/scripts/rebuild-test-site.sh" >/dev/null
+grep -qxF -- '--site shop-test.localhost execute shop.sample_data.seed' "$BENCH_LOG"
+set_conf SAMPLE_DATA_SEED os.system
+KAYSALT_DB_ROOT_PASSWORD=root KAYSALT_TEST_ADMIN_PASSWORD=admin-test \
+	rebuild_fails 'seeded a function outside the app' 'SAMPLE_DATA_SEED must be a function in the shop package'
+set_conf SAMPLE_DATA_SEED ''
+
+# An app with its own test-site command: no passwords, no kit drop-site or new-site.
+set_conf TEST_SITE_BUILD 'bench shop-test-site up --replace'
+: > "$BENCH_LOG"
+env -u KAYSALT_DB_ROOT_PASSWORD -u KAYSALT_TEST_ADMIN_PASSWORD "$TMP/app/scripts/rebuild-test-site.sh" >/dev/null
+grep -qxF 'via-prefix bench shop-test-site up --replace' "$BENCH_LOG"
+grep -qxF -- '--site shop-test.localhost set-config developer_mode 1' "$BENCH_LOG"
+! grep -qE 'drop-site|new-site' "$BENCH_LOG" || exit 1
+set_conf TEST_SITE_BUILD 'make site'
+rebuild_fails 'ran a build that is not a bench command' 'must be a bench command'
+set_conf TEST_SITE_BUILD 'bench --site shop-test.localhost reinstall --yes'
+rebuild_fails 'let the build reinstall a site' 'must not run bench reinstall'
+set_conf TEST_SITE_BUILD 'bench --site all migrate'
+rebuild_fails 'let the build reach every site' 'may only name shop-test.localhost'
+set_conf TEST_SITE_BUILD 'bench shop-test-site up --from shop.localhost'
+rebuild_fails 'let the build name the main site' 'must not name the main site'
+set_conf TEST_SITE_BUILD ''
+
+# A blank Locale stops migrate.sh and the rebuild before bench runs, and names the key.
+set_conf LOCALE_COUNTRY ''
+: > "$BENCH_LOG"
+if "$TMP/app/scripts/migrate.sh" >/dev/null 2>"$TMP/blank.err"; then
+	printf 'migrate.sh passed with a blank Locale\n' >&2
 	exit 1
 fi
+grep -qF 'set LOCALE_COUNTRY in .kaysalt/project.conf' "$TMP/blank.err"
+[[ ! -s $BENCH_LOG ]]
+KAYSALT_DB_ROOT_PASSWORD=root KAYSALT_TEST_ADMIN_PASSWORD=admin-test \
+	rebuild_fails 'ran with a blank Locale' 'set LOCALE_COUNTRY'
+set_conf LOCALE_COUNTRY Portugal
+
+sed -i 's/^TEST_SITE=.*/TEST_SITE=shop.localhost/' "$CONF"
+KAYSALT_DB_ROOT_PASSWORD=root KAYSALT_TEST_ADMIN_PASSWORD=admin-test \
+	rebuild_fails 'would have dropped the main site' 'never the main site'
+set_conf TEST_SITE_BUILD 'bench shop-test-site up --replace'
+rebuild_fails 'ran the app build on the main site' 'never the main site'
 printf 'bench scripts self-check passed\n'

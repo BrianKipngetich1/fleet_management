@@ -15,7 +15,6 @@ from pathlib import Path
 
 import frappe
 
-
 CONCURRENCY_SITE = "fleet_management-concurrency-test.localhost"
 CONCURRENCY_OPT_IN = "FLEET_RUN_CONCURRENCY_PROOF"
 EXPECTED_UNIQUE_INDEXES = {
@@ -160,7 +159,9 @@ def _assert_worker_waits_for_order_lock(path, process, timeout=1):
 		if Path(path).exists():
 			raise AssertionError("Worker B acquired the Fuel Order before worker A committed.")
 		if process.poll() is not None:
-			raise AssertionError(f"Worker B exited while worker A held the Fuel Order lock ({process.returncode}).")
+			raise AssertionError(
+				f"Worker B exited while worker A held the Fuel Order lock ({process.returncode})."
+			)
 		time.sleep(0.02)
 	if Path(path).exists():
 		raise AssertionError("Worker B acquired the Fuel Order before worker A committed.")
@@ -194,14 +195,10 @@ def run_locked_order_overlap(order_name, transaction_a, transaction_b, user):
 		state_dir = Path(directory)
 		worker_a = worker_b = None
 		try:
-			worker_a = _start_worker(
-				site, transaction_a, user, "a", state_dir, hold_after_lock=True
-			)
+			worker_a = _start_worker(site, transaction_a, user, "a", state_dir, hold_after_lock=True)
 			_wait_for_marker(state_dir / "a-acquired", worker_a, "A lock")
 
-			worker_b = _start_worker(
-				site, transaction_b, user, "b", state_dir, hold_after_lock=False
-			)
+			worker_b = _start_worker(site, transaction_b, user, "b", state_dir, hold_after_lock=False)
 			_wait_for_marker(state_dir / "b-attempting", worker_b, "B lock attempt")
 			_assert_worker_waits_for_order_lock(state_dir / "b-acquired", worker_b)
 			_touch(state_dir / "release-a")
@@ -214,7 +211,9 @@ def run_locked_order_overlap(order_name, transaction_a, transaction_b, user):
 				raise AssertionError("A concurrency worker exited unsuccessfully.")
 
 			if outcome_a.get("result") != "submitted":
-				raise AssertionError(f"Worker A did not submit successfully: {outcome_a.get('exception', 'unknown error')}.")
+				raise AssertionError(
+					f"Worker A did not submit successfully: {outcome_a.get('exception', 'unknown error')}."
+				)
 			if (
 				outcome_b.get("result") != "validation"
 				or outcome_b.get("exception") != "ValidationError"
@@ -231,7 +230,9 @@ def run_locked_order_overlap(order_name, transaction_a, transaction_b, user):
 				fields=["name", "docstatus"],
 			)
 			if len(active_rows) != 1 or active_rows[0].name != transaction_a or active_rows[0].docstatus != 1:
-				raise AssertionError("Expected exactly one submitted row to retain the active Fuel Order key.")
+				raise AssertionError(
+					"Expected exactly one submitted row to retain the active Fuel Order key."
+				)
 			if frappe.db.count("Fueling Transaction", {"fuel_order": order_name, "docstatus": 1}) != 1:
 				raise AssertionError("Expected exactly one submitted Fueling Transaction for the Fuel Order.")
 			return {"winner": transaction_a, "loser": transaction_b}

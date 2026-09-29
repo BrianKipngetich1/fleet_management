@@ -15,9 +15,8 @@ from fleet_management.fleet_management.doctype.fueling_transaction.fueling_trans
 	validate_evidence_file,
 )
 from fleet_management.fuel_signal import evaluate_signal, signal_colour
-from fleet_management.permissions import get_permitted_location_names
 from fleet_management.notifications import notify_fuel_order
-
+from fleet_management.permissions import get_permitted_location_names
 
 APPROVAL_TRANSITION_STATES = {"Approved", "Rejected"}
 # The states an order can be approved or rejected from (spec 002 D-10, D-11).
@@ -135,9 +134,7 @@ class FuelOrder(Document):
 
 		asset = frappe.get_doc("Fleet Asset", self.asset)
 		if not frappe.has_permission("Fleet Asset", "read", asset):
-			frappe.throw(
-				frappe._("You do not have permission to use this asset."), frappe.PermissionError
-			)
+			frappe.throw(frappe._("You do not have permission to use this asset."), frappe.PermissionError)
 
 	def _set_asset_assignment_snapshot(self):
 		if not self.asset:
@@ -206,9 +203,7 @@ class FuelOrder(Document):
 				self.authorized_quantity_litres if self.quantity_authorization == "Partial" else None
 			),
 			"last_fill_was_full": bool(latest.full_tank_confirmed) if latest else True,
-			"has_open_order": has_open_order(
-				self.asset, exclude_order=None if self.is_new() else self.name
-			),
+			"has_open_order": has_open_order(self.asset, exclude_order=None if self.is_new() else self.name),
 			"hours_since_last_fueling": hours_since_last_fueling,
 			"operational_location": self.operational_location,
 			"home_location": self.assigned_location_snapshot,
@@ -234,16 +229,12 @@ class FuelOrder(Document):
 			self.estimated_litres = None
 			return
 		gauge = min(max(int(self.request_gauge_percent), 0), 100)
-		self.estimated_litres = flt(
-			flt(self.asset_tank_capacity_snapshot) * (100 - gauge) / 100, 2
-		)
+		self.estimated_litres = flt(flt(self.asset_tank_capacity_snapshot) * (100 - gauge) / 100, 2)
 
 	def _validate_request_gauge(self):
 		if self._asset_type() != "Vehicle":
 			if self.request_gauge_percent not in (None, "", 0):
-				frappe.throw(
-					frappe._("Request gauge applies to vehicles only."), frappe.ValidationError
-				)
+				frappe.throw(frappe._("Request gauge applies to vehicles only."), frappe.ValidationError)
 			return
 		if self.request_gauge_percent in (None, ""):
 			frappe.throw(
@@ -301,9 +292,7 @@ class FuelOrder(Document):
 		if self.asset and self.fuel_type:
 			asset_fuel_type = frappe.db.get_value("Fleet Asset", self.asset, "fuel_type")
 			if asset_fuel_type and self.fuel_type != asset_fuel_type:
-				frappe.throw(
-					frappe._("Fuel type must match the Fleet Asset master."), frappe.ValidationError
-				)
+				frappe.throw(frappe._("Fuel type must match the Fleet Asset master."), frappe.ValidationError)
 		if self.asset_fuel_type_snapshot and self.fuel_type != self.asset_fuel_type_snapshot:
 			frappe.throw(
 				frappe._("Fuel type must match the approved asset snapshot."), frappe.ValidationError
@@ -348,8 +337,7 @@ class FuelOrder(Document):
 					frappe.ValidationError,
 				)
 		elif self.workflow_state == "Rejected" and (
-			previous_state == "Draft"
-			or (previous_state == "Pending Approval" and self._is_withdrawal())
+			previous_state == "Draft" or (previous_state == "Pending Approval" and self._is_withdrawal())
 		):
 			self._validate_entry_actor()
 			self._validate_recorded_reason(
@@ -387,8 +375,13 @@ class FuelOrder(Document):
 		previous = self._doc_before_save
 		roles = set(frappe.get_roles())
 		if not EXTENSION_ROLES.intersection(roles):
-			frappe.throw(frappe._("Only Fleet Approvers can approve or reject Fuel Orders."), frappe.PermissionError)
-		if "Fleet Admin" not in roles and self.assigned_location_snapshot not in get_permitted_location_names():
+			frappe.throw(
+				frappe._("Only Fleet Approvers can approve or reject Fuel Orders."), frappe.PermissionError
+			)
+		if (
+			"Fleet Admin" not in roles
+			and self.assigned_location_snapshot not in get_permitted_location_names()
+		):
 			frappe.throw(
 				frappe._("The approver is not assigned to the asset's effective location."),
 				frappe.PermissionError,
@@ -410,9 +403,7 @@ class FuelOrder(Document):
 		elif previous_state in DECISION_STATES and self.workflow_state == "Approved":
 			self.approved_by = frappe.session.user
 			self.approved_on = now_datetime()
-			validity_days = frappe.db.get_single_value(
-				"Fleet Management Settings", "default_validity_days"
-			)
+			validity_days = frappe.db.get_single_value("Fleet Management Settings", "default_validity_days")
 			if validity_days is None:
 				validity_days = 3
 			self.valid_until = self.approved_on + timedelta(days=int(validity_days))
@@ -435,17 +426,21 @@ class FuelOrder(Document):
 
 		previous_state = self._previous_workflow_state()
 		return (
-			previous_state == "Draft"
-			and self.workflow_state == "Pending Approval"
-			and fieldname in {"submitted_by", "submitted_on"}
-		) or (
-			previous_state in DECISION_STATES
-			and self.workflow_state == "Approved"
-			and fieldname in {"approved_by", "approved_on", "valid_until"}
-		) or (
-			previous_state in DECISION_STATES
-			and self.workflow_state == "Rejected"
-			and fieldname in {"rejected_by", "rejected_on"}
+			(
+				previous_state == "Draft"
+				and self.workflow_state == "Pending Approval"
+				and fieldname in {"submitted_by", "submitted_on"}
+			)
+			or (
+				previous_state in DECISION_STATES
+				and self.workflow_state == "Approved"
+				and fieldname in {"approved_by", "approved_on", "valid_until"}
+			)
+			or (
+				previous_state in DECISION_STATES
+				and self.workflow_state == "Rejected"
+				and fieldname in {"rejected_by", "rejected_on"}
+			)
 		)
 
 	@frappe.whitelist(methods=["POST"])
@@ -466,7 +461,9 @@ class FuelOrder(Document):
 
 		reason = str(reason or "").strip()
 		if not reason:
-			frappe.throw(frappe._("A reason is required to extend Fuel Order validity."), frappe.ValidationError)
+			frappe.throw(
+				frappe._("A reason is required to extend Fuel Order validity."), frappe.ValidationError
+			)
 
 		try:
 			current_valid_until = get_datetime(self.valid_until)
@@ -539,9 +536,7 @@ class FuelOrder(Document):
 
 	def _has_fueling_started(self):
 		return bool(
-			frappe.db.exists(
-				"Fueling Transaction", {"fuel_order": self.name, "docstatus": 1}
-			)
+			frappe.db.exists("Fueling Transaction", {"fuel_order": self.name, "docstatus": 1})
 			or frappe.db.exists(
 				"Fueling Transaction",
 				{"fuel_order": self.name, "actual_fueling_datetime": ["is", "set"]},
@@ -587,9 +582,7 @@ class FuelOrder(Document):
 
 	def _validate_quantity_authorization(self):
 		if self.quantity_authorization not in {"Full", "Partial"}:
-			frappe.throw(
-				frappe._("Quantity authorization must be Full or Partial."), frappe.ValidationError
-			)
+			frappe.throw(frappe._("Quantity authorization must be Full or Partial."), frappe.ValidationError)
 
 		if self.quantity_authorization == "Partial" and (self.authorized_quantity_litres or 0) <= 0:
 			frappe.throw(

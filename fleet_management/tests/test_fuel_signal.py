@@ -54,8 +54,13 @@ class TestFuelSignal(UnitTestCase):
 
 	def test_mileage_worked_example(self):
 		reasons = evaluate_signal(
-			self._vehicle(tank_capacity=20, gauge_percent=0, average_km_per_litre=10,
-				previous_reading=100, current_reading=110)
+			self._vehicle(
+				tank_capacity=20,
+				gauge_percent=0,
+				average_km_per_litre=10,
+				previous_reading=100,
+				current_reading=110,
+			)
 		)
 		self.assertEqual(len(reasons), 1)
 		self.assertIn("95% off", reasons[0])
@@ -203,8 +208,7 @@ class TestFuelSignal(UnitTestCase):
 		self.assertTrue(reasons[2].startswith("Away from home"))
 
 	def test_two_failing_checks_are_reported_in_check_order(self):
-		reasons = evaluate_signal(self._vehicle(gauge_percent=76, current_reading=1144,
-			has_open_order=True))
+		reasons = evaluate_signal(self._vehicle(gauge_percent=76, current_reading=1144, has_open_order=True))
 		self.assertEqual(len(reasons), 2)
 		self.assertTrue(reasons[0].startswith("Tank nearly full"))
 		self.assertTrue(reasons[1].startswith("Open order exists"))

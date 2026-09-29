@@ -10,8 +10,7 @@ def guard_invalid_api_method():
 	"""Turn missing or non-whitelisted RPC methods into a controlled 403."""
 	request = getattr(frappe.local, "request", None)
 	if not request or not any(
-		request.path.startswith(prefix)
-		for prefix in ("/api/method/", "/api/v1/method/", "/api/v2/method/")
+		request.path.startswith(prefix) for prefix in ("/api/method/", "/api/v1/method/", "/api/v2/method/")
 	):
 		return
 

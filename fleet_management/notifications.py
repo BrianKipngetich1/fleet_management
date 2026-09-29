@@ -9,11 +9,7 @@ from fleet_management.permissions import get_permitted_location_names
 
 
 def _enabled_users():
-	users = set(
-		frappe.get_all(
-			"User", filters={"enabled": 1, "user_type": "System User"}, pluck="name"
-		)
-	)
+	users = set(frappe.get_all("User", filters={"enabled": 1, "user_type": "System User"}, pluck="name"))
 	return users - {"Administrator"}
 
 
@@ -28,11 +24,7 @@ def _recipients(order, event):
 	if event in {"pending_approval", "pre_expiry", "expired", "extended"}:
 		location = order.assigned_location_snapshot
 		approvers = _users_with_role("Fleet Approver", enabled_users)
-		approvers = {
-			user
-			for user in approvers
-			if location in get_permitted_location_names(user)
-		}
+		approvers = {user for user in approvers if location in get_permitted_location_names(user)}
 		return approvers | admins
 
 	if event in {"approved", "rejected"}:
@@ -130,9 +122,7 @@ def notify_fuel_order(order, event):
 	if new_recipients and _outgoing_mail_configured():
 		emails = [
 			address
-			for address in frappe.get_all(
-				"User", filters={"name": ["in", new_recipients]}, pluck="email"
-			)
+			for address in frappe.get_all("User", filters={"name": ["in", new_recipients]}, pluck="email")
 			if address
 		]
 		if emails:
@@ -166,9 +156,7 @@ def send_validity_notifications(now=None):
 	)
 
 	for row in orders:
-		if frappe.db.exists(
-			"Fueling Transaction", {"fuel_order": row.name, "docstatus": 1}
-		):
+		if frappe.db.exists("Fueling Transaction", {"fuel_order": row.name, "docstatus": 1}):
 			continue
 
 		order = frappe.get_doc("Fuel Order", row.name)
