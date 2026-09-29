@@ -13,7 +13,8 @@ done"). This is step 4 of the Kaysalt workflow; nothing here runs after an ordin
      for a feature finish the phase's verification record.
 2. **After A, at the same time:**
    - **C. Full suites:** `bench --site [test site] run-tests --app [app_name]` and
-     `npm run test:ui`.
+     `npm run test:ui`. If `run-tests` prints "Testing is disabled for the site!", no test ran:
+     report the suite as failed and rebuild the test site.
    - **D. Walkthrough:** on the test site only, sign in with `scripts/ab-login.sh [email]` as
      each role the change affects (see `ui-verification.md`). Save screenshots to
      `specs/[NNN-name]/verification/screenshots/[task]/` and the set for this PR to

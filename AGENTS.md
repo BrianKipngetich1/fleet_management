@@ -26,7 +26,16 @@ yourself. When asking for approval, read each acceptance criterion back as a pla
   as needed: merge `develop` in and read that commit's message for what the kit changed. If the
   active spec follows an older template (spec-check fails, or it is a single `spec.md`), explain
   in plain words what changed and offer to convert it on this branch. Converting edits the
-  approved text, so its approval resets: read each criterion back and ask again.
+  approved text, so its approval resets: read each criterion back and ask again. Then go
+  through that message's kit changes and kept files: where one changes how the app is
+  organised, built, or tested (not only wording), compare the app with the kit clone on this
+  machine and offer the change as a kit suggestion. A kept `AGENTS.md` counts: offer the kit's
+  new rules in it.
+- When the app has `scripts/kit-check.py`, run it. Each kit suggestion says, in words for the
+  requester, where this app differs from how the kit works now. After their own request is
+  handled, offer the suggestions one at a time in those words, each as a Small task. A yes is
+  built on a working branch; a no adds its id to `KIT_CHECK_SKIP` in `.kaysalt/project.conf`,
+  so it is not asked again. Never adapt the app without a yes.
 - The Locale defaults to Kenya: country `Kenya`, time zone `Africa/Nairobi`, currency `KES`,
   date format `dd/mm/yyyy`, language `English`. Read it back and change a value only when the
   requester says it differs.
