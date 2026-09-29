@@ -10,35 +10,22 @@ from frappe.tests import IntegrationTestCase, UnitTestCase
 from fleet_management import sample_data
 from fleet_management.commands import DB_NAME, DB_USER, TEST_SITE, _read_credentials
 
-INVENTORY = f"""# Credentials
+INVENTORY = f"""# Logins — private, never committed (mode 0600)
 
-## Main site — fleet_management.localhost
+| Site | Username | Role | Password |
+|---|---|---|---|
+| fleet_management.localhost | fleet.user@example.com | Fleet User | mainOnlyValue1 |
+| fleet_management.localhost | Administrator | Administrator | mainAdminValue |
+| {TEST_SITE} | Administrator | Administrator | adminValue |
+| {TEST_SITE} | philip.test@example.com | Fleet User | testPhilipValue |
+| {TEST_SITE} | vikas.test@example.com | Fleet Approver | testVikasValue |
 
-| Role | Username | Password | Created/reset on | Notes |
-|---|---|---|---|---|
-| Fleet User | fleet.user@example.com | mainOnlyValue1 | 2026-09-24 | |
+## Database
 
-## Test site — {TEST_SITE}
-
-| Mirrors | Test username | Test password | Created/reset on | Notes |
-|---|---|---|---|---|
-| Fleet User | philip.test@example.com | testPhilipValue | 2026-09-25 | |
-| Fleet Approver | vikas.test@example.com | testVikasValue | 2026-09-25 | |
-
-## Frappe framework test fixtures — test site only
-
-| Username | Role | Password |
-|---|---|---|
-| test@example.com | System Manager | notATestSiteLogin |
-
-## MariaDB accounts
-
-| Site | Database | DB user | DB password | Status |
-|---|---|---|---|---|
-| {TEST_SITE} | {DB_NAME} | {DB_USER} | testDatabaseValue | Active |
-
-| Site | Username | Password | Status |
-| {TEST_SITE} | Administrator | adminValue | Active |
+| Site | Database | Database user | Password |
+|---|---|---|---|
+| fleet_management.localhost | fleet_mgmt_dev | fleet_mgmt_dev | mainDatabaseValue |
+| {TEST_SITE} | {DB_NAME} | {DB_USER} | testDatabaseValue |
 """
 
 
@@ -49,23 +36,50 @@ class TestTestSiteCredentials(UnitTestCase):
 			path.write_text(text)
 			return _read_credentials(path)
 
-	def test_reads_only_test_site_logins_and_site_secrets(self):
+	def _refused(self, text, *names):
+		with self.assertRaises(click.ClickException) as raised:
+			self._read(text)
+		message = str(raised.exception.message)
+		for name in names:
+			self.assertIn(name, message)
+		for password in ("adminValue", "testDatabaseValue", "testPhilipValue", "testVikasValue"):
+			self.assertNotIn(password, message)
+
+	def test_returns_only_test_site_logins(self):
 		secrets = self._read(INVENTORY)
 		self.assertEqual(
 			secrets["users"],
 			{"philip.test@example.com": "testPhilipValue", "vikas.test@example.com": "testVikasValue"},
 		)
-		self.assertEqual(secrets["db_password"], "testDatabaseValue")
+
+	def test_main_site_rows_are_ignored(self):
+		secrets = self._read(INVENTORY)
+		self.assertNotIn("fleet.user@example.com", secrets["users"])
+		self.assertNotEqual(secrets["admin_password"], "mainAdminValue")
+		self.assertNotEqual(secrets["db_password"], "mainDatabaseValue")
+
+	def test_administrator_row_gives_the_admin_password(self):
+		secrets = self._read(INVENTORY)
 		self.assertEqual(secrets["admin_password"], "adminValue")
+		self.assertNotIn("Administrator", secrets["users"])
+
+	def test_database_table_gives_the_db_password(self):
+		self.assertEqual(self._read(INVENTORY)["db_password"], "testDatabaseValue")
 
 	def test_missing_administrator_password_is_refused(self):
-		text = INVENTORY.replace(f"| {TEST_SITE} | Administrator | adminValue | Active |\n", "")
-		with self.assertRaises(click.ClickException):
-			self._read(text)
+		text = INVENTORY.replace(f"| {TEST_SITE} | Administrator | Administrator | adminValue |\n", "")
+		self._refused(text, "Administrator")
+
+	def test_missing_database_password_is_refused(self):
+		text = INVENTORY.replace(f"| {TEST_SITE} | {DB_NAME} | {DB_USER} | testDatabaseValue |\n", "")
+		self._refused(text, f"{DB_USER} database password")
+
+	def test_missing_test_logins_are_refused(self):
+		text = "\n".join(line for line in INVENTORY.splitlines() if ".test@" not in line)
+		self._refused(text, "test-site logins")
 
 	def test_a_test_login_without_the_word_test_is_refused(self):
-		with self.assertRaises(click.ClickException):
-			self._read(INVENTORY.replace("testVikasValue", "vikasValue"))
+		self._refused(INVENTORY.replace("testVikasValue", "vikasValue"), "vikas.test@example.com")
 
 
 class TestSampleHistory(UnitTestCase):

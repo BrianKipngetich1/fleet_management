@@ -26,9 +26,7 @@ DB_NAME = "fleet_mgmt_test"
 DB_USER = "fleet_mgmt_test"
 DB_SOCKET = "/run/mysqld/mysqld.sock"
 SETUP_USER = "test@erpnext.com"
-DEFAULT_CREDENTIALS = (
-	Path(__file__).resolve().parents[1] / "specs/001-fleet-fuel-management/verification/CREDENTIALS.md"
-)
+DEFAULT_CREDENTIALS = Path(__file__).resolve().parents[1] / "CREDENTIALS.md"
 REGIONAL_SETTINGS = ("country", "time_zone", "language", "currency")
 
 
@@ -44,7 +42,7 @@ def fleet_test_site():
 	type=click.Path(exists=True, dir_okay=False, path_type=Path),
 	default=DEFAULT_CREDENTIALS,
 	show_default=True,
-	help="Local credential inventory holding the test-site passwords.",
+	help="Repository-root CREDENTIALS.md holding the test-site passwords.",
 )
 def up(replace, credentials):
 	"""Build a fresh test site from the sample data."""
@@ -71,22 +69,23 @@ def down():
 
 
 def _read_credentials(path):
-	"""Return the test-site passwords from the credential inventory's markdown tables."""
-	section = None
+	"""Return the test-site passwords from the login file's markdown tables, told apart by header."""
+	table = None
 	users, db_password, admin_password = {}, None, None
 	for line in path.read_text().splitlines():
-		if line.startswith("## "):
-			section = line
-			continue
 		if not line.startswith("| ") or line.startswith("|---"):
 			continue
 		cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-		if section and section.startswith("## Test site") and len(cells) >= 3 and "@" in cells[1]:
-			users[cells[1]] = cells[2]
-		elif cells[:3] == [TEST_SITE, DB_NAME, DB_USER] and len(cells) >= 4:
+		if cells[0] == "Site":
+			table = "database" if cells[:2] == ["Site", "Database"] else "login"
+		elif len(cells) < 4 or cells[0] != TEST_SITE:
+			continue
+		elif table == "database" and cells[1:3] == [DB_NAME, DB_USER]:
 			db_password = cells[3]
-		elif cells[:2] == [TEST_SITE, "Administrator"] and len(cells) >= 3:
-			admin_password = cells[2]
+		elif table == "login" and cells[1] == "Administrator":
+			admin_password = cells[3]
+		elif table == "login":
+			users[cells[1]] = cells[3]
 
 	missing = [
 		label

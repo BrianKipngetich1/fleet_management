@@ -22,7 +22,7 @@ test site without the owner's browser opening.
 - [x] 1.2 Write the root `CREDENTIALS.md` in the D-6 shape at mode 0600; a script compares every
   moved value with the old file, printing names only
   - _Requirements: 2.7, 3.4, 3.7_
-- [ ] 1.3 `commands.py` reads the root file (D-7); Test Property 4
+- [x] 1.3 `commands.py` reads the root file (D-7); Test Property 4
   - _Requirements: 2.7, 2.8_
 - [ ] 1.4 Point every reference at the root file and rewrite `CLAUDE.md`'s credential rule (D-8)
   - _Requirements: 2.9_
@@ -86,3 +86,7 @@ test site without the owner's browser opening.
   4 main-site and 6 test-site logins, 2 database rows; a script compared all 12 values with the
   old file (no mismatch, nothing extra) and every test login keeps "test" in username and
   password. Framework fixture accounts not carried over (D-6). Next: 1.3.
+- `29/09/2026`: 1.3 done: `bench fleet-test-site up` reads the root `CREDENTIALS.md`, telling its
+  two tables apart by header; Property 4 tests pass (12 unit, 2 integration in
+  `test_sample_data`), and the real file yields the 5 test logins, the Administrator and the
+  database password. Next: 1.4.
