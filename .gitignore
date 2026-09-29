@@ -70,9 +70,6 @@ plans/
 # Live session cookies — never commit
 /e2e/.auth/
 
-# Phase-local login inventories may contain plaintext credentials. Keep them local only.
-specs/*/verification/CREDENTIALS.md
-
 # agent-browser phase evidence (kept local; pull requests reference the paths).
 # The example spec's directory is committed on purpose: it documents the convention.
 specs/*/verification/screenshots/

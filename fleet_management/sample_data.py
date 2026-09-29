@@ -14,7 +14,7 @@ and approves the green ones himself; red ones go to Vikas (Fleet Approver) with 
 Amina (Fleet Approver) covers Mombasa, whose orders are entered by Administrator. History runs
 through the real document rules and is then dated back, so each vehicle shows realistic
 kilometres per litre. Dates are relative to the day the script runs. Users are created without
-passwords and keep any password already set; `CREDENTIALS.md` is the password inventory.
+passwords and keep any password already set; the root `CREDENTIALS.md` is the password inventory.
 Philip's drafts include one red example of each signal check a Nairobi-scoped user can meet
 (every check but away from home) and one green one.
 """

@@ -24,7 +24,7 @@ test site without the owner's browser opening.
   - _Requirements: 2.7, 3.4, 3.7_
 - [x] 1.3 `commands.py` reads the root file (D-7); Test Property 4
   - _Requirements: 2.7, 2.8_
-- [ ] 1.4 Point every reference at the root file and rewrite `CLAUDE.md`'s credential rule (D-8)
+- [x] 1.4 Point every reference at the root file and rewrite `CLAUDE.md`'s credential rule (D-8)
   - _Requirements: 2.9_
 - [ ] 1.5 Add `bench fleet-test-site session` and use it in `e2e/sid.ts`, with the `.ts` import
   (D-9); Test Property 5; write the kit-owner prompt for `ab-login.sh` (D-10)
@@ -90,3 +90,8 @@ test site without the owner's browser opening.
   two tables apart by header; Property 4 tests pass (12 unit, 2 integration in
   `test_sample_data`), and the real file yields the 5 test logins, the Administrator and the
   database password. Next: 1.4.
+- `29/09/2026`: 1.4 done: `CLAUDE.md`'s credential rule follows the kit's one-file rule; PROGRESS,
+  the 002 spec, every 001 and 002 phase record's credential row, and the sample-data note name the
+  root file; `specs/TEMPLATE-verification.md` is the kit's copy; the old `.gitignore` line is gone
+  (the root `CREDENTIALS.md` line still covers every copy). Only 004's closed records and this
+  spec still name the old place, as history. Next: 1.5.

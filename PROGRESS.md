@@ -27,7 +27,7 @@ at the phase named in its status.
 |---|---|
 | Bench root | /home/kayadmin/frappe-bench |
 | Main site | fleet_management.localhost (`http://fleet_management.localhost:8000`) — MariaDB `fleet_mgmt_dev`, own DB user; tests disabled; never receives test records (SQLite history archived) |
-| Test site | fleet_management-test.localhost (`http://fleet_management-test.localhost:8000`) — **disposable**: built for each test session with `bench fleet-test-site up` (MariaDB `fleet_mgmt_test`, own DB user, fixed sample data from `fleet_management/sample_data.py`, logins from the 001 `CREDENTIALS.md`) and removed with `bench fleet-test-site down`; the only site allowing tests. History before 2026-09-25 is in `~/Backups` |
+| Test site | fleet_management-test.localhost (`http://fleet_management-test.localhost:8000`) — **disposable**: built for each test session with `bench fleet-test-site up` (MariaDB `fleet_mgmt_test`, own DB user, fixed sample data from `fleet_management/sample_data.py`, logins from the root `CREDENTIALS.md`) and removed with `bench fleet-test-site down`; the only site allowing tests. History before 2026-09-25 is in `~/Backups` |
 | Required backend | MariaDB for both sites and all new acceptance evidence |
 | Regional settings | Both sites: Kenya, Africa/Nairobi, KES, dd/mm/yyyy (set 2026-09-26); the test site copies country, time zone, language, and currency from the main site at every build |
 | PDF | The fuel order slip uses Frappe's Chrome PDF generator; the bench's `common_site_config.json` sets `chromium_path` to `/usr/bin/google-chrome`. wkhtmltopdf is not installed |
