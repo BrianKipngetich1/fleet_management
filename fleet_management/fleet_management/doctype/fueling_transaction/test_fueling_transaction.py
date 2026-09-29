@@ -21,7 +21,6 @@ from fleet_management.tests.concurrency_proof import (
 )
 from fleet_management.tests.utils import attach_request_photos, decide, send_up
 
-
 PDF_CONTENT = (
 	b"%PDF-1.4\n"
 	b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
@@ -69,14 +68,10 @@ class TestFuelingTransaction(IntegrationTestCase):
 		):
 			self.skipTest("Set FLEET_RUN_CONCURRENCY_PROOF=1 on the disposable concurrency site.")
 		super().setUp()
-		frappe.local.conf["throttle_user_limit"] = max(
-			frappe.local.conf.get("throttle_user_limit", 60), 1000
-		)
+		frappe.local.conf["throttle_user_limit"] = max(frappe.local.conf.get("throttle_user_limit", 60), 1000)
 		suffix = frappe.generate_hash(length=8)
 		self.location = self._insert("Fleet Location", location_name=f"AC05 Location {suffix}")
-		self.other_location = self._insert(
-			"Fleet Location", location_name=f"AC05 Other Location {suffix}"
-		)
+		self.other_location = self._insert("Fleet Location", location_name=f"AC05 Other Location {suffix}")
 		self.fuel_type = self._insert("Fuel Type", fuel_type_name=f"AC05 Diesel {suffix}")
 		self.other_fuel_type = self._insert("Fuel Type", fuel_type_name=f"AC07 Petrol {suffix}")
 		self.vehicle_model = self._insert(
@@ -258,9 +253,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 
 	def _submit_measured_transaction(self, order, user=None, **values):
 		user = user or self.user
-		values.setdefault(
-			"actual_fueling_datetime", get_datetime(order.approved_on) + timedelta(minutes=1)
-		)
+		values.setdefault("actual_fueling_datetime", get_datetime(order.approved_on) + timedelta(minutes=1))
 		values.setdefault("fueling_time_source", "Printed on invoice")
 		values.setdefault("attendant_name", "Test Attendant")
 		transaction = self._make_transaction(order, user)
@@ -292,9 +285,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 	def _prepare_transaction(self, order=None, user=None, **values):
 		order = order or self.order
 		user = user or self.user
-		values.setdefault(
-			"actual_fueling_datetime", get_datetime(order.approved_on) + timedelta(minutes=1)
-		)
+		values.setdefault("actual_fueling_datetime", get_datetime(order.approved_on) + timedelta(minutes=1))
 		values.setdefault("fueling_time_source", "Printed on invoice")
 		values.setdefault("attendant_name", "Test Attendant")
 		transaction = self._make_transaction(order, user)
@@ -397,7 +388,9 @@ class TestFuelingTransaction(IntegrationTestCase):
 		admin = self._user(("Fleet Admin",), self.location.name)
 		with self.set_user(admin):
 			frappe.get_doc("Fueling Transaction", transaction.name).cancel()
-		self.assertEqual(get_previous_entry(order.asset)["previous_entry_source"], f"Approved order {order.name}")
+		self.assertEqual(
+			get_previous_entry(order.asset)["previous_entry_source"], f"Approved order {order.name}"
+		)
 
 	def test_extension_requires_current_print_and_rejects_stale_signed_slip(self):
 		order = self._make_approved_order(self.location, self.station, self.user, self.approver)
@@ -477,15 +470,21 @@ class TestFuelingTransaction(IntegrationTestCase):
 		draft.save()
 
 		transaction = self._prepare_transaction(actual_fueling_datetime=None)
-		with self.set_user(self.user), self.assertRaisesRegex(
-			frappe.ValidationError, "Actual fueling datetime is required before submission"
+		with (
+			self.set_user(self.user),
+			self.assertRaisesRegex(
+				frappe.ValidationError, "Actual fueling datetime is required before submission"
+			),
 		):
 			transaction.submit()
 
 	def test_submission_requires_a_supported_fueling_time_source(self):
 		transaction = self._prepare_transaction(fueling_time_source=None)
-		with self.set_user(self.user), self.assertRaisesRegex(
-			frappe.ValidationError, "Select whether the fueling time is printed on the invoice"
+		with (
+			self.set_user(self.user),
+			self.assertRaisesRegex(
+				frappe.ValidationError, "Select whether the fueling time is printed on the invoice"
+			),
 		):
 			transaction.submit()
 
@@ -493,9 +492,12 @@ class TestFuelingTransaction(IntegrationTestCase):
 		transaction = self._prepare_transaction(
 			fueling_time_source="Not printed on invoice", fueling_time_explanation=" \t "
 		)
-		with self.set_user(self.user), self.assertRaisesRegex(
-			frappe.ValidationError,
-			"Explain the known station fueling time because it is not printed on the invoice",
+		with (
+			self.set_user(self.user),
+			self.assertRaisesRegex(
+				frappe.ValidationError,
+				"Explain the known station fueling time because it is not printed on the invoice",
+			),
 		):
 			transaction.submit()
 
@@ -505,9 +507,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 			("Not printed on invoice", "Station attendant confirmed the pump time."),
 		):
 			with self.subTest(source=source):
-				order = self._make_approved_order(
-					self.location, self.station, self.user, self.approver
-				)
+				order = self._make_approved_order(self.location, self.station, self.user, self.approver)
 				event_time = get_datetime(order.approved_on) + timedelta(minutes=1)
 				transaction = self._submit_valid_transaction(
 					order,
@@ -535,9 +535,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 			with self.subTest(fieldname=fieldname):
 				updated = frappe.get_doc("Fueling Transaction", transaction.name)
 				updated.set(fieldname, value)
-				with self.set_user(self.user), self.assertRaises(
-					frappe.exceptions.UpdateAfterSubmitError
-				):
+				with self.set_user(self.user), self.assertRaises(frappe.exceptions.UpdateAfterSubmitError):
 					updated.save(ignore_permissions=True)
 
 	def test_first_full_fill_is_baseline_and_second_creates_server_kpi(self):
@@ -555,9 +553,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 		self.assertFalse(first.qualifying_litres)
 		self.assertFalse(first.km_per_litre)
 
-		partial_order = self._make_approved_order(
-			self.location, self.station, self.user, self.approver
-		)
+		partial_order = self._make_approved_order(self.location, self.station, self.user, self.approver)
 		partial = self._submit_measured_transaction(
 			partial_order,
 			actual_fueling_datetime=get_datetime(partial_order.approved_on) + timedelta(minutes=1),
@@ -567,9 +563,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 		)
 		self.assertFalse(partial.km_per_litre)
 
-		closing_order = self._make_approved_order(
-			self.location, self.station, self.user, self.approver
-		)
+		closing_order = self._make_approved_order(self.location, self.station, self.user, self.approver)
 		closing = self._submit_measured_transaction(
 			closing_order,
 			actual_fueling_datetime=get_datetime(closing_order.approved_on) + timedelta(minutes=1),
@@ -591,18 +585,14 @@ class TestFuelingTransaction(IntegrationTestCase):
 		self.assertEqual(closing.invoice_litres, 40)
 
 	def test_kpi_ordering_and_interval_litres_use_actual_fueling_time(self):
-		closing_order = self._make_approved_order(
-			self.location, self.station, self.user, self.approver
-		)
+		closing_order = self._make_approved_order(self.location, self.station, self.user, self.approver)
 		after_interval_order = self._make_approved_order(
 			self.location, self.station, self.user, self.approver
 		)
 		inside_interval_order = self._make_approved_order(
 			self.location, self.station, self.user, self.approver
 		)
-		baseline_order = self._make_approved_order(
-			self.location, self.station, self.user, self.approver
-		)
+		baseline_order = self._make_approved_order(self.location, self.station, self.user, self.approver)
 		first_event = get_datetime(now_datetime()) + timedelta(hours=1)
 
 		# Create drafts in event-time-reverse order, then submit a later-event partial
@@ -675,7 +665,9 @@ class TestFuelingTransaction(IntegrationTestCase):
 		self.assertEqual(transaction.asset, self.asset.name)
 		self.assertEqual(get_datetime(transaction.approved_on), get_datetime(self.order.approved_on))
 		self.assertEqual(get_datetime(transaction.valid_until), get_datetime(self.order.valid_until))
-		expected_invoice = "".join(character for character in invoice_number.casefold() if character.isalnum())
+		expected_invoice = "".join(
+			character for character in invoice_number.casefold() if character.isalnum()
+		)
 		expected_cu = "".join(character for character in cu_number.casefold() if character.isalnum())
 		self.assertEqual(transaction.normalized_invoice_number, expected_invoice)
 		self.assertEqual(
@@ -738,9 +730,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 
 	def test_vehicle_odometer_rollback_is_rejected(self):
 		self._submit_valid_transaction(self.order, vehicle_odometer=1000)
-		later_order = self._make_approved_order(
-			self.location, self.station, self.user, self.approver
-		)
+		later_order = self._make_approved_order(self.location, self.station, self.user, self.approver)
 		transaction = self._prepare_transaction(
 			later_order,
 			actual_station=self.station.name,
@@ -778,9 +768,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 		self._submit_valid_transaction(
 			self.order, invoice_number=f" INV-{identifier} ", cu_number=f"cu-invoice-{identifier}-1"
 		)
-		later_order = self._make_approved_order(
-			self.location, self.station, self.user, self.approver
-		)
+		later_order = self._make_approved_order(self.location, self.station, self.user, self.approver)
 		transaction = self._prepare_transaction(
 			later_order,
 			actual_station=self.station.name,
@@ -797,9 +785,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 		self._submit_valid_transaction(
 			self.order, invoice_number=f"cu-invoice-{identifier}-1", cu_number=f" CU-{identifier} "
 		)
-		later_order = self._make_approved_order(
-			self.location, self.station, self.user, self.approver
-		)
+		later_order = self._make_approved_order(self.location, self.station, self.user, self.approver)
 		transaction = self._prepare_transaction(
 			later_order,
 			actual_station=self.station.name,
@@ -817,8 +803,9 @@ class TestFuelingTransaction(IntegrationTestCase):
 				transaction = self._prepare_transaction(
 					invoice_litres=20, vehicle_odometer=1000, attendant_name=blank
 				)
-				with self.set_user(self.user), self.assertRaisesRegex(
-					frappe.ValidationError, "attendant name is required"
+				with (
+					self.set_user(self.user),
+					self.assertRaisesRegex(frappe.ValidationError, "attendant name is required"),
 				):
 					transaction.submit()
 
@@ -834,7 +821,10 @@ class TestFuelingTransaction(IntegrationTestCase):
 		self.assertEqual(status(), "Completed")
 
 		frappe.db.set_value(
-			"Fuel Order", self.order.name, "valid_until", now_datetime() - timedelta(days=1),
+			"Fuel Order",
+			self.order.name,
+			"valid_until",
+			now_datetime() - timedelta(days=1),
 			update_modified=False,
 		)
 		self.assertEqual(status(), "Completed")
@@ -952,9 +942,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 			self._delete_concurrency_doc(doctype, name)
 
 		users = (self.user, self.approver, self.other_user, self.other_approver)
-		for row in frappe.get_all(
-			"User Permission", filters={"user": ["in", users]}, fields=["name"]
-		):
+		for row in frappe.get_all("User Permission", filters={"user": ["in", users]}, fields=["name"]):
 			self._delete_concurrency_doc("User Permission", row.name)
 		for user in users:
 			self._delete_concurrency_doc("User", user)

@@ -6,7 +6,6 @@ from frappe.core.api.file import get_max_file_size
 from frappe.model.document import Document
 from frappe.utils import cint, flt, get_datetime, now_datetime
 
-
 ALLOWED_EVIDENCE_TYPES = {
 	".pdf": "application/pdf",
 	".jpg": "image/jpeg",
@@ -108,16 +107,12 @@ def validate_evidence_file(
 ):
 	"""Refuse an attachment that is not a private file of an allowed, genuine type."""
 	if not file_doc.is_private or not (file_doc.file_url or "").startswith("/private/files/"):
-		frappe.throw(
-			frappe._("{0} must be a private attachment.").format(label), frappe.ValidationError
-		)
+		frappe.throw(frappe._("{0} must be a private attachment.").format(label), frappe.ValidationError)
 
 	extension = Path(file_doc.file_name or "").suffix.lower()
 	expected_mime = allowed_types.get(extension)
 	if not expected_mime:
-		frappe.throw(
-			frappe._("{0} must be a {1} file.").format(label, type_names), frappe.ValidationError
-		)
+		frappe.throw(frappe._("{0} must be a {1} file.").format(label, type_names), frappe.ValidationError)
 
 	try:
 		content = file_doc.get_content(encodings=())
@@ -191,9 +186,7 @@ class FuelingTransaction(Document):
 	def _set_order_snapshots(self, order=None):
 		order = order or self._get_order()
 		if self.asset and self.asset != order.asset:
-			frappe.throw(
-				frappe._("Asset must match the approved Fuel Order."), frappe.ValidationError
-			)
+			frappe.throw(frappe._("Asset must match the approved Fuel Order."), frappe.ValidationError)
 
 		self.operational_location = order.operational_location
 		self.asset = order.asset
@@ -218,15 +211,10 @@ class FuelingTransaction(Document):
 			)
 
 		if not self.flags.ignore_permissions and not frappe.has_permission("Fuel Order", "read", order):
-			frappe.throw(
-				frappe._("You do not have access to the linked Fuel Order."), frappe.PermissionError
-			)
+			frappe.throw(frappe._("You do not have access to the linked Fuel Order."), frappe.PermissionError)
 
 	def _validate_submission_facts(self, order):
-		if (
-			cint(order.reprint_required)
-			or cint(order.printed_slip_revision) != cint(order.slip_revision)
-		):
+		if cint(order.reprint_required) or cint(order.printed_slip_revision) != cint(order.slip_revision):
 			frappe.throw(
 				frappe._("The current Fuel Order approval slip must be printed before fueling."),
 				frappe.ValidationError,
@@ -260,9 +248,10 @@ class FuelingTransaction(Document):
 				frappe._("Select whether the fueling time is printed on the invoice."),
 				frappe.ValidationError,
 			)
-		if self.fueling_time_source == "Not printed on invoice" and not str(
-			self.fueling_time_explanation or ""
-		).strip():
+		if (
+			self.fueling_time_source == "Not printed on invoice"
+			and not str(self.fueling_time_explanation or "").strip()
+		):
 			frappe.throw(
 				frappe._("Explain the known station fueling time because it is not printed on the invoice."),
 				frappe.ValidationError,
@@ -358,9 +347,7 @@ class FuelingTransaction(Document):
 			fields=[meter_field],
 		)
 		previous_readings = [
-			flt(row.get(meter_field))
-			for row in previous_readings
-			if row.get(meter_field) is not None
+			flt(row.get(meter_field)) for row in previous_readings if row.get(meter_field) is not None
 		]
 		if previous_readings and current_reading < max(previous_readings):
 			frappe.throw(
@@ -382,9 +369,7 @@ class FuelingTransaction(Document):
 		)
 		if existing:
 			frappe.throw(
-				frappe._("Fuel Order {0} already has an active Fueling Transaction.").format(
-					self.fuel_order
-				),
+				frappe._("Fuel Order {0} already has an active Fueling Transaction.").format(self.fuel_order),
 				frappe.ValidationError,
 			)
 
@@ -501,8 +486,7 @@ class FuelingTransaction(Document):
 		return sum(
 			flt(row.invoice_litres)
 			for row in rows
-			if self._has_fueling_source(row)
-			and previous_key < self._source_key(row) <= current_key
+			if self._has_fueling_source(row) and previous_key < self._source_key(row) <= current_key
 		)
 
 	def _submitted_vehicle_transactions(self):

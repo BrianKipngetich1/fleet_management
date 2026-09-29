@@ -31,9 +31,7 @@ def get_assignment_snapshot(asset, at=None):
 	if not assignment:
 		return None
 
-	default_tolerance = frappe.db.get_single_value(
-		"Fleet Management Settings", "default_tolerance_percent"
-	)
+	default_tolerance = frappe.db.get_single_value("Fleet Management Settings", "default_tolerance_percent")
 	if default_tolerance in (None, ""):
 		default_tolerance = 2
 	return {
@@ -45,9 +43,7 @@ def get_assignment_snapshot(asset, at=None):
 		"asset_tank_capacity_snapshot": get_vehicle_model_tank_capacity(asset),
 		"asset_target_km_per_litre_snapshot": asset.target_km_per_litre,
 		"asset_tolerance_percent_snapshot": (
-			asset.tolerance_percent
-			if asset.tolerance_percent not in (None, "", 0)
-			else default_tolerance
+			asset.tolerance_percent if asset.tolerance_percent not in (None, "", 0) else default_tolerance
 		),
 	}
 
@@ -76,9 +72,7 @@ class FleetAsset(Document):
 			if not start:
 				frappe.throw(frappe._("Assignment {0} needs an effective-from date.").format(assignment.idx))
 			if end and end < start:
-				frappe.throw(
-					frappe._("Assignment {0} cannot end before it starts.").format(assignment.idx)
-				)
+				frappe.throw(frappe._("Assignment {0} cannot end before it starts.").format(assignment.idx))
 
 			periods.append((start, end, assignment.idx))
 

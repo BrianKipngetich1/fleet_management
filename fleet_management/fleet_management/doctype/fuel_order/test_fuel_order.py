@@ -238,7 +238,9 @@ class TestFuelOrder(IntegrationTestCase):
 		approver = self._user(("Fleet Approver",), self.location.name)
 		requester = self._user(("Fleet User",), self.location.name)
 		linked_requester = self._insert(
-			"Fleet Person", person_name=f"AC03 Linked Requester {frappe.generate_hash(length=8)}", user=approver
+			"Fleet Person",
+			person_name=f"AC03 Linked Requester {frappe.generate_hash(length=8)}",
+			user=approver,
 		)
 
 		with self.set_user(requester):
@@ -294,9 +296,7 @@ class TestFuelOrder(IntegrationTestCase):
 		reason = "AC08 pre-fueling extension"
 
 		with self.set_user(approver):
-			result = order.extend_validity(
-				new_valid_until.strftime("%Y-%m-%d %H:%M:%S"), reason
-			)
+			result = order.extend_validity(new_valid_until.strftime("%Y-%m-%d %H:%M:%S"), reason)
 			printed = frappe.get_print(
 				"Fuel Order",
 				order.name,
@@ -355,9 +355,7 @@ class TestFuelOrder(IntegrationTestCase):
 		for user in (fleet_user, other_approver):
 			with self.subTest(user=user), self.set_user(user):
 				with self.assertRaises(frappe.PermissionError):
-					order.extend_validity(
-						new_valid_until.strftime("%Y-%m-%d %H:%M:%S"), "not permitted"
-					)
+					order.extend_validity(new_valid_until.strftime("%Y-%m-%d %H:%M:%S"), "not permitted")
 
 		with self.set_user(fleet_admin):
 			order.extend_validity(new_valid_until.strftime("%Y-%m-%d %H:%M:%S"), "admin extension")
@@ -388,9 +386,7 @@ class TestFuelOrder(IntegrationTestCase):
 		with self.set_user(approver):
 			with self.assertRaises(frappe.ValidationError):
 				order.extend_validity(
-					(get_datetime(order.valid_until) + timedelta(hours=1)).strftime(
-						"%Y-%m-%d %H:%M:%S"
-					),
+					(get_datetime(order.valid_until) + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S"),
 					"after fueling",
 				)
 
@@ -728,9 +724,7 @@ class TestFuelOrder(IntegrationTestCase):
 		)
 		self.assertIsNone(order.estimated_litres)
 		with self.assertRaisesRegex(frappe.ValidationError, "vehicles only"):
-			self.make_order(asset=generator.name, request_gauge_percent=40).insert(
-				ignore_permissions=True
-			)
+			self.make_order(asset=generator.name, request_gauge_percent=40).insert(ignore_permissions=True)
 
 	def test_fulfillment_status_is_derived_and_never_stored(self):
 		self.assertFalse(frappe.db.has_column("Fuel Order", "fulfillment_status"))
@@ -743,7 +737,10 @@ class TestFuelOrder(IntegrationTestCase):
 		self.assertEqual(order.as_dict()["fulfillment_status"], "Awaiting Transaction")
 
 		frappe.db.set_value(
-			"Fuel Order", order.name, "valid_until", now_datetime() - timedelta(hours=1),
+			"Fuel Order",
+			order.name,
+			"valid_until",
+			now_datetime() - timedelta(hours=1),
 			update_modified=False,
 		)
 		self.assertEqual(frappe.get_doc("Fuel Order", order.name).fulfillment_status, "Expired")

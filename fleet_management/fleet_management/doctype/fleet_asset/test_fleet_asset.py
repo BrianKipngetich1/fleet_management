@@ -26,8 +26,9 @@ class TestFleetAsset(UnitTestCase):
 			{"effective_from": "2026-01-01", "effective_until": "2026-01-31", "idx": 2},
 		)
 
-		with patch.object(frappe, "_", side_effect=lambda message: message), patch.object(
-			frappe, "throw", side_effect=frappe.ValidationError
+		with (
+			patch.object(frappe, "_", side_effect=lambda message: message),
+			patch.object(frappe, "throw", side_effect=frappe.ValidationError),
 		):
 			with self.assertRaises(frappe.ValidationError):
 				asset.validate_assignments()
