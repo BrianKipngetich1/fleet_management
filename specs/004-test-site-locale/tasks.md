@@ -38,7 +38,7 @@ hooks.
   `TEST_SITE_BUILD=bench fleet-test-site up --replace` (D-2); `scripts/migrate.sh` reports "Locale
   matches" for the main site; the snapshot equals "before"
   - _Requirements: 2.1, 2.3, 2.4_
-- [ ] 1.4 Prove it: merge the finished PR #7 branch into `fix/004-test-site-locale` (D-6); run
+- [x] 1.4 Prove it: merge the finished PR #7 branch into `fix/004-test-site-locale` (D-6); run
   `scripts/rebuild-test-site.sh`, which runs `bench fleet-test-site up --replace` and ends with
   "Rebuilt … with the Locale"; confirm MariaDB, Philip, Vikas, Amina, the vehicles and generators,
   and dd/mm/yyyy; re-run the server suite and compare it with the baseline; run
@@ -86,3 +86,10 @@ checks green.
   re-laid-out, 3 hand fixes; every hook passes except the kit's `scripts/spec-check.py` (unchanged,
   D-8); syntax trees equal apart from the hand fixes and one import reorder in `fuel_order.py`;
   Semgrep 27 findings before and after, none new. Next: 1.4.
+- `29/09/2026`: 1.4 done on `fix/004-test-site-locale` after merging PR #7's branch (`09649e8`):
+  `scripts/rebuild-test-site.sh` ran `bench fleet-test-site up --replace` with no root password and
+  ended "Rebuilt … with the Locale"; MariaDB, Philip, Vikas, Amina, 11 vehicles, 2 generators, 55
+  orders and 40 fuellings, dd/mm/yyyy; server suite 143 pass, 1 skipped, 0 fail (baseline equal);
+  Playwright 24 passed; main-site record counts unchanged. `bench browse --user` opens the desktop
+  browser on this host instead of printing `?sid=`; sessions were confirmed in `tabSessions`.
+  Test site left up. Next: 1.5 on the owner's go-ahead; Phase 2 waits for the kit release.
