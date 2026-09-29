@@ -162,9 +162,12 @@ test convention, both tools reach it through the bench's standard web server (th
 user service, equivalent to `bench start`) at
 `http://fleet_management-test.localhost:8000`; the site is selected by host name, and Playwright
 reuses that server rather than starting its own. Both tools authenticate without a password — `bench
---site fleet_management-test.localhost browse --user <test-user-email>` persists a session; read
-its id back from `tabSessions` (as `e2e/sid.ts` does — the printed `?sid=` is not reliably the
-persisted one) and set it as the `sid` cookie without echoing it. Never type credentials into
+--site fleet_management-test.localhost fleet-test-site session <test-user-email>` saves a session
+and prints its `?sid=` (it refuses any other site and any site without `developer_mode`, and never
+opens a browser); `e2e/sid.ts` runs it and sets the `sid` cookie without echoing it. Never run
+`bench browse --user` on this host: it opens the owner's desktop browser as that user. Until the
+kit's `scripts/ab-login.sh` keeps a preset `PC_SID_CMD`, a walkthrough mints through `e2e/sid.ts`
+with `PC_SID_CMD` unset, then runs `agent-browser cookies set sid …` itself. Never type credentials into
 a login form. This is a user-impersonation primitive that only works because `developer_mode`
 is on — acceptable on the dedicated, non-production test site, a privilege-escalation surface anywhere else.
 

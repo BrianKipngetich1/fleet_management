@@ -26,7 +26,7 @@ test site without the owner's browser opening.
   - _Requirements: 2.7, 2.8_
 - [x] 1.4 Point every reference at the root file and rewrite `CLAUDE.md`'s credential rule (D-8)
   - _Requirements: 2.9_
-- [ ] 1.5 Add `bench fleet-test-site session` and use it in `e2e/sid.ts`, with the `.ts` import
+- [x] 1.5 Add `bench fleet-test-site session` and use it in `e2e/sid.ts`, with the `.ts` import
   (D-9); Test Property 5; write the kit-owner prompt for `ab-login.sh` (D-10)
   - _Requirements: 2.10, 3.6_
 - [ ] 1.6 Prove it: rebuild the test site (app build and kit step both find the file); with the
@@ -95,3 +95,8 @@ test site without the owner's browser opening.
   root file; `specs/TEMPLATE-verification.md` is the kit's copy; the old `.gitignore` line is gone
   (the root `CREDENTIALS.md` line still covers every copy). Only 004's closed records and this
   spec still name the old place, as history. Next: 1.5.
+- `29/09/2026`: 1.5 done: `bench --site <test site> fleet-test-site session <email>` saves a session
+  with `login_as`, commits, and prints the saved `?sid=`; it refuses other sites and sites without
+  developer_mode before any login (Property 5, 2 tests pass). `e2e/sid.ts` uses it and loads under
+  plain Node; the `PC_SID_CMD` path CI uses is unchanged. Kit-owner prompt for `ab-login.sh`
+  handed to the owner (D-10). Next: 1.6.

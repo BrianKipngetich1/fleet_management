@@ -19,6 +19,7 @@ import shutil
 from pathlib import Path
 
 import click
+from frappe.commands import get_site, pass_context
 
 TEST_SITE = "fleet_management-test.localhost"
 MAIN_SITE = "fleet_management.localhost"
@@ -66,6 +67,38 @@ def down():
 		raise click.ClickException(f"{TEST_SITE} does not exist.")
 	_down()
 	click.secho(f"{TEST_SITE} removed.", fg="green")
+
+
+@fleet_test_site.command("session")
+@click.argument("email")
+@pass_context
+def session(context, email):
+	"""Print `?sid=<sid>` for a logged-in session of EMAIL; test site with developer_mode only."""
+	import frappe
+	from frappe.auth import CookieManager, LoginManager
+
+	site = get_site(context, raise_err=False)
+	if site != TEST_SITE:
+		raise click.ClickException(f"Only {TEST_SITE} with developer_mode can mint a session.")
+	frappe.init(site)
+	try:
+		if not frappe.conf.developer_mode:
+			raise click.ClickException(f"Only {TEST_SITE} with developer_mode can mint a session.")
+		frappe.connect()
+		if not email or email == "Guest" or not frappe.db.exists("User", email):
+			raise click.ClickException(f"{email or '<empty>'} is not a user that can be given a session.")
+		frappe.utils.set_request(path="/")
+		frappe.local.cookie_manager = CookieManager()
+		frappe.local.login_manager = LoginManager()
+		frappe.local.login_manager.login_as(email)
+		frappe.db.commit()
+		# Print the sid that was saved: read back the newest stored session, not the in-memory one.
+		saved = frappe.db.get_value("Sessions", {"user": email}, "sid", order_by="lastupdate desc")
+		if not saved:
+			raise click.ClickException(f"No session was saved for {email}.")
+		click.echo(f"?sid={saved}")
+	finally:
+		frappe.destroy()
 
 
 def _read_credentials(path):
