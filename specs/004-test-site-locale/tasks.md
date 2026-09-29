@@ -54,15 +54,14 @@ hooks.
 **Tracer:** PR #7, or the kit-update PR that follows it, shows the Server, UI, and Frappe Linter
 checks green.
 
-- [ ] 2.1 Blocked on the kit PR (D-8): the next kit update replaces `scripts/spec-check.py` with a
-  version clean under the Frappe boilerplate ruff config; `pre-commit run --all-files` then passes
+- [ ] 2.1 Kit 8f268ac (PR #8) replaces `scripts/spec-check.py`; the Frappe Linter check passes on
+  PR #8, and so does the Server check
   - _Requirements: 2.6, 2.7, 3.7_
-- [ ] 2.2 T3, blocked on the kit PR (D-9): once the kit's `ci.yml` template needs no hand-filled
-  placeholders, write `plans/ci-fix.patch` for the owner with only what this app still needs (at
-  least `BENCH_ROOT` and `PC_BENCH_PATH` for `e2e/sid.ts`); `[app_name]` appears nowhere and the
-  YAML parses
+- [ ] 2.2 T3 (D-9): on PR #8's branch set `SAMPLE_DATA_SEED=fleet_management.sample_data.seed` and
+  let `e2e/sid.ts` use `PC_SID_CMD` when set; locally `npm run test:ui` still passes on the test
+  site; `[app_name]` appears nowhere
   - _Requirements: 1.6, 2.7_
-- [ ] 2.3 The owner applies the patch; CI shows Server, UI, and Frappe Linter passing on the PR
+- [ ] 2.3 Push on the owner's OK; CI shows Server, UI, and Frappe Linter passing on PR #8
   - _Requirements: 2.7, 3.6_
 
 ## Progress log

@@ -16,7 +16,7 @@ whenever this file changes.
 
 # Test-site rebuild, regional settings, and pull-request checks: design
 
-Approved by: Brian Kipngetich (@BrianKipngetich1) · 29/09/2026 · revision 4bc7b27
+Approved by: pending
 
 Fixes [bugfix.md](bugfix.md).
 
@@ -115,10 +115,16 @@ and are fixed in the kit (prompt handed to the owner on 29/09/2026), not here.
   and a later kit update delivers it. Until then PR #7's Linter stays red on that one file.
   Owner's choice (29/09/2026), over a temporary ruff exclusion in `pyproject.toml` and over
   editing the kit file here, which would stop the updater from refreshing it.
-- `D-9`: The `ci.yml` change (T3) waits for the kit's corrected template, and a patch then carries
-  only what this app still needs (at least `BENCH_ROOT` and `PC_BENCH_PATH` for `e2e/sid.ts`).
-  The workflow folder is read-only to agents, so the owner applies it. Owner's choice
-  (29/09/2026), over hand-filling the current template now.
+- `D-9`: No `ci.yml` patch. Revised 29/09/2026: kit 8f268ac (PR #8) ships a `ci.yml` that reads
+  `.kaysalt/project.conf`, so Server and Linter pass. Its UI job fails for two app-side reasons,
+  fixed in the app's own files on PR #8's branch: `SAMPLE_DATA_SEED` is blank, so the kit build
+  looks for `fleet_management.tests.sample_data.seed` and loads no sample data (set it to
+  `fleet_management.sample_data.seed`); and the app's kept `e2e/sid.ts` ignores the `PC_SID_CMD`
+  the kit's CI sets, so it runs `bench` from `/home/kayadmin/frappe-bench` and fails with
+  `spawnSync bench ENOENT`. `mintSid` runs `PC_SID_CMD` (with `PC_USER`) when it is set and reads
+  the printed `sid`, as the kit's `sid.ts` does; unset, it keeps today's `bench browse` plus
+  `tabSessions` read-back. Chosen over the owner patching the read-only workflow folder, and over
+  replacing `sid.ts` with the kit's copy, which on this host opens the desktop browser.
 - `D-10`: The missing `package-lock.json` is part of the kit fix, because the kit ships
   `package.json` without one.
 - `D-11`: Semgrep is checked as CI checks a pull request, against `develop`
