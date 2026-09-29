@@ -26,7 +26,7 @@ hooks.
   errors; the Server and UI jobs stop at `bench get-app [app_name]`. Record the "before" snapshot
   (both sites' Locale, the test site's config flags, `list-apps`) and the server-suite baseline
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6_
-- [ ] 1.2 T1: apply ruff 0.14.10 and prettier 2.7.1 to the app's own files, leaving
+- [x] 1.2 T1: apply ruff 0.14.10 and prettier 2.7.1 to the app's own files, leaving
   `scripts/spec-check.py` byte-identical (D-8); hand-fix `fleet_asset.py` (`itertools.pairwise`),
   `test_fuel_order.py` (`# noqa: RUF001`) and `tests/test_sample_data.py` (`ClassVar[dict]`) (D-7).
   Check: every hook except the one on `spec-check.py` passes; `ruff format --check` and
@@ -82,3 +82,7 @@ checks green.
 - `29/09/2026`: 1.3 done on `chore/kit-update-6d6918d` (`f00e4f1`): Kenya Locale and
   `TEST_SITE_BUILD=bench fleet-test-site up --replace` recorded; migrate reports "Locale matches";
   a blank currency is named, a USD currency is reported as drift; main site unchanged. Next: 1.2, then 1.4.
+- `29/09/2026`: 1.2 done on `chore/kit-update-6d6918d` (`2b9155f` layout, `9ec9b62` hand fixes): 22 files
+  re-laid-out, 3 hand fixes; every hook passes except the kit's `scripts/spec-check.py` (unchanged,
+  D-8); syntax trees equal apart from the hand fixes and one import reorder in `fuel_order.py`;
+  Semgrep 27 findings before and after, none new. Next: 1.4.
