@@ -45,7 +45,7 @@ hooks.
   `npm run test:ui`; the main site gets no test records; `bench fleet-test-site down` stays
   available but is run only when the owner asks
   - _Requirements: 2.2, 3.1, 3.2, 3.3, 3.4, 3.6_
-- [ ] 1.5 Re-confirm and delete the untracked root `fixtures/` (D-5); migrate still creates the
+- [x] 1.5 Re-confirm and delete the untracked root `fixtures/` (D-5); migrate still creates the
   Fleet roles. Not in this round: waits for the owner's go-ahead
   - _Requirements: 2.5, 3.5_
 
@@ -93,3 +93,6 @@ checks green.
   Playwright 24 passed; main-site record counts unchanged. `bench browse --user` opens the desktop
   browser on this host instead of printing `?sid=`; sessions were confirmed in `tabSessions`.
   Test site left up. Next: 1.5 on the owner's go-ahead; Phase 2 waits for the kit release.
+- `29/09/2026`: 1.5 done on the owner's go-ahead: root `fixtures/` re-confirmed untracked and identical,
+  deleted; main-site migrate still creates Fleet Admin, Fleet Approver, Fleet User. Phase 1 complete.
+  Next: Phase 2, once the kit releases its develop (kit PR #12) to main and PR #7 is merged.
