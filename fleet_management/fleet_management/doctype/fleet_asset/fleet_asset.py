@@ -1,3 +1,5 @@
+from itertools import pairwise
+
 import frappe
 from frappe.model.document import Document
 from frappe.utils import get_datetime, getdate, now_datetime
@@ -77,7 +79,7 @@ class FleetAsset(Document):
 			periods.append((start, end, assignment.idx))
 
 		periods.sort(key=lambda period: period[0])
-		for previous, current in zip(periods, periods[1:]):
+		for previous, current in pairwise(periods):
 			previous_end = previous[1]
 			if previous_end is None or current[0] <= previous_end:
 				frappe.throw(

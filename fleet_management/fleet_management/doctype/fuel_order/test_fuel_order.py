@@ -490,7 +490,7 @@ class TestFuelOrder(IntegrationTestCase):
 			order.name,
 			frappe.utils.formatdate(order.request_datetime),
 			self.station.name,
-			"P.O Box 10001 – 00100 NAIROBI",
+			"P.O Box 10001 – 00100 NAIROBI",  # noqa: RUF001
 			"station.test@example.com",
 			"Please supply",
 			"FULL TANK",

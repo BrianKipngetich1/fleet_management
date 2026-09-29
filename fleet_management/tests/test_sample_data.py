@@ -1,5 +1,6 @@
 import tempfile
 from pathlib import Path
+from typing import ClassVar
 from unittest.mock import patch
 
 import click
@@ -70,7 +71,7 @@ class TestTestSiteCredentials(UnitTestCase):
 class TestSampleHistory(UnitTestCase):
 	"""Keep the fixed history realistic when someone edits it."""
 
-	assets = {row[0]: row for row in sample_data.ASSETS}
+	assets: ClassVar[dict] = {row[0]: row for row in sample_data.ASSETS}
 
 	def test_every_history_asset_is_defined_with_a_requester(self):
 		for asset in sample_data.HISTORY:
