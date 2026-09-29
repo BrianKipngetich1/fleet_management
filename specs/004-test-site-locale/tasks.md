@@ -106,3 +106,10 @@ checks green.
   instead of its heading; locally `npm run test:ui` 24 passed. 2.3: pushed on the owner's OK; PR #8
   CI green on `5a0b56c` (Server, UI, Frappe Linter, and the rest). Phase 2 complete. Next: owner
   merges PR #8, then this record's pull request.
+- `29/09/2026`: Pre-PR checks: A test-site rebuild passed (app's own build, Kenya Locale, 4 sample
+  logins, 13 assets, 55 orders, 40 fuellings); C server suite 143 pass, 1 skipped, 0 fail, and
+  `npm run test:ui` 24 passed; B `graphify` not installed, skipped; D Desk walkthrough not run:
+  `scripts/ab-login.sh` fails here (`e2e/sid.ts` imports `./target` without `.ts`, and Frappe
+  16.22's `bench browse --user` prints no `?sid=` for non-Administrators, it opens the desktop
+  browser). The owner accepted skipping D for this pull request in writing and moved the fix to
+  spec 005. Next: the pull request.
