@@ -16,7 +16,7 @@ whenever this file changes.
 
 # Test-site rebuild, regional settings, and pull-request checks: design
 
-Approved by: Brian Kipngetich (@BrianKipngetich1) · 29/09/2026 · revision e679452
+Approved by: pending
 
 Fixes [bugfix.md](bugfix.md).
 
@@ -131,6 +131,12 @@ and are fixed in the kit (prompt handed to the owner on 29/09/2026), not here.
   (`semgrep scan --baseline-commit origin/develop`), so T1 must add no new finding. The 27 older
   findings are a separate specification. Chosen over annotating all of them here, which would widen
   this fix.
+- `D-12`: Two generic `e2e/tests/session.spec.ts` checks meet CI differences, not app defects
+  (PR #8 run 36557100515). The realtime check skips when `CI` is set, because the kit's UI job runs
+  only `bench serve` and no socketio; locally it still runs. The anonymous-root check asserts the
+  login form (`#login_email`) instead of the heading text, because CI installs the tip of Frappe
+  `version-16` (16.35.1, "Sign In") while this bench is on 16.22.0 ("Login to Frappe"). Chosen over
+  editing the read-only workflow to start socketio or pin Frappe, which only the owner can do.
 - `D-5`: Delete the untracked root `fixtures/` folder after re-confirming it is untracked and
   identical to `fleet_management/fixtures/role.json`. Chosen over committing or ignoring it,
   because Frappe never reads it and a second copy invites drift.
