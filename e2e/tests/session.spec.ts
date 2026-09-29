@@ -24,6 +24,7 @@ test("Desk shows and accepts dates as dd/mm/yyyy", async ({ page }) => {
 });
 
 test("Desk connects to the realtime service", async ({ page }) => {
+	test.skip(!!process.env.CI, "CI serves the site with bench serve only; no socketio process runs there");
 	await page.goto("/app");
 	await page.waitForFunction(() => window.frappe.realtime?.socket?.connected === true);
 });
@@ -42,7 +43,7 @@ test("anonymous root and login pages do not expose a debugger", async ({ browser
 
 	await page.goto("/");
 	await expect(page).toHaveURL(/\/$/);
-	await expect(page.getByRole("heading", { name: "Login to Frappe" })).toBeVisible();
+	await expect(page.locator("#login_email")).toBeVisible();
 	await expect(page.locator("body")).not.toContainText(/Werkzeug Debugger|Traceback|Interactive debugger/i);
 
 	await page.goto("/login");
