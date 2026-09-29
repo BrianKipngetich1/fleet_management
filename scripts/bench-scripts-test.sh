@@ -18,6 +18,7 @@ EOF
 cat > "$TMP/bin/bench" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$BENCH_LOG"
+[[ $* == *'set-password ghost.test@example.com'* ]] && { echo 'User ghost.test@example.com does not exist'; exit 1; }
 if [[ $* == *get_singles_dict* ]]; then
 	printf '{"country": "Portugal", "time_zone": "%s", "currency": "EUR", "date_format": "dd/mm/yyyy"}\n' "$STUB_TZ"
 fi
@@ -61,11 +62,13 @@ grep -q '^drop-site shop-test.localhost --force --no-backup' "$BENCH_LOG"
 grep -q '^new-site shop-test.localhost .*--install-app shop$' "$BENCH_LOG"
 grep -qF "'country': 'Portugal', 'timezone': 'Europe/Lisbon', 'currency': 'EUR', 'language': 'Portuguese'" "$BENCH_LOG"
 grep -qxF -- '--site shop-test.localhost set-config developer_mode 1' "$BENCH_LOG"
+grep -qxF -- '--site shop-test.localhost set-config allow_tests true' "$BENCH_LOG"
 
 if command -v node >/dev/null; then
 	cp "$SCRIPTS/ab-login.sh" "$TMP/app/scripts/"
 	mkdir -p "$TMP/app/e2e"
 	cp "$SCRIPTS/../e2e/sid.ts" "$TMP/app/e2e/"
+	cp "$SCRIPTS/../e2e/project-conf.ts" "$TMP/app/e2e/"
 	printf 'TEST_SITE_URL=http://shop-test.localhost:8000\n' >> "$TMP/app/.kaysalt/project.conf"
 	cat > "$TMP/bin/agent-browser" <<'EOF'
 #!/usr/bin/env bash
@@ -99,10 +102,52 @@ set_conf SAMPLE_DATA_SEED shop.sample_data.seed
 KAYSALT_DB_ROOT_PASSWORD=root KAYSALT_TEST_ADMIN_PASSWORD=admin-test \
 	"$TMP/app/scripts/rebuild-test-site.sh" >/dev/null
 grep -qxF -- '--site shop-test.localhost execute shop.sample_data.seed' "$BENCH_LOG"
+# Some seeds refuse to run until tests are switched on.
+[[ $(grep -nxF -- '--site shop-test.localhost set-config allow_tests true' "$BENCH_LOG" | cut -d: -f1) -lt \
+	$(grep -nxF -- '--site shop-test.localhost execute shop.sample_data.seed' "$BENCH_LOG" | cut -d: -f1) ]]
 set_conf SAMPLE_DATA_SEED os.system
 KAYSALT_DB_ROOT_PASSWORD=root KAYSALT_TEST_ADMIN_PASSWORD=admin-test \
 	rebuild_fails 'seeded a function outside the app' 'SAMPLE_DATA_SEED must be a function in the shop package'
 set_conf SAMPLE_DATA_SEED ''
+
+# Test-site passwords come back from CREDENTIALS.md; main-site rows and blanks are left alone.
+cat > "$TMP/app/CREDENTIALS.md" <<'EOF'
+# Shop logins
+
+| Site | Username | Role | Password |
+|---|---|---|---|
+| shop.localhost | Administrator | System Manager | main-secret |
+| shop-test.localhost | Administrator | System Manager | admin-test |
+| shop-test.localhost | amina.test@example.com | Stock User | amina-test-pw |
+| shop-test.localhost | removed.test@example.com | Stock User | |
+
+## Notes
+| Site | Username |
+EOF
+: > "$BENCH_LOG"
+rebuild_out=$(KAYSALT_DB_ROOT_PASSWORD=root KAYSALT_TEST_ADMIN_PASSWORD=admin-test \
+	"$TMP/app/scripts/rebuild-test-site.sh" 2>&1)
+grep -qxF -- '--site shop-test.localhost set-password Administrator admin-test' "$BENCH_LOG"
+grep -qxF -- '--site shop-test.localhost set-password amina.test@example.com amina-test-pw' "$BENCH_LOG"
+[[ $(grep -c '^--site .* set-password' "$BENCH_LOG") == 2 ]]
+[[ $rebuild_out != *amina-test-pw* && $rebuild_out != *main-secret* ]]
+[[ $(grep -n 'set-password' "$BENCH_LOG" | head -1 | cut -d: -f1) -gt \
+	$(grep -nxF -- '--site shop-test.localhost set-config allow_tests true' "$BENCH_LOG" | cut -d: -f1) ]]
+# A listed login the sample data never created stops the rebuild and names it.
+printf '| shop-test.localhost | ghost.test@example.com | Stock User | ghost-test |\n' > "$TMP/ghost-row"
+sed -i "/removed.test/r $TMP/ghost-row" "$TMP/app/CREDENTIALS.md"
+if KAYSALT_DB_ROOT_PASSWORD=root KAYSALT_TEST_ADMIN_PASSWORD=admin-test \
+	"$TMP/app/scripts/rebuild-test-site.sh" >/dev/null 2>"$TMP/ghost.err"; then
+	printf 'rebuild-test-site.sh passed with a login the site does not have\n' >&2
+	exit 1
+fi
+grep -qF 'lists ghost.test@example.com for shop-test.localhost' "$TMP/ghost.err"
+! grep -qF 'ghost-test' "$TMP/ghost.err" || exit 1
+# A file in another layout is reported, not fatal.
+printf '# Logins\n\n- Administrator: admin-test\n' > "$TMP/app/CREDENTIALS.md"
+KAYSALT_DB_ROOT_PASSWORD=root KAYSALT_TEST_ADMIN_PASSWORD=admin-test \
+	"$TMP/app/scripts/rebuild-test-site.sh" 2>&1 >/dev/null | grep -qF 'has no | Site | Username | Role | Password | table'
+rm "$TMP/app/CREDENTIALS.md"
 
 # An app with its own test-site command: no passwords, no kit drop-site or new-site.
 set_conf TEST_SITE_BUILD 'bench shop-test-site up --replace'
@@ -110,6 +155,7 @@ set_conf TEST_SITE_BUILD 'bench shop-test-site up --replace'
 env -u KAYSALT_DB_ROOT_PASSWORD -u KAYSALT_TEST_ADMIN_PASSWORD "$TMP/app/scripts/rebuild-test-site.sh" >/dev/null
 grep -qxF 'via-prefix bench shop-test-site up --replace' "$BENCH_LOG"
 grep -qxF -- '--site shop-test.localhost set-config developer_mode 1' "$BENCH_LOG"
+grep -qxF -- '--site shop-test.localhost set-config allow_tests true' "$BENCH_LOG"
 ! grep -qE 'drop-site|new-site' "$BENCH_LOG" || exit 1
 set_conf TEST_SITE_BUILD 'make site'
 rebuild_fails 'ran a build that is not a bench command' 'must be a bench command'

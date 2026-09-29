@@ -1,4 +1,4 @@
-# Replace [app_name] and the module path in the monkeypatch scan below.
+# This file needs no filling in.
 name: Linters
 
 on:
