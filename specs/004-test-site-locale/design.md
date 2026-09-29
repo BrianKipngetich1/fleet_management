@@ -16,7 +16,7 @@ whenever this file changes.
 
 # Test-site rebuild, regional settings, and pull-request checks: design
 
-Approved by: pending
+Approved by: Brian Kipngetich (@BrianKipngetich1) · 29/09/2026 · revision e679452
 
 Fixes [bugfix.md](bugfix.md).
 
