@@ -15,14 +15,14 @@ whenever this file changes.
 -->
 
 
-# Test-site rebuild and regional settings: bugfix
+# Test-site rebuild, regional settings, and pull-request checks: bugfix
 
 Approved by: pending
 
 | | |
 |---|---|
 | Tier | `Small` |
-| Branch | `fix/004-test-site-locale` |
+| Branch | `fix/004-test-site-locale` (this record); the fix itself on `chore/kit-update-6d6918d` (PR #7) |
 
 ## How to reproduce
 
@@ -34,6 +34,9 @@ Approved by: pending
    recorded to compare against.
 4. Look at the top of the repository. A folder holds a copy of the list of Fleet roles that is
    not saved in the repository and that nothing reads.
+5. Open the kit-update pull request and look at its checks. The formatting check, the server
+   check, and the browser check all fail, and the main line of development fails them the same
+   way.
 
 ## Current behaviour
 
@@ -46,6 +49,11 @@ Approved by: pending
    although none are recorded, so a wrong setting would never be flagged.
 4. WHEN the repository is opened THEN the system shows a stray, unsaved copy of the Fleet
    role list at the top level, which the app never reads.
+5. WHEN a pull request is checked THEN the system rejects the layout of the app's own code files
+   and of the kit's specification checker, and reports five lint errors.
+6. WHEN a pull request is checked THEN the system stops the server and browser checks before
+   the app is installed, because the check setup still holds the kit's unfilled app-name
+   placeholder.
 
 ## Expected behaviour
 
@@ -62,6 +70,11 @@ Approved by: pending
    setting instead of reporting a match.
 5. WHEN the repository is opened THEN THE system SHALL hold the Fleet role list only in the
    app's own list of records it installs.
+6. WHEN a pull request is checked THEN THE system SHALL find every one of the app's own code
+   files in the agreed layout and free of lint errors.
+7. WHEN a kit update delivers the corrected specification checker and check setup THEN THE
+   system SHALL pass the formatting check, install the app, and run the server and browser checks
+   on a test site built with the Kenya regional settings and the usual sample data.
 
 ## Unchanged behaviour
 
@@ -76,6 +89,10 @@ Approved by: pending
    vehicles, generators, fuelling history, and logins, showing dates as dd/mm/yyyy.
 5. WHEN the app is installed or migrated THEN THE system SHALL CONTINUE TO create the Fleet
    Admin, Fleet Approver, and Fleet User roles.
+6. WHEN the re-laid-out code runs THEN THE system SHALL CONTINUE TO behave as before: every
+   server test that passed before the change still passes, and the same browser tests pass.
+7. WHEN the app's own files are corrected THEN THE system SHALL CONTINUE TO hold the kit's own
+   scripts exactly as the kit shipped them.
 
 ## Sample data
 

@@ -14,7 +14,7 @@ whenever this file changes.
 -->
 
 
-# Test-site rebuild and regional settings: design
+# Test-site rebuild, regional settings, and pull-request checks: design
 
 Approved by: pending
 
@@ -37,6 +37,22 @@ Fixes [bugfix.md](bugfix.md).
 - An untracked `fixtures/role.json` at the repository root is byte-identical to
   `fleet_management/fixtures/role.json`. Frappe syncs fixtures only from `<app>/fixtures/`
   (the `fixtures` hook in `hooks.py`), so the root copy is never read.
+- PR #7 (`chore/kit-update-6d6918d` → `develop`, kit 6d6918d) already carries the kit fix: it adds
+  `TEST_SITE_BUILD` and `SAMPLE_DATA_SEED` (both blank here), makes `require_locale` stop on a
+  blank `LOCALE_*`, and makes `locale_drift` report a blank value as drift. Its `.kaysalt/project.conf`
+  still has every `LOCALE_*` blank.
+- PR #7's Server, UI, and Frappe Linter checks fail, and fail on `develop` too, since `ci.yml`
+  arrived with kit update PR #6 (`d80f103`):
+  - Server and UI: `bench get-app [app_name]` gives `No module named '[app_name]'`.
+  - UI also calls a missing `[app_name].tests.fixtures.seed_e2e_users`, uses Frappe's US-only
+    `frappe.utils.install.complete_setup_wizard`, builds `test_site` (refused by `e2e/target.ts`
+    and by `sample_data._assert_test_site`), runs `npm ci` with no `package-lock.json`, and sets
+    `PC_SID_CMD`, which this app's `e2e/sid.ts` never reads (it needs `BENCH_ROOT` and
+    `PC_BENCH_PATH`).
+  - Linter: pre-commit (ruff 0.14.10, prettier 2.7.1) rewrites 23 files and reports 5 errors
+    (B905 and RUF007 at `fleet_asset.py:86`, RUF001 at `test_fuel_order.py:497`, RUF012 at
+    `tests/test_sample_data.py:73`, E731 at `scripts/spec-check.py:115`). Semgrep, the job's second
+    step, has never run; a full scan finds 27 older findings, one rated ERROR (`request.py:37`).
 
 ## Root cause
 
@@ -46,7 +62,14 @@ root-password build, and the drift check treats blank as "matches". The kit fix
 (`krystallinesalt/Frappe-Starter-Kit`, `plans/existing-app-test-site.md`, a `fix/…` PR to the
 kit's `develop`) fills the Locale on update, fails on a blank Locale, and adds `project.conf`
 settings naming an app's own test-site build command and its sample-data seed path. This spec
-fixes the app's side through `.kaysalt/project.conf`, the app's own file.
+fixes the app's side through `.kaysalt/project.conf`, the app's own file. That kit fix
+has since shipped as 6d6918d and arrives with PR #7.
+
+The failing checks have a second kit cause. The kit ships `scripts/spec-check.py` in 4-space
+indentation with a lambda, while every app's `pyproject.toml` comes from Frappe's `bench new-app`
+boilerplate (tabs, `E` selected), so the kit's own file fails the Linter in every app. The kit
+also installs its `ci.yml` template verbatim, and nothing fills `[app_name]`. Both are universal
+and are fixed in the kit (prompt handed to the owner on 29/09/2026), not here.
 
 ## Words in this request
 
@@ -71,11 +94,37 @@ fixes the app's side through `.kaysalt/project.conf`, the app's own file.
   root password and does not set the test logins).
 - `D-3`: The blank-Locale guard (bugfix 2.4) comes from the kit fix; the app does not patch
   `scripts/migrate.sh` or `scripts/project-env.sh`. Chosen over a local patch for the reason in
-  D-2.
-- `D-4`: Until the kit fix is merged into `develop`, step A for this app is
-  `bench fleet-test-site up --replace` run directly, and nobody runs
-  `scripts/rebuild-test-site.sh` here; the D-2 task stays open and marked blocked. Chosen over
-  running the kit script, which would now pass the Locale check and build an empty site.
+  D-2. Revised 29/09/2026: the guard shipped in kit 6d6918d and is on PR #7's branch.
+- `D-4`: Nobody runs `scripts/rebuild-test-site.sh` here while `TEST_SITE_BUILD` is blank. With it
+  blank, the script takes the kit build, drops the site with the MariaDB root password, and
+  recreates it under a new database name, after which `bench fleet-test-site down|up --replace`
+  refuses the site. Until D-2 lands, step A is `bench fleet-test-site up --replace` run directly.
+  Revised 29/09/2026: the kit fix is no longer awaited; D-2 lands on PR #7 (task 1.3).
+- `D-6`: The fixes are committed on `chore/kit-update-6d6918d` in a separate worktree under
+  `<bench>/worktrees/`, where `../..` is still the bench, so the kit scripts run there. This record
+  stays on `fix/004-test-site-locale`. The bench imports the app from `apps/fleet_management`, so
+  before the proof (task 1.4) the finished PR #7 branch is merged into `fix/004-test-site-locale`
+  there. Chosen over switching the working folder's branch (the owner keeps it on `fix/004`) and
+  over pointing the bench at the worktree.
+- `D-7`: The layout comes from the tools pinned in `.pre-commit-config.yaml`. The hand fixes are
+  `itertools.pairwise` for the overlap scan in `fleet_asset.py` (same pairs, no `zip` length
+  question); `# noqa: RUF001` on the slip-text line in `test_fuel_order.py`, because the en dash
+  is the real slip text; and `ClassVar[dict]` in `tests/test_sample_data.py`. Chosen over
+  `zip(..., strict=False)`, which silences B905 but leaves RUF007.
+- `D-8`: `scripts/spec-check.py` stays byte-identical to the kit's copy. It is fixed in the kit,
+  and a later kit update delivers it. Until then PR #7's Linter stays red on that one file.
+  Owner's choice (29/09/2026), over a temporary ruff exclusion in `pyproject.toml` and over
+  editing the kit file here, which would stop the updater from refreshing it.
+- `D-9`: The `ci.yml` change (T3) waits for the kit's corrected template, and a patch then carries
+  only what this app still needs (at least `BENCH_ROOT` and `PC_BENCH_PATH` for `e2e/sid.ts`).
+  The workflow folder is read-only to agents, so the owner applies it. Owner's choice
+  (29/09/2026), over hand-filling the current template now.
+- `D-10`: The missing `package-lock.json` is part of the kit fix, because the kit ships
+  `package.json` without one.
+- `D-11`: Semgrep is checked as CI checks a pull request, against `develop`
+  (`semgrep scan --baseline-commit origin/develop`), so T1 must add no new finding. The 27 older
+  findings are a separate specification. Chosen over annotating all of them here, which would widen
+  this fix.
 - `D-5`: Delete the untracked root `fixtures/` folder after re-confirming it is untracked and
   identical to `fleet_management/fixtures/role.json`. Chosen over committing or ignoring it,
   because Frappe never reads it and a second copy invites drift.
@@ -92,6 +141,11 @@ stateDiagram-v2
     [*] --> MainMigrate: scripts/migrate.sh
     MainMigrate --> LocaleMatches: site equals LOCALE
     MainMigrate --> LocaleDrift: site differs from LOCALE
+    [*] --> PRChecks: pull request opened
+    PRChecks --> LinterRed: kit spec-check.py not yet replaced
+    PRChecks --> LinterGreen: app files and kit files pass pre-commit
+    PRChecks --> CIRed: ci.yml still holds placeholders
+    PRChecks --> CIGreen: app installed, test site seeded, suites pass
 ```
 
 **This diagram is the design, not the build.** Each verification record redraws it from what
@@ -109,13 +163,14 @@ so the two diagrams diff cleanly.
 
 ## Data and migration plan
 
-No existing data affected. No schema change. `bench fleet-test-site up`, `sample_data.py`, and
-the test logins are untouched. The deleted root `fixtures/role.json` is an untracked duplicate.
+No existing data affected. No schema change. `bench fleet-test-site up`, `sample_data.py`'s data,
+and the test logins are untouched; `commands.py` and `sample_data.py` change layout only (T1). The deleted root `fixtures/role.json` is an untracked duplicate.
 
 ## Correctness properties
 
-None. This fix changes configuration only, so it adds no code or property tests; tasks.md checks
-each criterion by a migrate and a test-site build.
+None. This fix changes configuration and code layout only, so it adds no code or property tests.
+tasks.md checks each criterion by a migrate, a test-site build, a syntax-tree comparison before
+and after the layout change, and the server suite compared with its baseline.
 
 ## Errors and permissions
 
