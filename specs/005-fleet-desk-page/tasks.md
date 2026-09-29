@@ -41,13 +41,13 @@ test site without the owner's browser opening.
 - [x] 2.1 Show the bug: on the test site Philip's home screen has no icon (screenshot); neither site
   has a Fleet `Desktop Icon`; the main site's Fleet User has only standard icons
   - _Requirements: 1.1, 1.2_
-- [ ] 2.2 Add the "Fleet" and "Fleet Setup" desktop icons, sidebars, and workspace (D-1, D-2);
+- [x] 2.2 Add the "Fleet" and "Fleet Setup" desktop icons, sidebars, and workspace (D-1, D-2);
   migrate the main site
   - _Requirements: 2.1, 2.2, 2.3, 3.5_
-- [ ] 2.3 Test Property 1: Fleet icon visible to all three Fleet roles, Fleet Setup to Fleet Admin
+- [x] 2.3 Test Property 1: Fleet icon visible to all three Fleet roles, Fleet Setup to Fleet Admin
   only (IntegrationTestCase)
   - _Requirements: 2.1, 2.2, 2.3_
-- [ ] 2.4 Walk it through on the test site as Philip, Vikas, Amina, and the Test Fleet Admin, and
+- [x] 2.4 Walk it through on the test site as Philip, Vikas, Amina, and the Test Fleet Admin, and
   as Administrator; Philip's lists still show only Nairobi
   - _Requirements: 2.1, 2.2, 2.3, 3.2, 3.5_
 
@@ -64,7 +64,7 @@ test site without the owner's browser opening.
 - [x] 3.3 Stop on a missing login before changing anything, and check every login signs in (D-4);
   Test Property 3
   - _Requirements: 2.5, 2.6, 3.4_
-- [ ] 3.4 Prove it: rebuild the test site; Philip, Vikas, Amina, and the Test Fleet Admin sign in;
+- [x] 3.4 Prove it: rebuild the test site; Philip, Vikas, Amina, and the Test Fleet Admin sign in;
   settings match the main site; server suite and `npm run test:ui` pass; main site unchanged
   - _Requirements: 2.4, 2.6, 3.1, 3.3, 3.6_
 
@@ -129,3 +129,25 @@ test site without the owner's browser opening.
   and after seeding checks every login signs in. Property 2 and 3 tests, a login-check test,
   and a Property 4 case for the owner's two-heading login file pass (20 unit, 3 integration).
   Next: 2.2 and 2.3.
+- `29/09/2026`: 2.2 and 2.3 done (`5b1cabb`): the Fleet and Fleet Setup desktop icons, sidebars,
+  and workspaces ship as standard records; the main site migrated and holds them, Locale
+  unchanged. **Drift from D-1:** Frappe 16.22's `get_desktop_icons` ignores `Desktop Icon.roles`
+  and shows an icon when its sidebar keeps an item the user may open; all three Fleet roles read
+  the setup DocTypes, so the setup links moved onto a "Fleet Setup" workspace (roles: Fleet Admin),
+  and the Fleet Setup sidebar holds only that workspace and Fleet Management Settings. The icon
+  roles stay as intent. Property 1 tests pass (5, through `get_bootinfo().desktop_icons`).
+- `29/09/2026`: 2.4 done: on the rebuilt test site, as Philip, Vikas, and Amina the home screen
+  shows Fleet and no Fleet Setup; Philip's Fleet page lists the five Fleet lists, his Fuel Orders
+  are 52, all Nairobi, and `/desk/fleet-setup` says "Not permitted"; Amina's 3 are all Mombasa;
+  the Test Fleet Admin sees both icons and the setup page's four links; Administrator keeps
+  Framework (the standard icons) beside the two Fleet icons. Screenshots
+  `verification/screenshots/phase-02-fleet-home/phase-02-02` to `-13`. Known limitation: both
+  icons show the letter "F", not their truck and settings symbols. Phase 2 complete.
+- `29/09/2026`: 3.4 done: `bench fleet-test-site up --replace` rebuilt the site on MariaDB and
+  passed its own login check; its Fleet rules equal the main site's six set values, with the
+  sample 75, 10, 15, 24 where the main site is blank; date format dd/mm/yyyy. Given a made-up
+  login file without Amina, `up` stopped with "The login file has no test login for:
+  amina.test@example.com." and left the test site untouched. Philip, Vikas, Amina, the Test Fleet
+  Admin, and Administrator all signed in. Server suite 64 unit + 101 integration pass (1
+  skipped); `npm run test:ui` 24 pass; the main site's rules and 6 users unchanged. Phase 3
+  complete. Next: the owner's review, then the pull request when asked.
