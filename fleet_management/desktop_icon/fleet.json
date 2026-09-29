@@ -1,0 +1,33 @@
+{
+ "app": "fleet_management",
+ "creation": "2026-09-29 12:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Desktop Icon",
+ "hidden": 0,
+ "icon": "truck",
+ "icon_type": "Link",
+ "idx": 0,
+ "label": "Fleet",
+ "link_to": "Fleet",
+ "link_type": "Workspace Sidebar",
+ "modified": "2026-09-29 12:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "Fleet",
+ "owner": "Administrator",
+ "restrict_removal": 0,
+ "roles": [
+  {
+   "doctype": "Has Role",
+   "role": "Fleet Admin"
+  },
+  {
+   "doctype": "Has Role",
+   "role": "Fleet Approver"
+  },
+  {
+   "doctype": "Has Role",
+   "role": "Fleet User"
+  }
+ ],
+ "standard": 1
+}
