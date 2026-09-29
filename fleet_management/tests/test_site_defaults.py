@@ -71,13 +71,9 @@ class TestStationAddressPermissions(IntegrationTestCase):
 		fleet_admin = self._user("Fleet Admin", suffix)
 		fleet_user = self._user("Fleet User", suffix)
 
-		self.assertTrue(
-			frappe.has_permission("Address", "read", address.name, user=fleet_admin)
-		)
+		self.assertTrue(frappe.has_permission("Address", "read", address.name, user=fleet_admin))
 		self.assertTrue(frappe.has_permission("Address", "read", address.name, user=fleet_user))
-		self.assertFalse(
-			frappe.has_permission("Address", "write", address.name, user=fleet_user)
-		)
+		self.assertFalse(frappe.has_permission("Address", "write", address.name, user=fleet_user))
 
 	def _user(self, role, suffix):
 		email = f"ac13-{role.lower().replace(' ', '-')}-{suffix}@example.com"

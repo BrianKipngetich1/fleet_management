@@ -4,7 +4,6 @@ from fleet_management.fleet_management.doctype.fleet_asset.fleet_asset import (
 	get_assignment_snapshot,
 )
 
-
 SNAPSHOT_FIELDS = (
 	"assigned_location_snapshot",
 	"assigned_custodian_snapshot",
@@ -33,9 +32,7 @@ def execute():
 		if updates:
 			frappe.db.set_value("Fuel Order", order.name, updates, update_modified=False)
 
-	for order in frappe.get_all(
-		"Fuel Order", fields=["name", "asset", "request_datetime"]
-	):
+	for order in frappe.get_all("Fuel Order", fields=["name", "asset", "request_datetime"]):
 		snapshot = get_assignment_snapshot(order.asset, order.request_datetime)
 		if snapshot:
 			frappe.db.set_value(

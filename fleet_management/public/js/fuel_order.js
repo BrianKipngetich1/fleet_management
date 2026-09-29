@@ -39,13 +39,16 @@ frappe.ui.form.on("Fuel Order", {
 		if (facts.assigned_location_snapshot) {
 			await frm.set_value("operational_location", facts.assigned_location_snapshot);
 		}
-		if (facts.suggested_station) await frm.set_value("planned_station", facts.suggested_station);
+		if (facts.suggested_station)
+			await frm.set_value("planned_station", facts.suggested_station);
 	},
 	before_workflow_action(frm) {
 		// The workflow reloads the order before it moves, so a reason typed into the form would be lost:
 		// ask for it here and record it on the server first (spec 002 D-10, D-11).
 		const action = frm.selected_workflow_action;
-		const needs_reason = ["Submit for Approval", "Approve", "Reject", "Withdraw"].includes(action);
+		const needs_reason = ["Submit for Approval", "Approve", "Reject", "Withdraw"].includes(
+			action
+		);
 		if (!needs_reason || (action === "Approve" && frm.doc.workflow_state === "Draft")) return;
 		frappe.dom.unfreeze();
 		const label =
@@ -61,7 +64,7 @@ frappe.ui.form.on("Fuel Order", {
 						})
 						.then(resolve, reject),
 				__(action),
-				__(action),
+				__(action)
 			);
 		});
 	},
@@ -72,9 +75,11 @@ frappe.ui.form.on("Fuel Order", {
 			const red = frm.doc.signal === "Red";
 			frm.set_intro(
 				red
-					? `<strong>${__("Red")}</strong><br>${reasons.map((r) => frappe.utils.escape_html(r)).join("<br>")}`
+					? `<strong>${__("Red")}</strong><br>${reasons
+							.map((r) => frappe.utils.escape_html(r))
+							.join("<br>")}`
 					: `<strong>${__("Green")}</strong>: ${__("every check passed.")}`,
-				red ? "red" : "green",
+				red ? "red" : "green"
 			);
 		} else {
 			frm.set_intro("");
@@ -85,7 +90,8 @@ frappe.ui.form.on("Fuel Order", {
 			frm.doc.workflow_state !== "Approved" ||
 			(!frappe.user.has_role("Fleet Approver") && !frappe.user.has_role("Fleet Admin")) ||
 			!frm.has_perm("write")
-		) return;
+		)
+			return;
 
 		frm.add_custom_button(
 			__("Extend Validity"),
@@ -116,7 +122,7 @@ frappe.ui.form.on("Fuel Order", {
 				});
 				dialog.show();
 			},
-			__("Actions"),
+			__("Actions")
 		);
 	},
 });

@@ -203,9 +203,7 @@ class TestFleetPermissionIntegration(IntegrationTestCase):
 			self.north.name,
 		)
 		with self.set_user(user):
-			station_names = {
-				row.name for row in frappe.get_list("Fuel Station", fields=["name"])
-			}
+			station_names = {row.name for row in frappe.get_list("Fuel Station", fields=["name"])}
 			self.assertIn(self.north_station.name, station_names)
 			self.assertNotIn(self.south_station.name, station_names)
 			order_names = {row.name for row in frappe.get_list("Fuel Order", fields=["name"])}
@@ -283,9 +281,7 @@ class TestFleetPermissionIntegration(IntegrationTestCase):
 			)
 			self.assertEqual(north_order.assigned_location_snapshot, self.north.name)
 			with self.assertRaises(frappe.PermissionError):
-				self._insert_order(
-					self.south, self.south_station, self.south_asset, ignore_permissions=False
-				)
+				self._insert_order(self.south, self.south_station, self.south_asset, ignore_permissions=False)
 
 	def test_planned_station_must_match_operational_location(self):
 		with self.assertRaisesRegex(

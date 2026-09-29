@@ -108,8 +108,7 @@ def _check_location(facts, limits):
 
 	if operational_location != home_location:
 		return (
-			f"Away from home: fuelling at {operational_location}, but its home location is "
-			f"{home_location}."
+			f"Away from home: fuelling at {operational_location}, but its home location is {home_location}."
 		)
 	return None
 

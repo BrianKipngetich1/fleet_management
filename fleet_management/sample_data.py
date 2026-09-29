@@ -149,67 +149,139 @@ def _assignment(custodian, location, start, driver=None, until=None, reason="Fle
 ASSETS = (
 	# registration, type, active, fuel, model, target km/L, assignments
 	(
-		"KDA 412M", "Vehicle", 1, "Diesel", "Toyota - Hilux Double Cab 2.4 GD-6", 10,
+		"KDA 412M",
+		"Vehicle",
+		1,
+		"Diesel",
+		"Toyota - Hilux Double Cab 2.4 GD-6",
+		10,
 		[_assignment("Grace Wanjiku", "Nairobi", "2026-01-05", "John Mwangi")],
 	),
 	(
-		"KCZ 908T", "Vehicle", 1, "Diesel", "Toyota - Land Cruiser Prado 2.8 D-4D", 9,
+		"KCZ 908T",
+		"Vehicle",
+		1,
+		"Diesel",
+		"Toyota - Land Cruiser Prado 2.8 D-4D",
+		9,
 		[
 			_assignment("Grace Wanjiku", "Nairobi", "2025-06-02", "Peter Otieno", "2026-03-31"),
 			_assignment(
-				"Daniel Kiptoo", "Nairobi", "2026-04-01", "Peter Otieno",
+				"Daniel Kiptoo",
+				"Nairobi",
+				"2026-04-01",
+				"Peter Otieno",
 				reason="Reassigned to the sales manager",
 			),
 		],
 	),
 	(
-		"KDB 551Q", "Vehicle", 1, "Petrol", "Toyota - Probox 1.5", 14,
+		"KDB 551Q",
+		"Vehicle",
+		1,
+		"Petrol",
+		"Toyota - Probox 1.5",
+		14,
 		[_assignment("Grace Wanjiku", "Nairobi", "2026-02-02", "Joseph Mutua")],
 	),
 	(
-		"KCY 230L", "Vehicle", 1, "Diesel", "Isuzu - NQR 4.6 Truck", 6,
+		"KCY 230L",
+		"Vehicle",
+		1,
+		"Diesel",
+		"Isuzu - NQR 4.6 Truck",
+		6,
 		[_assignment("Grace Wanjiku", "Nairobi", "2025-11-10", "Samuel Kiprono")],
 	),
 	(
 		# Nairobi pool vehicle delivered this month: no fuelling history yet. The Playwright suite
 		# creates its generic orders on it, so the realistic histories above stay untouched.
-		"KDH 201A", "Vehicle", 1, "Diesel", "Isuzu - D-Max 3.0 Double Cab", 10,
+		"KDH 201A",
+		"Vehicle",
+		1,
+		"Diesel",
+		"Isuzu - D-Max 3.0 Double Cab",
+		10,
 		[_assignment("Grace Wanjiku", "Nairobi", "2026-09-01", "Joseph Mutua", reason="New pool vehicle")],
 	),
 	# Two Nairobi pick-ups kept for the signal examples: KDG 118X was fuelled a few hours before
 	# the script runs; KDJ 507K's last interval is well off its own average.
 	(
-		"KDG 118X", "Vehicle", 1, "Diesel", "Toyota - Hilux Double Cab 2.4 GD-6", 10,
+		"KDG 118X",
+		"Vehicle",
+		1,
+		"Diesel",
+		"Toyota - Hilux Double Cab 2.4 GD-6",
+		10,
 		[_assignment("Grace Wanjiku", "Nairobi", "2026-01-05", "John Mwangi")],
 	),
 	(
-		"KDJ 507K", "Vehicle", 1, "Diesel", "Toyota - Hilux Double Cab 2.4 GD-6", 10,
+		"KDJ 507K",
+		"Vehicle",
+		1,
+		"Diesel",
+		"Toyota - Hilux Double Cab 2.4 GD-6",
+		10,
 		[_assignment("Grace Wanjiku", "Nairobi", "2026-01-05", "Samuel Kiprono")],
 	),
 	(
-		"KBZ 615J", "Vehicle", 0, "Diesel", "Isuzu - D-Max 3.0 Double Cab", 10,
+		"KBZ 615J",
+		"Vehicle",
+		0,
+		"Diesel",
+		"Isuzu - D-Max 3.0 Double Cab",
+		10,
 		[_assignment("Grace Wanjiku", "Nairobi", "2024-03-01", "Michael Onyango", "2026-06-30")],
 	),
 	(
-		"KDE 774H", "Vehicle", 1, "Diesel", "Mitsubishi Fuso - Fighter FK 7.5", 4,
+		"KDE 774H",
+		"Vehicle",
+		1,
+		"Diesel",
+		"Mitsubishi Fuso - Fighter FK 7.5",
+		4,
 		[_assignment("Fatuma Abdalla", "Mombasa", "2025-09-01", "Hassan Omar")],
 	),
 	(
-		"KDC 339F", "Vehicle", 1, "Diesel", "Isuzu - FVZ Tipper", 3.5,
+		"KDC 339F",
+		"Vehicle",
+		1,
+		"Diesel",
+		"Isuzu - FVZ Tipper",
+		3.5,
 		[_assignment("James Karisa", "Gongoni", "2025-08-18", "Ali Bakari")],
 	),
 	(
-		"KCX 102P", "Vehicle", 1, "Diesel", "Toyota - Land Cruiser 79 Pick-up 4.5 V8", 7,
+		"KCX 102P",
+		"Vehicle",
+		1,
+		"Diesel",
+		"Toyota - Land Cruiser 79 Pick-up 4.5 V8",
+		7,
 		[_assignment("Kazungu Charo", "Marereni", "2025-10-06", "Said Mwarimbo")],
 	),
 	# Generators carry no vehicle model; the target field is required but unused for them. The
 	# driver is whoever collects fuel for the set.
 	(
-		"GEN-NRB-01 Cummins 100 kVA", "Generator", 1, "Diesel", None, 1,
-		[_assignment("Grace Wanjiku", "Nairobi", "2025-11-10", "Samuel Kiprono", reason="Head office standby power")],
+		"GEN-NRB-01 Cummins 100 kVA",
+		"Generator",
+		1,
+		"Diesel",
+		None,
+		1,
+		[
+			_assignment(
+				"Grace Wanjiku", "Nairobi", "2025-11-10", "Samuel Kiprono", reason="Head office standby power"
+			)
+		],
 	),
 	(
-		"GEN-GON-01 Perkins 250 kVA", "Generator", 1, "Diesel", None, 1,
+		"GEN-GON-01 Perkins 250 kVA",
+		"Generator",
+		1,
+		"Diesel",
+		None,
+		1,
 		[_assignment("James Karisa", "Gongoni", "2025-08-18", "Ali Bakari", reason="Salt works brine pumps")],
 	),
 )
@@ -379,7 +451,14 @@ def seed():
 	for asset, rows in HISTORY.items():
 		for days_ago, odometer, gauge, litres, full, station in rows:
 			_completed_cycle(
-				asset, days_ago, odometer, gauge, litres, full, station, next(sequence),
+				asset,
+				days_ago,
+				odometer,
+				gauge,
+				litres,
+				full,
+				station,
+				next(sequence),
 				hours_ago=8 if days_ago == 0 else None,
 			)
 	_open_orders()
@@ -425,9 +504,7 @@ def _seed_masters():
 	for name in FUEL_TYPES:
 		_insert("Fuel Type", fuel_type_name=name, active=1)
 	for name, location, approved, _prefix in STATIONS:
-		_insert(
-			"Fuel Station", station_name=name, operational_location=location, active=1, approved=approved
-		)
+		_insert("Fuel Station", station_name=name, operational_location=location, active=1, approved=approved)
 	for station, (box, postal_code, town, email) in STATION_ADDRESSES.items():
 		_insert(
 			"Address",
@@ -713,13 +790,13 @@ def _open_orders():
 	_new_order("KCZ 908T", 34650, 23, "Industrial Area Fuel Centre")
 
 	# Head office generator: approved for up to 200 litres after a long outage, not yet fuelled.
-	_submit_and_approve(_new_order("GEN-NRB-01 Cummins 100 kVA", 1283.5, None, "Mombasa Road Service Station"))
+	_submit_and_approve(
+		_new_order("GEN-NRB-01 Cummins 100 kVA", 1283.5, None, "Mombasa Road Service Station")
+	)
 
 	# Mombasa order waiting for Amina; Philip and Vikas cannot see it. Fatuma Abdalla covers
 	# Hassan Omar's truck, which turns the order red.
-	pending_mombasa = _new_order(
-		"KDE 774H", 389310, 22, "Changamwe Service Station", driver="Fatuma Abdalla"
-	)
+	pending_mombasa = _new_order("KDE 774H", 389310, 22, "Changamwe Service Station", driver="Fatuma Abdalla")
 	_send_up(pending_mombasa, COVER_DRIVER_EXPLANATION.format("Fatuma Abdalla"))
 
 	_signal_cases()

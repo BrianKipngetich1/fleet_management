@@ -189,8 +189,7 @@ scheduler_events = {
 }
 
 has_permission = {
-	doctype: "fleet_management.permissions.has_permission"
-	for doctype in permission_query_conditions
+	doctype: "fleet_management.permissions.has_permission" for doctype in permission_query_conditions
 }
 
 # Document Events

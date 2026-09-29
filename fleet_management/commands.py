@@ -27,8 +27,7 @@ DB_USER = "fleet_mgmt_test"
 DB_SOCKET = "/run/mysqld/mysqld.sock"
 SETUP_USER = "test@erpnext.com"
 DEFAULT_CREDENTIALS = (
-	Path(__file__).resolve().parents[1]
-	/ "specs/001-fleet-fuel-management/verification/CREDENTIALS.md"
+	Path(__file__).resolve().parents[1] / "specs/001-fleet-fuel-management/verification/CREDENTIALS.md"
 )
 REGIONAL_SETTINGS = ("country", "time_zone", "language", "currency")
 
@@ -128,9 +127,7 @@ def _recreate_database(password):
 	try:
 		with connection.cursor() as cursor:
 			cursor.execute(f"DROP DATABASE IF EXISTS `{DB_NAME}`")
-			cursor.execute(
-				f"CREATE DATABASE `{DB_NAME}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
-			)
+			cursor.execute(f"CREATE DATABASE `{DB_NAME}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
 	finally:
 		connection.close()
 

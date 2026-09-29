@@ -12,7 +12,6 @@ from frappe.utils import today
 
 from fleet_management.fleet_management.doctype.fleet_asset.fleet_asset import get_effective_assignment
 
-
 LOCATION_DOCTYPE = "Fleet Location"
 LOCATION_ROLES = frozenset({"Fleet User", "Fleet Approver"})
 SCOPED_DOCTYPES = frozenset(
@@ -122,15 +121,15 @@ def _document_location_names(doc):
 			return {str(location)}
 		if doc.get("asset"):
 			assignment = get_effective_assignment(doc.get("asset"), doc.get("request_datetime"))
-			return {str(assignment.assigned_location)} if assignment and assignment.assigned_location else set()
+			return (
+				{str(assignment.assigned_location)} if assignment and assignment.assigned_location else set()
+			)
 	if doctype == "Fueling Transaction":
 		location = doc.get("assigned_location_snapshot")
 		if location:
 			return {str(location)}
 		if doc.get("fuel_order"):
-			location = frappe.db.get_value(
-				"Fuel Order", doc.get("fuel_order"), "assigned_location_snapshot"
-			)
+			location = frappe.db.get_value("Fuel Order", doc.get("fuel_order"), "assigned_location_snapshot")
 			return {str(location)} if location else set()
 
 	locations = _location_values(doc, doctype)
