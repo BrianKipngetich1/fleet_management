@@ -29,7 +29,7 @@ test site without the owner's browser opening.
 - [x] 1.5 Add `bench fleet-test-site session` and use it in `e2e/sid.ts`, with the `.ts` import
   (D-9); Test Property 5; write the kit-owner prompt for `ab-login.sh` (D-10)
   - _Requirements: 2.10, 3.6_
-- [ ] 1.6 Prove it: rebuild the test site (app build and kit step both find the file); with the
+- [x] 1.6 Prove it: rebuild the test site (app build and kit step both find the file); with the
   owner's permission, sign in as Philip for a walkthrough and see no desktop browser open; server
   suite and `npm run test:ui` pass; then delete the old file and confirm no file names it
   - _Requirements: 2.8, 2.9, 2.10, 3.1, 3.3, 3.6, 3.7_
@@ -100,3 +100,11 @@ test site without the owner's browser opening.
   developer_mode before any login (Property 5, 2 tests pass). `e2e/sid.ts` uses it and loads under
   plain Node; the `PC_SID_CMD` path CI uses is unchanged. Kit-owner prompt for `ab-login.sh`
   handed to the owner (D-10). Next: 1.6.
+- `29/09/2026`: 1.6 done: the kit's `scripts/rebuild-test-site.sh` ran the app's build and restored
+  the test passwords from the root file (no "No CREDENTIALS.md"); site on MariaDB. As Philip, signed
+  in through `e2e/sid.ts` with no password and no desktop browser (owner-desktop Chrome count 3
+  before and after); screenshot `verification/screenshots/phase-01-login-file/phase-01-01-philip-signed-in.png`.
+  Server suite 56 + 95 pass (1 skipped); `npm run test:ui` 24 pass. The old 001 login file is
+  deleted; only the root file remains in the app. Still naming the old place, as history: 004's
+  closed design and this design's Current state (left unedited to keep their approvals). Phase 1
+  complete. Next: 2.1.
