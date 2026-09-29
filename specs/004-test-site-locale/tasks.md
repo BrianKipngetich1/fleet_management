@@ -20,7 +20,7 @@ record stays on `fix/004-test-site-locale` (D-6). Nothing is pushed until the ow
 the main site with a recorded Kenya Locale, and the app's own code passes the formatting and lint
 hooks.
 
-- [ ] 1.1 Show the bug on `develop` and PR #7: blank `LOCALE_*`; PR #7's `require_locale` stops on
+- [x] 1.1 Show the bug on `develop` and PR #7: blank `LOCALE_*`; PR #7's `require_locale` stops on
   `LOCALE_COUNTRY`; develop's `scripts/migrate.sh` says "Locale matches"; the stray root
   `fixtures/` is untracked; `pre-commit run --all-files` rewrites 23 files and reports the 5 lint
   errors; the Server and UI jobs stop at `bench get-app [app_name]`. Record the "before" snapshot
@@ -73,3 +73,9 @@ checks green.
   143 pass, 1 skipped, 0 fail; lint reproduced. The kit prompt for `spec-check.py` and the CI
   template was handed to the owner; the owner chose to wait for the kit (D-8, D-9). Next:
   approval, then 1.2 (T1).
+- `29/09/2026`: Design approved (`804d5a2`). 1.1 done: blank `LOCALE_*` on develop and PR #7; PR #7's
+  `require_locale` stops on `LOCALE_COUNTRY`; develop's migrate says "Locale matches"; root
+  `fixtures/` untracked and identical; PR #7 CI Server and UI stop at `bench get-app [app_name]`,
+  Linter fails ruff (4 locations), ruff format (22 files) and prettier. Before snapshot: both sites
+  Kenya / Africa/Nairobi / KES / dd/mm/yyyy / `en` (English). The kit fix for Phase 2 is merged to
+  the kit's develop, not yet released to its main. Next: 1.2 and 1.3.
