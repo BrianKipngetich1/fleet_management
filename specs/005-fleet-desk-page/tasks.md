@@ -16,7 +16,7 @@ criterion is cited by at least one task. Tick a task's checkbox when it is commi
 **Tracer:** the test site rebuilds from the one login file, and an agent signs in as Philip on the
 test site without the owner's browser opening.
 
-- [ ] 1.1 Show the bug: the login file is in the 001 records with five table shapes; the kit's
+- [x] 1.1 Show the bug: the login file is in the 001 records with five table shapes; the kit's
   rebuild prints "No CREDENTIALS.md"; `scripts/ab-login.sh` stops with `ERR_MODULE_NOT_FOUND`
   - _Requirements: 1.5, 1.6_
 - [ ] 1.2 Write the root `CREDENTIALS.md` in the D-6 shape at mode 0600; a script compares every
@@ -75,3 +75,10 @@ test site without the owner's browser opening.
   sign-in fix deferred from spec 004; both became Phase 1. Next: approval, then 1.1.
 - `29/09/2026`: Owner approved the design (revision `6d8acf1`) and permitted walkthrough sign-ins
   as Philip, Vikas, Amina, the Test Fleet Admin, and Administrator on the test site only. Next: 1.1.
+- `29/09/2026`: 1.1 done: the logins sit in the 001 records (mode 600) under four headed tables
+  of different shapes (main site; test site; framework fixtures; MariaDB), and there is no root
+  `CREDENTIALS.md`, so the kit's rebuild takes its "No CREDENTIALS.md" branch; `kit-check.py`
+  raises `credentials-location`; importing `e2e/sid.ts` under Node stops with
+  `ERR_MODULE_NOT_FOUND` for `e2e/target`. The desktop-browser half of 1.6 is shown by Frappe
+  16.22's `browse` calling `click.launch`, not reproduced, to keep the owner's browser untouched.
+  Next: 1.2 (orchestrator) with 1.3 and 1.4 alongside.
