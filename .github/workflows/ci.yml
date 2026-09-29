@@ -1,7 +1,7 @@
-# Replace [app_name] throughout, and rename the branches below if this project does not
-# use develop/main. Every pull request runs the whole set: there is deliberately no
-# paths-ignore fast path, because a skipped required check reports as "not run", which
-# reads as "not blocking", and a change misfiled as documentation would ship unverified.
+# Rename the branches below if this project does not use develop/main. Every pull request runs
+# the whole set: there is deliberately no paths-ignore fast path, because a skipped required
+# check reports as "not run", which reads as "not blocking", and a change misfiled as
+# documentation would ship unverified.
 name: CI
 
 on:
@@ -41,6 +41,49 @@ jobs:
       - name: Clone
         uses: actions/checkout@v6
 
+      - name: Read app settings
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          import sys
+
+          config = {}
+          for line in Path(".kaysalt/project.conf").read_text(encoding="utf-8").splitlines():
+              key, separator, value = line.partition("=")
+              if separator:
+                  config[key.strip()] = value.strip()
+
+          locale_keys = [
+              "LOCALE_COUNTRY",
+              "LOCALE_TIME_ZONE",
+              "LOCALE_CURRENCY",
+              "LOCALE_DATE_FORMAT",
+              "LOCALE_LANGUAGE",
+          ]
+          locale_keys.extend(key for key in config if key.startswith("LOCALE_") and key not in locale_keys)
+          blank_locale = [key for key in locale_keys if not config.get(key, "").strip()]
+          if blank_locale:
+              print(
+                  "::error::Blank Locale values in .kaysalt/project.conf: "
+                  + ", ".join(blank_locale)
+              )
+              sys.exit(1)
+
+          blank_settings = [key for key in ("APP_NAME", "TEST_SITE") if not config.get(key, "").strip()]
+          if blank_settings:
+              print(
+                  "::error::Blank required values in .kaysalt/project.conf: "
+                  + ", ".join(blank_settings)
+              )
+              sys.exit(1)
+
+          env_keys = ["APP_NAME", "TEST_SITE", "SAMPLE_DATA_SEED", *locale_keys]
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
+              for key in env_keys:
+                  env.write(f"{key}={config.get(key, '')}\n")
+          PY
+
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
@@ -62,21 +105,37 @@ jobs:
           pip install frappe-bench
           bench init --skip-redis-config-generation --skip-assets --frappe-branch version-16 --python "$(which python)" ~/frappe-bench
 
-      - name: Install
+      - name: Install and build test site
         working-directory: /home/runner/frappe-bench
         run: |
-          bench get-app [app_name] $GITHUB_WORKSPACE
+          bench get-app "$APP_NAME" "$GITHUB_WORKSPACE"
           bench setup requirements --dev
-          bench new-site --db-root-password root --admin-password admin test_site
-          bench --site test_site install-app [app_name]
+          python3 - "$APP_NAME" <<'PY'
+          from pathlib import Path
+          import sys
+
+          config_path = Path("apps") / sys.argv[1] / ".kaysalt/project.conf"
+          config = config_path.read_text(encoding="utf-8").splitlines()
+          updates = {"BENCH_ROOT": "../..", "BENCH_EXEC": "", "TEST_SITE_BUILD": ""}
+          found = set()
+          for index, line in enumerate(config):
+              key, separator, _ = line.partition("=")
+              if separator and key in updates:
+                  config[index] = f"{key}={updates[key]}"
+                  found.add(key)
+          missing = updates.keys() - found
+          if missing:
+              raise SystemExit(f"Missing settings in {config_path}: {', '.join(sorted(missing))}")
+          config_path.write_text("\n".join(config) + "\n", encoding="utf-8")
+          PY
+          cd "apps/$APP_NAME"
+          KAYSALT_DB_ROOT_PASSWORD=root KAYSALT_TEST_ADMIN_PASSWORD=admin-test scripts/rebuild-test-site.sh
         env:
           CI: 'Yes'
 
       - name: Run Tests
         working-directory: /home/runner/frappe-bench
-        run: |
-          bench --site test_site set-config allow_tests true
-          bench --site test_site run-tests --app [app_name]
+        run: bench --site "$TEST_SITE" run-tests --app "$APP_NAME"
         env:
           TYPE: server
 
@@ -105,6 +164,49 @@ jobs:
       - name: Clone
         uses: actions/checkout@v6
 
+      - name: Read app settings
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          import sys
+
+          config = {}
+          for line in Path(".kaysalt/project.conf").read_text(encoding="utf-8").splitlines():
+              key, separator, value = line.partition("=")
+              if separator:
+                  config[key.strip()] = value.strip()
+
+          locale_keys = [
+              "LOCALE_COUNTRY",
+              "LOCALE_TIME_ZONE",
+              "LOCALE_CURRENCY",
+              "LOCALE_DATE_FORMAT",
+              "LOCALE_LANGUAGE",
+          ]
+          locale_keys.extend(key for key in config if key.startswith("LOCALE_") and key not in locale_keys)
+          blank_locale = [key for key in locale_keys if not config.get(key, "").strip()]
+          if blank_locale:
+              print(
+                  "::error::Blank Locale values in .kaysalt/project.conf: "
+                  + ", ".join(blank_locale)
+              )
+              sys.exit(1)
+
+          blank_settings = [key for key in ("APP_NAME", "TEST_SITE") if not config.get(key, "").strip()]
+          if blank_settings:
+              print(
+                  "::error::Blank required values in .kaysalt/project.conf: "
+                  + ", ".join(blank_settings)
+              )
+              sys.exit(1)
+
+          env_keys = ["APP_NAME", "TEST_SITE", "SAMPLE_DATA_SEED", *locale_keys]
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
+              for key in env_keys:
+                  env.write(f"{key}={config.get(key, '')}\n")
+          PY
+
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
@@ -126,41 +228,45 @@ jobs:
           pip install frappe-bench
           bench init --skip-redis-config-generation --skip-assets --frappe-branch version-16 --python "$(which python)" ~/frappe-bench
 
-      - name: Install
+      - name: Install and build test site
         working-directory: /home/runner/frappe-bench
         run: |
-          bench get-app [app_name] $GITHUB_WORKSPACE
+          bench get-app "$APP_NAME" "$GITHUB_WORKSPACE"
           bench setup requirements --dev
-          bench new-site --db-root-password root --admin-password admin test_site
-          bench --site test_site install-app [app_name]
           bench build
-          # bench browse --user refuses to mint a session id for a non-Administrator
-          # user unless developer mode is on. That is the passwordless login the suite
-          # uses, and it is why this runs only against a disposable CI site.
-          bench --site test_site set-config developer_mode 1
-          # A site that has never completed the setup wizard makes Desk re-route every
-          # request to it, so every DocType route resolves as a Page and 403s — for
-          # every user and every DocType, while roles and can_read look correct.
-          bench --site test_site execute frappe.utils.install.complete_setup_wizard
+          python3 - "$APP_NAME" <<'PY'
+          from pathlib import Path
+          import sys
+
+          config_path = Path("apps") / sys.argv[1] / ".kaysalt/project.conf"
+          config = config_path.read_text(encoding="utf-8").splitlines()
+          updates = {"BENCH_ROOT": "../..", "BENCH_EXEC": "", "TEST_SITE_BUILD": ""}
+          found = set()
+          for index, line in enumerate(config):
+              key, separator, _ = line.partition("=")
+              if separator and key in updates:
+                  config[index] = f"{key}={updates[key]}"
+                  found.add(key)
+          missing = updates.keys() - found
+          if missing:
+              raise SystemExit(f"Missing settings in {config_path}: {', '.join(sorted(missing))}")
+          config_path.write_text("\n".join(config) + "\n", encoding="utf-8")
+          PY
+          cd "apps/$APP_NAME"
+          KAYSALT_DB_ROOT_PASSWORD=root KAYSALT_TEST_ADMIN_PASSWORD=admin-test scripts/rebuild-test-site.sh
         env:
           CI: 'Yes'
-
-      - name: Seed test users and roles
-        working-directory: /home/runner/frappe-bench
-        # Create the users named in e2e/fixtures.ts, with their roles and any
-        # row-level User Permissions the suite asserts.
-        run: bench --site test_site execute [app_name].tests.fixtures.seed_e2e_users
 
       - name: Serve the site
         working-directory: /home/runner/frappe-bench
         run: |
-          echo "127.0.0.1 test_site" | sudo tee -a /etc/hosts
+          echo "127.0.0.1 $TEST_SITE" | sudo tee -a /etc/hosts
           nohup bench serve --port 8000 > /home/runner/bench-serve.log 2>&1 &
           for _ in $(seq 1 60); do
-            curl -sf http://test_site:8000/api/method/ping && break
+            curl -sf "http://$TEST_SITE:8000/api/method/ping" && break
             sleep 2
           done
-          curl -sf http://test_site:8000/api/method/ping
+          curl -sf "http://$TEST_SITE:8000/api/method/ping"
 
       - name: Install Playwright
         run: |
@@ -170,8 +276,8 @@ jobs:
       - name: Run UI regression suite
         run: npx playwright test
         env:
-          BASE_URL: http://test_site:8000
-          PC_SID_CMD: cd /home/runner/frappe-bench && BROWSER=echo bench browse test_site --user "$PC_USER"
+          BASE_URL: http://${{ env.TEST_SITE }}:8000
+          PC_SID_CMD: cd /home/runner/frappe-bench && BROWSER=echo bench browse "$TEST_SITE" --user "$PC_USER"
 
       - name: Upload Playwright report
         if: always()

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Drops and recreates the test site with the app, the Locale, developer mode and sample data.
+# Drops and recreates the test site with the app, the Locale, developer mode, tests switched on
+# and sample data, then restores the test logins' passwords from CREDENTIALS.md.
 # An app with its own test-site command names it in TEST_SITE_BUILD; otherwise the kit builds the
 # site, which needs KAYSALT_DB_ROOT_PASSWORD and KAYSALT_TEST_ADMIN_PASSWORD in the environment.
 set -euo pipefail
@@ -30,6 +31,7 @@ if [[ -n ${TEST_SITE_BUILD:-} ]]; then
 	check_app_build "${build[@]}"
 	bench_run "${build[@]:1}"
 	bench_run --site "$TEST_SITE" set-config developer_mode 1
+	bench_run --site "$TEST_SITE" set-config allow_tests true
 else
 	: "${KAYSALT_DB_ROOT_PASSWORD:?set KAYSALT_DB_ROOT_PASSWORD}"
 	: "${KAYSALT_TEST_ADMIN_PASSWORD:?set KAYSALT_TEST_ADMIN_PASSWORD (it must contain the word test)}"
@@ -50,12 +52,42 @@ else
 	bench_run --site "$TEST_SITE" execute frappe.client.set_value \
 		--args "$(python3 -c 'import sys; print(repr(["System Settings", "System Settings", "date_format", sys.argv[1]]))' "$LOCALE_DATE_FORMAT")" >/dev/null
 	bench_run --site "$TEST_SITE" set-config developer_mode 1
+	bench_run --site "$TEST_SITE" set-config allow_tests true
 	if [[ -f $BENCH_ROOT/apps/$APP_NAME/${module//.//}.py ]]; then
 		bench_run --site "$TEST_SITE" execute "$seed"
 	else
 		printf 'No %s.py yet; ask the requester for sample data before the first PR.\n' "${module//.//}"
 	fi
 fi
+
+# Test-site logins get back the passwords recorded in CREDENTIALS.md; none are printed.
+creds=$PROJECT_ROOT/CREDENTIALS.md
+if [[ -f $creds ]]; then
+	logins=$(python3 -c '
+import sys
+path, site = sys.argv[1:]
+rows, in_table = [], False
+for line in open(path):
+    cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+    if [cell.lower() for cell in cells] == ["site", "username", "role", "password"]:
+        in_table = True
+    elif in_table and not line.lstrip().startswith("|"):
+        break
+    elif in_table and len(cells) == 4 and cells[0] == site and cells[1] and cells[3]:
+        rows.append(f"{cells[1]}\t{cells[3]}")
+if not in_table:
+    print("CREDENTIALS.md has no | Site | Username | Role | Password | table; test passwords were not restored.", file=sys.stderr)
+print("\n".join(rows))
+' "$creds" "$TEST_SITE")
+	while IFS=$'\t' read -r user password; do
+		[[ -n $user ]] || continue
+		bench_run --site "$TEST_SITE" set-password "$user" "$password" >/dev/null ||
+			die "CREDENTIALS.md lists $user for $TEST_SITE, but the rebuilt site has no such user; add them to the sample data"
+	done <<< "$logins"
+else
+	printf 'No CREDENTIALS.md; test logins keep the passwords the sample data gave them.\n'
+fi
+
 drift=$(locale_drift "$TEST_SITE")
 [[ -z $drift ]] || die "Locale drift after rebuild (add the app's Locale hooks, see docs/agents/site-provisioning.md):
 $drift"
