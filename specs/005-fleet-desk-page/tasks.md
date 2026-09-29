@@ -38,7 +38,7 @@ test site without the owner's browser opening.
 
 **Tracer:** Philip opens the home screen and finds a Fleet icon leading to his fuel orders.
 
-- [ ] 2.1 Show the bug: on the test site Philip's home screen has no icon (screenshot); neither site
+- [x] 2.1 Show the bug: on the test site Philip's home screen has no icon (screenshot); neither site
   has a Fleet `Desktop Icon`; the main site's Fleet User has only standard icons
   - _Requirements: 1.1, 1.2_
 - [ ] 2.2 Add the "Fleet" and "Fleet Setup" desktop icons, sidebars, and workspace (D-1, D-2);
@@ -55,13 +55,13 @@ test site without the owner's browser opening.
 
 **Tracer:** a rebuild takes the main site's Fleet rules and refuses to finish with a login missing.
 
-- [ ] 3.1 Show the bug: the test site's Fleet rules differ from the main site's set values; a sample
+- [x] 3.1 Show the bug: the test site's Fleet rules differ from the main site's set values; a sample
   person left out of a copy of the login file only loses their login
   - _Requirements: 1.3, 1.4_
-- [ ] 3.2 Copy the main site's date format and non-blank Fleet rules after seeding (D-3); Test
+- [x] 3.2 Copy the main site's date format and non-blank Fleet rules after seeding (D-3); Test
   Property 2
   - _Requirements: 2.4, 3.1_
-- [ ] 3.3 Stop on a missing login before changing anything, and check every login signs in (D-4);
+- [x] 3.3 Stop on a missing login before changing anything, and check every login signs in (D-4);
   Test Property 3
   - _Requirements: 2.5, 2.6, 3.4_
 - [ ] 3.4 Prove it: rebuild the test site; Philip, Vikas, Amina, and the Test Fleet Admin sign in;
@@ -108,3 +108,24 @@ test site without the owner's browser opening.
   deleted; only the root file remains in the app. Still naming the old place, as history: 004's
   closed design and this design's Current state (left unedited to keep their approvals). Phase 1
   complete. Next: 2.1.
+- `29/09/2026`: 2.1 done: the test site, built from the code before this fix, has no Desktop Icon
+  from the app (0 on both sites; the same 11 Frappe icons on each). As Philip, `/desk` shows only
+  the search bar, bell, and avatar
+  (`verification/screenshots/phase-02-fleet-home/phase-02-01-philip-empty-home.png`). On the
+  main site, Frappe 16's `get_desktop_icons` hides all 11 icons from the Fleet User: each
+  sidebar icon has no item the user may open, and Framework fails the app check. Only Printing
+  (System Manager) and Data (Accounts User) carry roles.
+- `29/09/2026`: 3.1 done: the main site sets six Fleet rules (tolerance 2, validity 3, orange 10,
+  red 20, entry SLA 48, print instruction), not seven as the design's Current state says
+  (holiday list is blank on both). It leaves gauge limit, litres excess, mileage margin, and
+  minimum hours blank; the test site holds the sample 75, 10, 15, 24 there. Date format is
+  dd/mm/yyyy on both. A made-up login file in the owner's two-heading layout, with Amina left
+  out, was read without complaint, and `up` (at `2e15565`) never compared it with the sample
+  people, so Amina would only have lost her login. A copy of the real file was not made (the
+  safety check refused it); the made-up file shows the same path. Next: 3.2, 3.3.
+- `29/09/2026`: 3.2 and 3.3 done (`2cd9a20`): the build copies the main site's date format and
+  every set Fleet rule over the sample values (read raw, so a blank stays blank and "0" counts
+  as set); it stops before changing anything, naming every sample person with no test login,
+  and after seeding checks every login signs in. Property 2 and 3 tests, a login-check test,
+  and a Property 4 case for the owner's two-heading login file pass (20 unit, 3 integration).
+  Next: 2.2 and 2.3.
