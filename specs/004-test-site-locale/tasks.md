@@ -34,7 +34,7 @@ hooks.
   and differs only at the 3 hand fixes; `python -m compileall` passes; Semgrep reports no finding
   new against `develop` (D-11); the snapshot equals "before"
   - _Requirements: 2.6, 3.6, 3.7_
-- [ ] 1.3 T2: fill `LOCALE_*` from the main site (D-1) and set
+- [x] 1.3 T2: fill `LOCALE_*` from the main site (D-1) and set
   `TEST_SITE_BUILD=bench fleet-test-site up --replace` (D-2); `scripts/migrate.sh` reports "Locale
   matches" for the main site; the snapshot equals "before"
   - _Requirements: 2.1, 2.3, 2.4_
@@ -79,3 +79,6 @@ checks green.
   Linter fails ruff (4 locations), ruff format (22 files) and prettier. Before snapshot: both sites
   Kenya / Africa/Nairobi / KES / dd/mm/yyyy / `en` (English). The kit fix for Phase 2 is merged to
   the kit's develop, not yet released to its main. Next: 1.2 and 1.3.
+- `29/09/2026`: 1.3 done on `chore/kit-update-6d6918d` (`f00e4f1`): Kenya Locale and
+  `TEST_SITE_BUILD=bench fleet-test-site up --replace` recorded; migrate reports "Locale matches";
+  a blank currency is named, a USD currency is reported as drift; main site unchanged. Next: 1.2, then 1.4.
