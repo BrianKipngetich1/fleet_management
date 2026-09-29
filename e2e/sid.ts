@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { assertTestSite, TEST_SITE } from "./target";
 
 const BENCH_ROOT = process.env.BENCH_ROOT || "/home/kayadmin/frappe-bench";
@@ -54,9 +54,23 @@ function parseJsonLine(output: string) {
 // This is a user-impersonation primitive and is permitted only against the dedicated
 // test site. See CLAUDE.md "Authentication for UI tests".
 //
+// CI (the kit's ci.yml) sets PC_SID_CMD, because bench runs directly there. The
+// command prints the ?sid= URL for $PC_USER, and that replaces the bench path below.
 export function mintSid(user: string): string {
 	if (!user || user === "Guest") {
 		throw new Error(`A named QA user is required to mint a test session; received ${user || "<empty>"}`);
+	}
+
+	if (process.env.PC_SID_CMD) {
+		const output = execSync(process.env.PC_SID_CMD, {
+			encoding: "utf8",
+			env: { ...process.env, PC_USER: user },
+		});
+		const sid = output.match(/[?&]sid=([A-Za-z0-9]+)/)?.[1];
+		if (!sid) {
+			throw new Error(`No sid was printed by PC_SID_CMD for ${user}`);
+		}
+		return sid;
 	}
 
 	runBench(["--site", SITE, "browse", "--user", user]);
