@@ -54,17 +54,17 @@ hooks.
 **Tracer:** PR #7, or the kit-update PR that follows it, shows the Server, UI, and Frappe Linter
 checks green.
 
-- [ ] 2.1 Kit 8f268ac (PR #8) replaces `scripts/spec-check.py`; the Frappe Linter check passes on
+- [x] 2.1 Kit 8f268ac (PR #8) replaces `scripts/spec-check.py`; the Frappe Linter check passes on
   PR #8, and so does the Server check
   - _Requirements: 2.6, 2.7, 3.7_
-- [ ] 2.2 T3 (D-9): on PR #8's branch set `SAMPLE_DATA_SEED=fleet_management.sample_data.seed` and
+- [x] 2.2 T3 (D-9): on PR #8's branch set `SAMPLE_DATA_SEED=fleet_management.sample_data.seed` and
   let `e2e/sid.ts` use `PC_SID_CMD` when set; locally `npm run test:ui` still passes on the test
   site; `[app_name]` appears nowhere
   - _Requirements: 1.6, 2.7_
-- [ ] 2.3 Push on the owner's OK; CI shows Server, UI, and Frappe Linter passing on PR #8
+- [x] 2.3 Push on the owner's OK; CI shows Server, UI, and Frappe Linter passing on PR #8
   - _Requirements: 2.7, 3.6_
 
-- [ ] 2.4 D-12: in `e2e/tests/session.spec.ts` skip the realtime check under `CI` and assert the
+- [x] 2.4 D-12: in `e2e/tests/session.spec.ts` skip the realtime check under `CI` and assert the
   login form, not its heading; locally `npm run test:ui` still passes 24
   - _Requirements: 2.7, 3.6_
 
@@ -99,3 +99,10 @@ checks green.
 - `29/09/2026`: 1.5 done on the owner's go-ahead: root `fixtures/` re-confirmed untracked and identical,
   deleted; main-site migrate still creates Fleet Admin, Fleet Approver, Fleet User. Phase 1 complete.
   Next: Phase 2, once the kit releases its develop (kit PR #12) to main and PR #7 is merged.
+- `29/09/2026`: Kit 8f268ac released (kit PR #13); PR #7 merged by the owner; the kit update opened
+  PR #8. 2.1: Frappe Linter and Server pass on PR #8 (kit spec checker replaced). 2.2 (`152323b`):
+  `SAMPLE_DATA_SEED` and `PC_SID_CMD` in `e2e/sid.ts`; CI then seeded and signed in, two session
+  checks still failed. 2.4 (`5a0b56c`, D-12): realtime check skipped under `CI`, login form asserted
+  instead of its heading; locally `npm run test:ui` 24 passed. 2.3: pushed on the owner's OK; PR #8
+  CI green on `5a0b56c` (Server, UI, Frappe Linter, and the rest). Phase 2 complete. Next: owner
+  merges PR #8, then this record's pull request.
