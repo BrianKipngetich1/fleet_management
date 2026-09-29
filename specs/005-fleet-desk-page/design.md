@@ -14,7 +14,7 @@ whenever this file changes.
 -->
 
 
-# Fleet home page and a test site that copies the main site: design
+# Fleet home page, one login file, and a test site that copies the main site: design
 
 Approved by: pending
 
@@ -32,18 +32,36 @@ Fixes [bugfix.md](bugfix.md).
   Location, Vehicle Model, Fuel Type, and Fleet Person; only Fleet Admin reads Fleet Management
   Settings. Row-level access (User Permission on Fleet Location) is unchanged by this fix.
 - `bench fleet-test-site up` (`fleet_management/commands.py`) copies System Settings `country`,
-  `time_zone`, `language`, `currency` from the main site; the app sets `date_format` to dd/mm/yyyy
-  on install. `sample_data.seed()` then overwrites every Fleet Management Settings value with fixed
-  numbers. The main site has seven of those values set and `gauge_limit_percent`,
-  `litres_excess_percent`, `mileage_margin_percent`, `min_hours_between_fuelings` blank.
-- `_read_credentials` reads the test logins from the 001 `CREDENTIALS.md`; a sample user
-  (`sample_data.USERS`) missing from it gets no password, and only the opposite case (a login with
-  no sample user) prints a warning. No step checks that a login signs in.
+  `time_zone`, `language`, `currency` from the main site; the app sets `date_format` on install.
+  `sample_data.seed()` then overwrites every Fleet Management Settings value. The main site has
+  seven of those values set and `gauge_limit_percent`, `litres_excess_percent`,
+  `mileage_margin_percent`, `min_hours_between_fuelings` blank.
+- The logins live in `specs/001-fleet-fuel-management/verification/CREDENTIALS.md` (gitignored,
+  0600): five tables in different shapes (main site; test site; Frappe framework test fixtures;
+  MariaDB accounts; test-site Administrator) with prose between them. `commands.py`
+  (`DEFAULT_CREDENTIALS`, `_read_credentials`) parses the "## Test site" section and two fixed
+  rows. The kit (AGENTS.md "Credentials", `scripts/rebuild-test-site.sh`, `scripts/kit-check.py`
+  suggestion `credentials-location`) expects one root `CREDENTIALS.md` with a
+  `| Site | Username | Role | Password |` table and prints "No CREDENTIALS.md" here.
+- The old path is named in `CLAUDE.md` (Credential handling, Frappe conventions), `PROGRESS.md`
+  (Environment), `fleet_management/commands.py`, `fleet_management/sample_data.py`,
+  `.gitignore` (`specs/*/verification/CREDENTIALS.md`), `specs/TEMPLATE-verification.md` (an older
+  copy of the kit's template), `specs/002-fuel-order-request-slip/spec.md`, and the "Credential
+  inventory" row of the 001 and 002 phase records.
+- Walkthrough sign-in: `scripts/ab-login.sh` (kit) sets `PC_SID_CMD` to
+  `BROWSER=echo bench browse <site> --user`, then runs `e2e/sid.ts` under plain Node.
+  `e2e/sid.ts` imports `./target` without `.ts`, which Node's type stripping rejects
+  (`ERR_MODULE_NOT_FOUND`); Playwright's loader tolerates it. Frappe 16.22's `browse` prints the
+  URL only for Administrator and always calls `click.launch`, which on this GNOME desktop opens
+  the owner's Chrome whatever `BROWSER` says. `sid.ts`'s default path also calls `bench browse`
+  (then reads `tabSessions`), so local Playwright runs may open the owner's browser too.
 
 ## Root cause
 
-The app never shipped a Desk entry point for its own roles, and the test-site build treats the
-sample values as the source of the Fleet rules and trusts the login file without checking it.
+The app never shipped a Desk entry point for its own roles; the test-site build treats the sample
+values as the source of the Fleet rules and trusts the login file without checking it; the login
+file predates the kit's single-file rule; and every sign-in path depends on `bench browse`, which
+on a desktop host opens a browser instead of just returning a session.
 
 ## Words in this request
 
@@ -53,8 +71,9 @@ sample values as the source of the Fleet rules and trusts the login file without
 | Fleet icon, Fleet page | `Desktop Icon` "Fleet" → `Workspace Sidebar` "Fleet" (+ `Workspace` "Fleet") |
 | Fleet Setup icon | `Desktop Icon` "Fleet Setup" → `Workspace Sidebar` "Fleet Setup", roles: Fleet Admin |
 | Fleet rules | Fleet Management Settings values |
-| private login file | `specs/001-fleet-fuel-management/verification/CREDENTIALS.md` (gitignored, 0600) |
+| login file | `CREDENTIALS.md` at the repository root (gitignored, 0600) |
 | sample person | a row of `sample_data.USERS` |
+| sign-in helper | `scripts/ab-login.sh` → `e2e/sid.ts` `mintSid` |
 
 ## Decisions (locked)
 
@@ -63,17 +82,57 @@ sample values as the source of the Fleet rules and trusts the login file without
   with a setup section, because all three roles can read the setup DocTypes, so Frappe would show
   those links to everyone.
 - `D-2`: The files live in `fleet_management/desktop_icon/`, `fleet_management/workspace_sidebar/`,
-  and the module's `workspace/` folder, as standard records synced on install and migrate. Chosen
-  over fixtures, because Frappe owns these folders' sync.
+  and the module's `workspace/` folder, as standard records synced on install and migrate.
 - `D-3`: After `sample_data.seed()`, the build copies every non-blank Fleet Management Settings
-  value from the main site over the sample value (bugfix 2.4). Blank main values keep the sample
-  value. `date_format` is read from the main site too and passed on, instead of relying on the
-  install hook alone.
-- `D-4`: `up` compares `sample_data.USERS` with the login file before `_down()`, and stops naming
-  each missing person (bugfix 2.5). After seeding it checks each password with
-  `frappe.utils.password.check_password` and stops naming any login that fails (bugfix 2.6),
-  without printing a password.
-- `D-5`: Main-site people and logins stay off the test site (bugfix 3.3); the answer to question 1.
+  value from the main site over the sample value (bugfix 2.4); blank main values keep the sample
+  value. `date_format` is read from the main site and passed on too.
+- `D-4`: `up` compares `sample_data.USERS` with the login file before `_down()` and stops naming
+  each missing person (2.5). After seeding it checks each password with
+  `frappe.utils.password.check_password` and stops naming any login that fails (2.6).
+- `D-5`: Main-site people and logins stay off the test site (3.3).
+- `D-6`: The login file (2.7) is the kit's table and one database table, nothing else:
+
+  ```
+  # Logins — private, never committed (mode 0600)
+
+  | Site | Username | Role | Password |
+  |---|---|---|---|
+  | fleet_management.localhost | … one row per main-site login … |
+  | fleet_management-test.localhost | Administrator | Administrator | … |
+  | fleet_management-test.localhost | … one row per sample person and the setup user … |
+
+  ## Database
+
+  | Site | Database | Database user | Password |
+  |---|---|---|---|
+  ```
+
+  Rows move with their values unchanged (3.7). The Frappe framework test-fixture accounts
+  (`test@example.com`, `test1…4`, …) are not copied: Frappe's own tests create them with their
+  own passwords, and the kit's rebuild step stops on a test-site row whose user the rebuild does not
+  create. The notes and dates columns and the prose are dropped; git history keeps when a login
+  was made.
+- `D-7`: `commands.py` reads `<repo>/CREDENTIALS.md`: test-site rows of the login table give the
+  users (the Administrator row gives the admin password), and the test-site row of the Database
+  table gives the database password. The "contains test" rule stays. `scripts/rebuild-test-site.sh`
+  (kit) then finds the same file unchanged.
+- `D-8`: Move, then remove: write the root file at mode 0600, compare every value with the old
+  file by script (printing names only), rebuild the test site from it, and only then delete
+  `specs/001-fleet-fuel-management/verification/CREDENTIALS.md` (2.9). Every reference listed in
+  Current state points at the root file; `CLAUDE.md`'s Credential handling section is rewritten
+  to the kit's rule; `specs/TEMPLATE-verification.md` is replaced by the kit's current copy; the
+  `.gitignore` line for the old path is removed (`CREDENTIALS.md` stays ignored).
+- `D-9`: `mintSid` creates the session without `bench browse`: a new app bench command,
+  `bench --site <test site> fleet-test-site session <email>`, refuses any site but the test site
+  and any site without `developer_mode`, logs in with Frappe's `LoginManager.login_as`, and prints
+  one `?sid=` line; it never launches a browser. The default path of `e2e/sid.ts` uses it, and the
+  `./target` import gains `.ts`. The `PC_SID_CMD` path stays for CI.
+- `D-10`: `scripts/ab-login.sh` is the kit's and stays as shipped; it always sets `PC_SID_CMD` to
+  `bench browse`, which cannot work on a desktop host with Frappe 16.22. A prompt for the kit owner
+  asks for `ab-login.sh` to keep a `PC_SID_CMD` that is already set. Until that kit update arrives,
+  a walkthrough exports `PC_SID_CMD` to the D-9 command and runs the same two steps as
+  `ab-login.sh` (mint through `e2e/sid.ts`, then `agent-browser cookies set`), so no browser
+  opens on the desktop (2.10).
 
 ## Design
 
@@ -87,13 +146,17 @@ stateDiagram-v2
     FleetPage --> FleetList: open a list
     FleetList --> OwnLocations: row-level access as today
     FleetSetupIcon --> SetupPage: click
-    [*] --> CheckLogins: bench fleet-test-site up
-    CheckLogins --> Stopped: a sample person has no login
-    CheckLogins --> Build: every sample person has a login
+    [*] --> ReadLoginFile: bench fleet-test-site up
+    ReadLoginFile --> Stopped: a sample person has no login
+    ReadLoginFile --> Build: every sample person has a login
     Build --> CopySetup: regional settings and non-blank Fleet rules from main
     CopySetup --> VerifyLogins: seed sample data, set passwords
     VerifyLogins --> Stopped: a login does not sign in
     VerifyLogins --> Ready: every login signs in
+    [*] --> MintSession: walkthrough or Playwright signs in
+    MintSession --> Refused: not the test site or no developer_mode
+    MintSession --> SessionCookie: fleet-test-site session prints the sid
+    SessionCookie --> DeskAsPerson: no desktop browser opened
 ```
 
 **This diagram is the design, not the build.** Each verification record redraws it from what
@@ -107,13 +170,17 @@ so the two diagrams diff cleanly.
 | A Fleet entry on the home screen | Standard `Desktop Icon`, `Workspace Sidebar`, `Workspace` records | None |
 | Setup icon for admins only | `Desktop Icon.roles` | None |
 | Lists limited to own locations | Existing User Permissions | None |
-| Test site copies main setup | Existing `fleet-test-site up` | A few lines to copy Fleet Management Settings; Frappe has no site-to-site settings copy |
-| Every login present and working | `frappe.utils.password.check_password` | A comparison with `sample_data.USERS`; the login file is this app's own |
+| Test site copies main setup | Existing `fleet-test-site up` | A few lines copying Fleet Management Settings; Frappe has no site-to-site settings copy |
+| Every login present and working | `frappe.utils.password.check_password` | A comparison with `sample_data.USERS` |
+| One login file | The kit's `CREDENTIALS.md` table | The app's reader follows the kit's table |
+| A session without a browser | `LoginManager.login_as` (what `bench browse` calls) | A bench command, because `bench browse` always launches a browser |
 
 ## Data and migration plan
 
-No schema change. Migrating the main site adds the two icons, two sidebars, and the workspace;
-nothing else on the main site changes. The test site is rebuilt from code.
+No schema change. Migrating the main site adds the two icons, two sidebars, and the workspace.
+The login file's values move unchanged (D-6, D-8); the framework fixture accounts' passwords are
+not carried over (Frappe's tests set their own). The old file is deleted only after the comparison
+and a successful rebuild. The test site is rebuilt from code.
 
 ## Correctness properties
 
@@ -123,8 +190,15 @@ nothing else on the main site changes. The test site is rebuilt from code.
    value. Validates 2.4.
 3. For any login file, the build stops exactly when a sample person is missing, naming all of them.
    Validates 2.5.
+4. For any login file in the kit's shape, the reader returns exactly the test-site rows, the
+   test-site Administrator password, and the test-site database password. Validates 2.7, 2.8.
+5. The session command refuses every site but the test site and any site without developer_mode.
+   Validates 2.10.
 
 ## Errors and permissions
 
 No role or permission changes. The build stops with "The login file has no test login for: …"
-(2.5) or "These test logins do not sign in: …" (2.6), naming users, never passwords.
+(2.5) or "These test logins do not sign in: …" (2.6), naming users, never passwords. The session
+command stops with "Only <test site> with developer_mode can mint a session." Minting a session is
+a user-impersonation step on the disposable test site only; the owner permits it for the four
+sample people and Administrator before the first walkthrough.

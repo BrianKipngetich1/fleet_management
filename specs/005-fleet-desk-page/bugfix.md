@@ -15,7 +15,7 @@ whenever this file changes.
 -->
 
 
-# Fleet home page and a test site that copies the main site: bugfix
+# Fleet home page, one login file, and a test site that copies the main site: bugfix
 
 Approved by: pending
 
@@ -26,13 +26,18 @@ Approved by: pending
 
 ## How to reproduce
 
-1. Build the test site and sign in as Philip, a Fleet User in Nairobi.
-2. Watch the home screen: it shows only the search bar, with no Fleet icon and nothing to click.
-3. Sign in to the main site as its Fleet User: the home screen is just as empty.
+1. Build the test site and sign in as Philip, a Fleet User in Nairobi. The home screen shows only
+   the search bar, with no Fleet icon and nothing to click. The main site's Fleet User sees the
+   same.
+2. Look for the test logins: they sit inside the records of the first specification, in a long
+   file with five differently shaped tables, and the kit's rebuild step reports that it finds no
+   login file.
+3. Ask an agent to walk through Desk as Philip on the test site: its sign-in helper stops with an
+   error, and signing in a test person this way opens the owner's own browser as that person.
 4. Compare the Fleet rules (signal bands, validity, limits) on the two sites: the test site takes
    fixed sample values, not the main site's.
-5. Leave one sample person out of the private login file and build the test site: the build
-   finishes, and that person cannot sign in.
+5. Leave one sample person out of the login file and build the test site: the build finishes, and
+   that person cannot sign in.
 
 ## Current behaviour
 
@@ -41,8 +46,13 @@ Approved by: pending
 2. WHEN the main site's Fleet User opens the home screen THEN the system shows the same empty page.
 3. WHEN the test site is built THEN the system copies only the main site's country, time zone,
    language, and currency, and takes the Fleet rules from fixed sample values.
-4. WHEN a sample person has no test login in the private login file THEN the system still
-   finishes the build, and that person cannot sign in.
+4. WHEN a sample person has no test login in the login file THEN the system still finishes the
+   build, and that person cannot sign in.
+5. WHEN the logins are looked up THEN the system keeps them inside the first specification's
+   records, in a long file of five differently shaped tables, where the kit's rebuild step does not
+   look.
+6. WHEN an agent signs in as a test person for a Desk walkthrough THEN the system stops with an
+   error, and a test sign-in on this computer opens the owner's own browser as that person.
 
 ## Expected behaviour
 
@@ -56,10 +66,20 @@ Approved by: pending
 4. WHEN the test site is built THEN THE system SHALL copy the main site's setup: country, time
    zone, language, currency, date format, and every Fleet rule the main site has set; a Fleet rule
    the main site leaves blank takes the sample value.
-5. WHEN the test site is built and a sample person has no test login in the private login file
-   THEN THE system SHALL stop before changing anything and name every such person.
+5. WHEN the test site is built and a sample person has no test login in the login file THEN THE
+   system SHALL stop before changing anything and name every such person.
 6. WHEN the test site is ready THEN THE system SHALL have confirmed that every sample person
-   signs in with the password recorded for them in the private login file.
+   signs in with the password recorded for them in the login file.
+7. WHEN anyone looks for a login THEN THE system SHALL keep every login this app introduces in one
+   private file at the top of the app's folder, as one table of site, username, role, and
+   password, followed only by one short table of the two database passwords.
+8. WHEN the test site is rebuilt, by the app's own build or by the kit's rebuild step THEN THE
+   system SHALL take every test login's password from that one file.
+9. WHEN the move is finished THEN THE system SHALL hold no other copy of the login file, and no
+   file SHALL name the old location.
+10. WHEN an agent signs in as a test person for a walkthrough THEN THE system SHALL sign them in on
+    the test site without opening any browser on the owner's desktop and without showing a
+    password or session.
 
 ## Unchanged behaviour
 
@@ -74,6 +94,8 @@ Approved by: pending
 5. WHEN a system administrator opens the home screen THEN THE system SHALL CONTINUE TO show the
    standard icons.
 6. WHEN the server and browser tests run THEN THE system SHALL CONTINUE TO pass as before.
+7. WHEN the logins are moved THEN THE system SHALL CONTINUE TO hold every main-site login, every
+   test-site login, and both database passwords with the values they had before.
 
 ## Sample data
 
@@ -85,4 +107,6 @@ generators, and about two months of fuelling history. Nothing is added.
 
 None. Answered 29/09/2026: the test site copies the main site's setup, not its people or
 records (question 1); one Fleet page for every Fleet role, with the setup items for Fleet Admins
-only (question 2).
+only (question 2); the login file moves to where the kit keeps it, kept simple to read, and every
+reference follows it (owner); the walkthrough sign-in fix deferred from spec 004 is built here
+(owner).
