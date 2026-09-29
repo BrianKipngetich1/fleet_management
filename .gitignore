@@ -74,6 +74,8 @@ plans/
 # The example spec's directory is committed on purpose: it documents the convention.
 specs/*/verification/screenshots/
 !specs/000-example-spec/verification/screenshots/
+# Per-user Desk walkthroughs (Philip, Vikas, Amina) on the test site, kept local.
+/specs/Walkthrough_Screenshots/
 
 # Bench build symlink to the repository node_modules (machine-specific)
 /fleet_management/public/node_modules
