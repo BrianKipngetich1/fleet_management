@@ -73,3 +73,5 @@ test site without the owner's browser opening.
 - `29/09/2026`: Spec written from the owner's answers to questions 1 and 2. Next: approval, then 1.1.
 - `29/09/2026`: Owner added the move to the kit's one login file, kept simple, and the walkthrough
   sign-in fix deferred from spec 004; both became Phase 1. Next: approval, then 1.1.
+- `29/09/2026`: Owner approved the design (revision `6d8acf1`) and permitted walkthrough sign-ins
+  as Philip, Vikas, Amina, the Test Fleet Admin, and Administrator on the test site only. Next: 1.1.
