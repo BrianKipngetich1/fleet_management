@@ -8,7 +8,15 @@ import frappe
 from frappe.tests import IntegrationTestCase, UnitTestCase
 
 from fleet_management import sample_data
-from fleet_management.commands import DB_NAME, DB_USER, TEST_SITE, _read_credentials
+from fleet_management.commands import (
+	DB_NAME,
+	DB_USER,
+	TEST_SITE,
+	_failing_logins,
+	_merge_settings,
+	_missing_test_logins,
+	_read_credentials,
+)
 
 INVENTORY = f"""# Logins — private, never committed (mode 0600)
 
@@ -80,6 +88,92 @@ class TestTestSiteCredentials(UnitTestCase):
 
 	def test_a_test_login_without_the_word_test_is_refused(self):
 		self._refused(INVENTORY.replace("testVikasValue", "vikasValue"), "vikas.test@example.com")
+
+	def test_current_two_heading_layout_gives_the_test_site_rows(self):
+		text = f"""# Logins — Main Site, never committed (mode 0600)
+
+| Site | Username | Role | Password |
+|---|---|---|---|
+| fleet_management.localhost | Administrator | Administrator | mainAdminValue |
+
+# Logins — Test Site, never committed (mode 0600)
+
+| Site | Username | Role | Password |
+|---|---|---|---|
+| {TEST_SITE} | Administrator | Administrator | testAdminValue |
+| {TEST_SITE} | philip.test@example.com | Fleet User | testPhilipValue |
+| {TEST_SITE} | vikas.test@example.com | Fleet Approver | testVikasValue |
+| {TEST_SITE} | amina.test@example.com | Fleet Approver | testAminaValue |
+
+## Database
+
+| Site | Database | Database user | Password |
+|---|---|---|---|
+| {TEST_SITE} | {DB_NAME} | {DB_USER} | testDatabaseValue |
+"""
+		secrets = self._read(text)
+		self.assertEqual(
+			secrets["users"],
+			{
+				"philip.test@example.com": "testPhilipValue",
+				"vikas.test@example.com": "testVikasValue",
+				"amina.test@example.com": "testAminaValue",
+			},
+		)
+		self.assertEqual(secrets["admin_password"], "testAdminValue")
+		self.assertEqual(secrets["db_password"], "testDatabaseValue")
+
+
+class TestSampleLoginsAreAllPresent(UnitTestCase):
+	def _users(self, *emails):
+		return {email: "testValue" for email in emails}
+
+	def test_none_missing_gives_an_empty_list(self):
+		everyone = [row[0] for row in sample_data.USERS]
+		self.assertEqual(_missing_test_logins(self._users(*everyone)), [])
+
+	def test_one_missing_login_is_named(self):
+		everyone = [row[0] for row in sample_data.USERS]
+		self.assertEqual(_missing_test_logins(self._users(*everyone[1:])), [everyone[0]])
+
+	def test_several_missing_logins_are_named_in_sample_order(self):
+		everyone = [row[0] for row in sample_data.USERS]
+		self.assertEqual(_missing_test_logins(self._users(everyone[1])), [everyone[0], *everyone[2:]])
+
+	def test_extra_non_sample_logins_are_fine(self):
+		everyone = [row[0] for row in sample_data.USERS]
+		users = self._users(*everyone, "test@erpnext.com")
+		self.assertEqual(_missing_test_logins(users), [])
+
+
+class TestSettingsMerge(UnitTestCase):
+	def test_set_main_values_override_the_sample(self):
+		self.assertEqual(_merge_settings({"a": "5"}, {"a": 2, "b": 3}), {"a": "5", "b": 3})
+
+	def test_blank_and_absent_main_values_keep_the_sample(self):
+		merged = _merge_settings({"a": "", "b": None, "c": "  "}, {"a": 1, "b": 2, "c": 3, "d": 4})
+		self.assertEqual(merged, {"a": 1, "b": 2, "c": 3, "d": 4})
+
+	def test_a_main_value_of_zero_counts_as_set(self):
+		self.assertEqual(_merge_settings({"a": "0"}, {"a": 2}), {"a": "0"})
+
+
+class TestLoginCheck(IntegrationTestCase):
+	def test_a_known_password_passes_and_a_wrong_one_is_named(self):
+		from frappe.utils.password import update_password
+
+		good, bad = "login.check.good.test@example.com", "login.check.bad.test@example.com"
+		for email in (good, bad):
+			frappe.get_doc(
+				{"doctype": "User", "email": email, "first_name": "Check", "send_welcome_email": 0}
+			).insert(ignore_permissions=True)
+			update_password(email, "testKnownValue1!x")
+		try:
+			failing = _failing_logins({good: "testKnownValue1!x", bad: "testWrongValue1!x"})
+			self.assertEqual(failing, [bad])
+		finally:
+			for email in (good, bad):
+				frappe.delete_doc("User", email, force=True, ignore_permissions=True)
 
 
 class TestSampleHistory(UnitTestCase):

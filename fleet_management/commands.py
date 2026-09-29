@@ -5,9 +5,11 @@
     bench fleet-test-site up --replace
 
 `up` builds the test site from the current code, copies the main site's regional System
-Settings so the two behave alike, loads `fleet_management.sample_data`, and gives every test-site
-login the password recorded in the local credential inventory — so each rebuild has the same users
-with the same credentials. `down` drops the database and the site folder.
+Settings, date format and set Fleet Management Settings so the two behave alike, loads
+`fleet_management.sample_data`, and gives every test-site login the password recorded in the local
+credential inventory — so each rebuild has the same users with the same credentials. It stops before
+changing anything when a sample person has no test login, and afterwards checks that every login
+signs in. `down` drops the database and the site folder.
 
 No MariaDB root access is needed: the site's own database user holds every privilege on its one
 database and rebuilds it through Frappe's `--no-setup-db` install path. Passwords are read from the
@@ -48,6 +50,9 @@ def fleet_test_site():
 def up(replace, credentials):
 	"""Build a fresh test site from the sample data."""
 	secrets = _read_credentials(credentials)
+	missing = _missing_test_logins(secrets["users"])
+	if missing:
+		raise click.ClickException(f"The login file has no test login for: {', '.join(missing)}.")
 	if os.path.exists(TEST_SITE):
 		if not replace:
 			raise click.ClickException(f"{TEST_SITE} already exists; pass --replace or run down first.")
@@ -137,15 +142,91 @@ def _read_credentials(path):
 	return {"users": users, "db_password": db_password, "admin_password": admin_password}
 
 
+def _missing_test_logins(users):
+	"""Return the sample people, in sample order, that have no test login in `users`."""
+	from fleet_management import sample_data
+
+	return [email for email, *_rest in sample_data.USERS if email not in users]
+
+
+def _merge_settings(main, sample):
+	"""Per field, the main site's value when it is set, else the sample value; "0" counts as set."""
+	merged = dict(sample)
+	for field, value in main.items():
+		if value is not None and str(value).strip() != "":
+			merged[field] = value
+	return merged
+
+
 def _main_site_settings():
 	import frappe
 
 	frappe.init(MAIN_SITE)
 	frappe.connect()
 	try:
-		return {key: frappe.db.get_single_value("System Settings", key) for key in REGIONAL_SETTINGS}
+		settings = {key: frappe.db.get_single_value("System Settings", key) for key in REGIONAL_SETTINGS}
+		settings["date_format"] = frappe.db.get_single_value("System Settings", "date_format")
+		# Raw rows, so a blank number stays blank instead of reading as 0; absent rows are blank too.
+		fields = _settings_fields()
+		rows = frappe.db.sql(
+			"SELECT field, value FROM tabSingles WHERE doctype=%s", "Fleet Management Settings"
+		)
+		settings["fleet_settings"] = {
+			field: value
+			for field, value in rows
+			if field in fields and value is not None and str(value).strip() != ""
+		}
+		return settings
 	finally:
 		frappe.destroy()
+
+
+def _settings_fields():
+	"""Return the Fleet Management Settings fieldnames and types that hold a value."""
+	import frappe
+	from frappe.model import no_value_fields
+
+	return {
+		df.fieldname: df.fieldtype
+		for df in frappe.get_meta("Fleet Management Settings").fields
+		if df.fieldtype not in no_value_fields
+	}
+
+
+def _apply_main_settings(regional):
+	"""Put the main site's date format and set Fleet Management Settings over the seeded ones."""
+	import frappe
+	from frappe.utils import cint, flt
+
+	if regional.get("date_format"):
+		frappe.db.set_single_value("System Settings", "date_format", regional["date_format"])
+	fields = _settings_fields()
+	settings = frappe.get_single("Fleet Management Settings")
+	merged = _merge_settings(regional.get("fleet_settings") or {}, {})
+	for field, value in merged.items():
+		fieldtype = fields.get(field)
+		if fieldtype in ("Int", "Check"):
+			value = cint(value)
+		elif fieldtype in ("Float", "Currency", "Percent"):
+			value = flt(value)
+		settings.set(field, value)
+	settings.save(ignore_permissions=True)
+
+
+def _failing_logins(users):
+	"""Return the users in `users` that exist on the site but do not sign in with their password."""
+	import frappe
+	from frappe.utils.password import check_password
+
+	failing = []
+	for user, password in users.items():
+		if not frappe.db.exists("User", user):
+			continue
+		try:
+			check_password(user, password)
+		except frappe.AuthenticationError:
+			failing.append(user)
+	return failing
 
 
 def _connect_as_site_user(password):
@@ -219,6 +300,7 @@ def _setup_and_seed(regional, secrets):
 		)
 		frappe.set_user("Administrator")
 		sample_data.seed()
+		_apply_main_settings(regional)
 		for user, password in secrets["users"].items():
 			if frappe.db.exists("User", user):
 				update_password(user, password)
@@ -226,6 +308,9 @@ def _setup_and_seed(regional, secrets):
 				click.secho(f"Skipped {user}: the sample data does not create it.", fg="yellow")
 		enable_scheduler()
 		frappe.db.commit()
+		failing = _failing_logins(secrets["users"])
+		if failing:
+			raise click.ClickException(f"These test logins do not sign in: {', '.join(failing)}.")
 		frappe.clear_cache()
 	finally:
 		frappe.destroy()
