@@ -19,9 +19,9 @@ template, and imports a filled one.
   - _Requirements: 1.1_
 - [x] 1.2 Set `allow_import` on the six master DocTypes; migrate the main site
   - _Requirements: 1.1_
-- [ ] 1.3 Test Property 1: import open for the six, refused for orders and fuellings
+- [x] 1.3 Test Property 1: import open for the six, refused for orders and fuellings
   - _Requirements: 1.1, 2.2_
-- [ ] 1.4 Test Property 2: an asset with an assignment row imports; a bad row is reported
+- [x] 1.4 Test Property 2: an asset with an assignment row imports; a bad row is reported
   - _Requirements: 1.2, 1.3_
 - [ ] 1.5 Confirm Fleet Admin, Fleet User, and Fleet Approver still cannot open the import tool, and the suites still pass
   - _Requirements: 2.1, 2.3_
@@ -31,3 +31,5 @@ template, and imports a filled one.
 - `30/09/2026`: Requirements and design written. Next: approval, then 1.1.
 - `30/09/2026`: Approved. 1.1 refusal shown for all eight Fleet lists; 1.2 import switched on for
   the six master lists and the main site migrated (orders and fuellings still refused). Next: 1.3.
+- `30/09/2026`: 1.3 and 1.4 tests added and passing on the test site (migrated, not rebuilt: this
+  branch reads the login file from its old place). Next: 1.5.
