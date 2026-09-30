@@ -33,3 +33,6 @@ template, and imports a filled one.
   the six master lists and the main site migrated (orders and fuellings still refused). Next: 1.3.
 - `30/09/2026`: 1.3 and 1.4 tests added and passing on the test site (migrated, not rebuilt: this
   branch reads the login file from its old place). Next: 1.5.
+- `30/09/2026`: Migrating from this branch alone removed the Fleet home page from both sites;
+  merged `fix/005-fleet-desk-page` in, migrated the main site, rebuilt the test site (five logins
+  checked). Next: 1.5 with the full suites before the pull request.
