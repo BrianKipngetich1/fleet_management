@@ -15,9 +15,9 @@ criterion is cited by at least one task. Tick a task's checkbox when it is commi
 **Tracer:** An administrator saves a Data Import for Fleet Location, downloads its blank Excel
 template, and imports a filled one.
 
-- [ ] 1.1 Show the refusal today: saving a Data Import for Fleet Location fails
+- [x] 1.1 Show the refusal today: saving a Data Import for Fleet Location fails
   - _Requirements: 1.1_
-- [ ] 1.2 Set `allow_import` on the six master DocTypes; migrate the main site
+- [x] 1.2 Set `allow_import` on the six master DocTypes; migrate the main site
   - _Requirements: 1.1_
 - [ ] 1.3 Test Property 1: import open for the six, refused for orders and fuellings
   - _Requirements: 1.1, 2.2_
@@ -29,3 +29,5 @@ template, and imports a filled one.
 ## Progress log
 
 - `30/09/2026`: Requirements and design written. Next: approval, then 1.1.
+- `30/09/2026`: Approved. 1.1 refusal shown for all eight Fleet lists; 1.2 import switched on for
+  the six master lists and the main site migrated (orders and fuellings still refused). Next: 1.3.
