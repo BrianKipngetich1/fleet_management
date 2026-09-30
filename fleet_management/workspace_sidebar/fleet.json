@@ -1,0 +1,89 @@
+{
+ "app": "fleet_management",
+ "creation": "2026-09-29 12:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Workspace Sidebar",
+ "header_icon": "truck",
+ "idx": 0,
+ "items": [
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "home",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Home",
+   "link_to": "Fleet",
+   "link_type": "Workspace",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "fuel",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Fuel Order",
+   "link_to": "Fuel Order",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "receipt",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Fueling Transaction",
+   "link_to": "Fueling Transaction",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "truck",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Vehicles and Generators",
+   "link_to": "Fleet Asset",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "map-pin",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Fuel Station",
+   "link_to": "Fuel Station",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "map",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Fleet Location",
+   "link_to": "Fleet Location",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-09-29 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Fleet Management",
+ "name": "Fleet",
+ "owner": "Administrator",
+ "standard": 1,
+ "title": "Fleet"
+}

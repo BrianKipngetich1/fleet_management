@@ -1,0 +1,80 @@
+{
+ "app": "fleet_management",
+ "charts": [],
+ "content": "[{\"id\":\"fleetsc0000\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Fuel Order\",\"col\":3}},{\"id\":\"fleetsc0001\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Fueling Transaction\",\"col\":3}},{\"id\":\"fleetsc0002\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Vehicles and Generators\",\"col\":3}},{\"id\":\"fleetsc0003\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Fuel Station\",\"col\":3}},{\"id\":\"fleetsc0004\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Fleet Location\",\"col\":3}}]",
+ "creation": "2026-09-29 12:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "truck",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "Fleet",
+ "links": [],
+ "modified": "2026-09-29 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Fleet Management",
+ "name": "Fleet",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "restrict_to_domain": "",
+ "roles": [
+  {
+   "doctype": "Has Role",
+   "role": "Fleet Admin"
+  },
+  {
+   "doctype": "Has Role",
+   "role": "Fleet Approver"
+  },
+  {
+   "doctype": "Has Role",
+   "role": "Fleet User"
+  }
+ ],
+ "sequence_id": 1.0,
+ "shortcuts": [
+  {
+   "doc_view": "List",
+   "label": "Fuel Order",
+   "link_to": "Fuel Order",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "List",
+   "label": "Fueling Transaction",
+   "link_to": "Fueling Transaction",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "List",
+   "label": "Vehicles and Generators",
+   "link_to": "Fleet Asset",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "List",
+   "label": "Fuel Station",
+   "link_to": "Fuel Station",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "List",
+   "label": "Fleet Location",
+   "link_to": "Fleet Location",
+   "stats_filter": "[]",
+   "type": "DocType"
+  }
+ ],
+ "title": "Fleet",
+ "type": "Workspace"
+}

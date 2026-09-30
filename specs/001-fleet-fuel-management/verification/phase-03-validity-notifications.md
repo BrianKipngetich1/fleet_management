@@ -16,7 +16,7 @@ as the starting position and must be rerun on MariaDB before closure.
 | Signed off | — |
 | Landed in | — |
 | Covers | AC-08, AC-21, AC-22, AC-23 |
-| Credential inventory | `verification/CREDENTIALS.md` — Phase 0 QA users reused |
+| Credential inventory | root `CREDENTIALS.md` — Phase 0 QA users reused |
 
 ## What this phase makes true
 

@@ -97,20 +97,20 @@ Record the verdict as one row in the phase record's review table.
 
 # Credential handling
 
-- Every login created for a phase on the main site is recorded locally in that phase's
-  `specs/<NNN-name>/verification/CREDENTIALS.md`, including username, role, site, and password.
-- `CREDENTIALS.md` is gitignored, must be mode `0600`, and must never be committed, attached to a
-  pull request, pasted into a verification record, or copied into logs. The tracked phase record
-  names only this approved secret location, never a credential value.
-- The test site mirrors each phase login and role. Both the test username and test password must
-  contain the literal word `test`; test passwords must never reuse a main-site password.
-- The test site is rebuilt often, so its logins are recreated each time with the same credentials:
-  `bench fleet-test-site up` reads every test-site password (and the test-site Administrator and
-  database passwords) from `specs/001-fleet-fuel-management/verification/CREDENTIALS.md`. A test
-  login is added by adding it to the sample data and recording its password there.
-- Create or update the main-site and test-site entries together so the local inventory remains the
-  source of truth for manual login testing. Passwordless `bench browse --user` remains preferred
-  for automated test-site browser checks so credentials do not enter automation output.
+- Every login this app introduces is recorded in one local file at the repository root,
+  `CREDENTIALS.md`: one `| Site | Username | Role | Password |` table holding every main-site and
+  test-site login (including the test-site Administrator), then a `## Database` table
+  `| Site | Database | Database user | Password |`. Framework test-fixture accounts are not listed.
+- `CREDENTIALS.md` is gitignored, mode `0600`, and never committed, attached to a pull request,
+  pasted into a verification record, or copied into logs. Tracked records name only this
+  location, never a credential value.
+- Test usernames and passwords contain the literal word `test`; a test password never reuses a
+  main-site password. `bench fleet-test-site up` and `scripts/rebuild-test-site.sh` read every
+  test-site password, the test Administrator, and the test database password from the root file.
+  A test login is added by adding it to the sample data and to the file.
+- Never reset, ask for, or re-add a main-site password once the requester has removed it: work on
+  the main site through bench commands and hand the requester its link. Automated test-site
+  sign-in is passwordless (see "UI verification"), so credentials do not enter automation output.
 
 # UI verification
 
@@ -162,9 +162,12 @@ test convention, both tools reach it through the bench's standard web server (th
 user service, equivalent to `bench start`) at
 `http://fleet_management-test.localhost:8000`; the site is selected by host name, and Playwright
 reuses that server rather than starting its own. Both tools authenticate without a password — `bench
---site fleet_management-test.localhost browse --user <test-user-email>` persists a session; read
-its id back from `tabSessions` (as `e2e/sid.ts` does — the printed `?sid=` is not reliably the
-persisted one) and set it as the `sid` cookie without echoing it. Never type credentials into
+--site fleet_management-test.localhost fleet-test-site session <test-user-email>` saves a session
+and prints its `?sid=` (it refuses any other site and any site without `developer_mode`, and never
+opens a browser); `e2e/sid.ts` runs it and sets the `sid` cookie without echoing it. Never run
+`bench browse --user` on this host: it opens the owner's desktop browser as that user. Until the
+kit's `scripts/ab-login.sh` keeps a preset `PC_SID_CMD`, a walkthrough mints through `e2e/sid.ts`
+with `PC_SID_CMD` unset, then runs `agent-browser cookies set sid …` itself. Never type credentials into
 a login form. This is a user-impersonation primitive that only works because `developer_mode`
 is on — acceptable on the dedicated, non-production test site, a privilege-escalation surface anywhere else.
 
@@ -216,7 +219,7 @@ Never type a hard-coded ISO date into a Desk date field; convert through
 - Child DocTypes use `istable: 1` and inherit access through the parent. `owner`, `creation`,
   `modified`, and `docstatus` remain framework-owned.
 - Never commit credentials, tokens, passwords, cookies, or private keys. The only local plaintext
-  exception is the gitignored, mode-`0600` phase `verification/CREDENTIALS.md` defined above; all
+  exception is the gitignored, mode-`0600` root `CREDENTIALS.md` defined above; all
   tracked documents name the approved secret source only.
 
 # Commits and pull requests
