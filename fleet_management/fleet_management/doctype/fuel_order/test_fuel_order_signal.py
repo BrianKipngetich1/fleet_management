@@ -1,6 +1,8 @@
+import json
 from datetime import timedelta
 
 import frappe
+from frappe.model.workflow import apply_workflow
 from frappe.tests import IntegrationTestCase
 from frappe.utils import get_datetime, now_datetime
 
@@ -8,10 +10,13 @@ from fleet_management.fleet_management.doctype.fuel_order.fuel_order import (
 	get_average_km_per_litre,
 	get_mileage_intervals,
 	has_open_order,
+	preview_signal,
+	record_decision_reason,
 )
 from fleet_management.tests.utils import attach_request_photos, decide, send_up
 
 
+# specs/009-fuel-order-ux Requirements 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 3.1, 3.2, 3.3; Property 3
 class TestFuelOrderSignal(IntegrationTestCase):
 	def setUp(self):
 		super().setUp()
@@ -139,6 +144,113 @@ class TestFuelOrderSignal(IntegrationTestCase):
 		self.assertEqual(self._reasons(order), [])
 		self.assertEqual(frappe.db.get_value("Fuel Order", order.name, "signal"), "Green")
 
+	def test_signal_preview_waits_for_required_readings_without_reusing_old_result(self):
+		waiting = preview_signal(
+			asset=self.asset.name,
+			request_meter_reading=None,
+			request_gauge_percent=80,
+			operational_location=self.location.name,
+			driver=self.driver.name,
+		)
+		self.assertEqual(waiting["status"], "waiting")
+		self.assertEqual(waiting["waiting_for"], ["Odometer"])
+		self.assertIsNone(waiting["signal"])
+		self.assertEqual(waiting["reasons"], [])
+		self.assertEqual(waiting["request_summary"]["estimated_litres"], 12)
+
+		preview = preview_signal(
+			asset=self.asset.name,
+			request_meter_reading=1000,
+			request_gauge_percent=80,
+			operational_location=self.location.name,
+			driver=self.driver.name,
+		)
+		self.assertEqual(preview["status"], "complete")
+		self.assertEqual(preview["signal"], "Red")
+		self.assertTrue(preview["reasons"][0]["text"].startswith("Tank nearly full"))
+
+	def test_preview_and_save_use_the_same_server_signal_calculation(self):
+		values = {
+			"asset": self.asset.name,
+			"request_meter_reading": 1000,
+			"request_gauge_percent": 80,
+			"operational_location": self.location.name,
+			"driver": self.driver.name,
+			"quantity_authorization": "Full",
+		}
+		preview = preview_signal(**values)
+		order = self.make_order(**{key: value for key, value in values.items() if key != "asset"}).insert(
+			ignore_permissions=True
+		)
+		saved = json.loads(order.signal_details_json)
+		self.assertEqual(preview["signal"], saved["signal"])
+		self.assertEqual(preview["reasons"], saved["reasons"])
+		self.assertEqual(preview["signal_inputs"], saved["signal_inputs"])
+		self.assertEqual(preview["request_summary"], saved["request_summary"])
+
+	def test_client_signal_values_are_replaced_by_server_calculation(self):
+		order = self.make_order(
+			request_gauge_percent=80,
+			signal="Green",
+			signal_reasons="Client supplied reason",
+			signal_details_json='{"signal":"Green"}',
+		).insert(ignore_permissions=True)
+
+		self.assertEqual(order.signal, "Red")
+		self.assertTrue(order.signal_reasons.startswith("Tank nearly full"))
+		self.assertEqual(json.loads(order.signal_details_json)["signal"], "Red")
+
+	def test_signal_is_recomputed_before_approval_after_limits_change(self):
+		requester = self._user(("Fleet User",), self.location.name)
+		with self.set_user(requester):
+			order = attach_request_photos(self.make_order(request_gauge_percent=75).insert())
+			self.assertEqual(order.signal, "Green")
+
+		self._save_settings(gauge_limit_percent=74)
+		with self.set_user(requester):
+			with self.assertRaises(frappe.ValidationError):
+				decide(order, "Approve")
+
+		preview = preview_signal(
+			name=order.name,
+			asset=self.asset.name,
+			request_meter_reading=1000,
+			request_gauge_percent=75,
+			operational_location=self.location.name,
+			driver=self.driver.name,
+		)
+		self.assertEqual(preview["signal"], "Red")
+		self.assertIn("Gauge limit: 74%", preview["reasons"][0]["details"])
+		self.assertEqual(frappe.db.get_value("Fuel Order", order.name, "workflow_state"), "Draft")
+
+	def test_estimate_uses_current_reading_at_approval_then_stays_frozen(self):
+		requester = self._user(("Fleet User",), self.location.name)
+		approver = self._user(("Fleet Approver",), self.location.name)
+		with self.set_user(requester):
+			pending = attach_request_photos(
+				self.make_order(request_gauge_percent=80).insert()
+			)
+			pending = send_up(pending)
+
+		with self.set_user(approver):
+			# Approval reloads the saved order. Persist a newer entry value so the
+			# approval path must replace the earlier red server snapshot.
+			frappe.db.set_value("Fuel Order", pending.name, "request_gauge_percent", 40)
+			record_decision_reason(pending.name, "Approve", "The new gauge reading is confirmed.")
+			approved = apply_workflow(pending, "Approve")
+
+		self.assertEqual(approved.signal, "Green", approved.signal_reasons)
+		self.assertEqual(approved.estimated_litres, 36)
+		self.assertEqual(
+			json.loads(approved.signal_details_json)["request_summary"]["estimated_litres"],
+			36,
+		)
+		approved_estimate = approved.estimated_litres
+		self._save_settings(gauge_limit_percent=10)
+		approved.reload()
+		self.assertEqual(approved.signal, "Green")
+		self.assertEqual(approved.estimated_litres, approved_estimate)
+
 	def test_limits_come_from_settings(self):
 		self._save_settings(gauge_limit_percent=85)
 		order = self.make_order(request_gauge_percent=80).insert(ignore_permissions=True)
@@ -176,6 +288,9 @@ class TestFuelOrderSignal(IntegrationTestCase):
 			pending = attach_request_photos(self.make_order(request_gauge_percent=80).insert())
 			pending = send_up(pending)
 			self.assertEqual(pending.workflow_state, "Pending Approval")
+			pending_signal = json.loads(pending.signal_details_json)
+			self.assertIn("Fleet Approver", pending_signal["next_action"])
+			self.assertIn("with a reason", pending_signal["next_action"])
 
 			order = self.make_order(request_gauge_percent=40).insert()
 			self.assertEqual(order.signal, "Red")
@@ -239,6 +354,7 @@ class TestFuelOrderSignal(IntegrationTestCase):
 	def test_signal_is_frozen_once_approved(self):
 		approved = self._approve_green()
 		self.assertEqual(approved.signal, "Green")
+		approved_details = approved.signal_details_json
 		approver = self._user(("Fleet Approver",), self.location.name)
 
 		self._save_settings(gauge_limit_percent=10)
@@ -250,6 +366,7 @@ class TestFuelOrderSignal(IntegrationTestCase):
 		self.assertEqual(persisted.slip_revision, 2)
 		self.assertEqual(persisted.signal, "Green")
 		self.assertFalse(persisted.signal_reasons)
+		self.assertEqual(persisted.signal_details_json, approved_details)
 
 	def test_settings_refuse_a_gauge_limit_of_100(self):
 		with self.assertRaises(frappe.ValidationError):

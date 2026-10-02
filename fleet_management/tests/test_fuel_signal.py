@@ -1,8 +1,14 @@
 from frappe.tests import UnitTestCase
 
-from fleet_management.fuel_signal import evaluate_signal, signal_colour
+from fleet_management.fuel_signal import (
+	evaluate_signal,
+	evaluate_signal_result,
+	missing_signal_readings,
+	signal_colour,
+)
 
 
+# specs/009-fuel-order-ux Requirements 2.2, 2.3, 2.4, 2.5, 3.2; Property 1
 class TestFuelSignal(UnitTestCase):
 	def _vehicle(self, **overrides):
 		facts = {
@@ -42,6 +48,54 @@ class TestFuelSignal(UnitTestCase):
 		reasons = evaluate_signal(self._vehicle(current_reading=1346))
 		self.assertEqual(len(reasons), 1)
 		self.assertTrue(reasons[0].startswith("Mileage does not add up"))
+
+	def test_signal_explanation_names_distance_estimate_economy_margin_and_action(self):
+		result = evaluate_signal_result(
+			self._vehicle(current_reading=1346, average_source="recent_average"),
+			{"mileage_margin_percent": 15},
+		)
+		self.assertEqual(result["signal"], "Red")
+		self.assertTrue(result["reasons"][0]["text"].startswith("Mileage does not add up"))
+		self.assertEqual(
+			result["reasons"][0]["details"],
+			[
+				"Previous Entry: 1000 km",
+				"Current odometer: 1346 km",
+				"Distance since Previous Entry: 346 km",
+				"Fuel estimate from current gauge: 30 L estimated to fill",
+				"Expected distance: 300 km",
+				"Observed full-to-full average: 10 km/L (0.100 L/km; 10.0 L/100 km)",
+				"Allowed mileage margin: 15%",
+			],
+		)
+		self.assertIn("Check the Previous Entry", result["reasons"][0]["next_action"])
+		self.assertIn("A Fleet User may reject", result["next_action"])
+		self.assertIn("permissions", result["note"])
+		self.assertEqual(result["signal_inputs"]["previous_reading"], 1000)
+		self.assertEqual(result["signal_inputs"]["fuel_estimate_litres"], 30)
+		self.assertEqual(result["signal_inputs"]["limits"]["mileage_margin_percent"], 15)
+
+	def test_target_economy_is_not_described_as_observed_efficiency(self):
+		result = evaluate_signal_result(
+			self._vehicle(current_reading=1346, average_source="vehicle_target"),
+			{"mileage_margin_percent": 15},
+		)
+		details = " ".join(result["reasons"][0]["details"])
+		self.assertIn("vehicle target", details)
+		self.assertNotIn("Observed full-to-full", details)
+		self.assertNotIn("L/100 km", details)
+
+	def test_waiting_preview_names_vehicle_and_generator_readings(self):
+		self.assertEqual(
+			missing_signal_readings(
+				{**self._vehicle(current_reading=None, gauge_percent=None), "asset": "VEH-1"}
+			),
+			["Odometer", "Current Gauge (%)"],
+		)
+		self.assertEqual(
+			missing_signal_readings({"asset": "GEN-1", "asset_type": "Generator"}),
+			["Hour Meter"],
+		)
 
 	def test_mileage_no_forward_movement_fails(self):
 		reasons = evaluate_signal(self._vehicle(current_reading=1000))

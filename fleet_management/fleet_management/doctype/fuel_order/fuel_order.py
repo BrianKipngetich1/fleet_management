@@ -14,7 +14,11 @@ from fleet_management.fleet_management.doctype.fueling_transaction.fueling_trans
 	resolve_attached_file,
 	validate_evidence_file,
 )
-from fleet_management.fuel_signal import evaluate_signal, signal_colour
+from fleet_management.fuel_signal import (
+	evaluate_signal_result,
+	missing_signal_readings,
+	waiting_signal_result,
+)
 from fleet_management.notifications import notify_fuel_order
 from fleet_management.permissions import get_permitted_location_names
 
@@ -165,9 +169,22 @@ class FuelOrder(Document):
 		# Worked out by the server on every save until approval, then frozen (spec 002 D-8);
 		# the colour and its reasons are never chosen by a person.
 		previous = self.get_doc_before_save()
-		if (previous and previous.docstatus == 1) or not self.asset:
+		if previous and previous.docstatus == 1:
+			for fieldname in ("signal", "signal_reasons", "signal_details_json"):
+				self.set(fieldname, previous.get(fieldname))
+			return
+		if not self.asset:
+			self.signal = None
+			self.signal_reasons = None
+			self.signal_details_json = json.dumps(waiting_signal_result(["Asset"]), separators=(",", ":"))
 			return
 
+		result = self._calculate_signal_result()
+		self.signal = result["signal"]
+		self.signal_reasons = "\n".join(reason["text"] for reason in result["reasons"])
+		self.signal_details_json = json.dumps(result, separators=(",", ":"))
+
+	def _calculate_signal_result(self):
 		asset_type = self._asset_type()
 		is_vehicle = asset_type == "Vehicle"
 		intervals = get_mileage_intervals(self.asset) if is_vehicle else []
@@ -191,14 +208,18 @@ class FuelOrder(Document):
 		assignment = get_effective_assignment(self.asset, self.request_datetime)
 
 		facts = {
+			"asset": self.asset,
 			"asset_type": asset_type,
 			"tank_capacity": self.asset_tank_capacity_snapshot,
 			"gauge_percent": self.request_gauge_percent,
 			"current_reading": self.request_meter_reading,
+			"previous_entry_source": self.previous_entry_source,
 			"previous_reading": (
 				None if self.previous_entry_source == "none" else self.previous_meter_reading
 			),
+			"previous_entry_date": str(self.previous_entry_date) if self.previous_entry_date else None,
 			"average_km_per_litre": average,
+			"average_source": "recent_average" if intervals and average else "vehicle_target",
 			"requested_litres": (
 				self.authorized_quantity_litres if self.quantity_authorization == "Partial" else None
 			),
@@ -213,9 +234,13 @@ class FuelOrder(Document):
 			"interval_count": len(intervals),
 		}
 		self.average_km_per_litre = average
-		reasons = evaluate_signal(facts, get_signal_limits())
-		self.signal = signal_colour(reasons)
-		self.signal_reasons = "\n".join(reasons)
+		self._set_estimated_litres()
+		result = evaluate_signal_result(facts, get_signal_limits(), self.workflow_state)
+		result["request_summary"] = {
+			"estimated_litres": self.estimated_litres,
+			"average_km_per_litre": self.average_km_per_litre,
+		}
+		return result
 
 	def _asset_type(self):
 		return frappe.db.get_value("Fleet Asset", self.asset, "asset_type") if self.asset else None
@@ -223,7 +248,8 @@ class FuelOrder(Document):
 	def _set_estimated_litres(self):
 		# The request-time estimate is part of the approved snapshot; an approved
 		# order keeps the value it was approved with.
-		if self.docstatus == 1:
+		previous = self.get_doc_before_save()
+		if previous and previous.docstatus == 1:
 			return
 		if self._asset_type() != "Vehicle" or self.request_gauge_percent in (None, ""):
 			self.estimated_litres = None
@@ -584,11 +610,19 @@ class FuelOrder(Document):
 		if self.quantity_authorization not in {"Full", "Partial"}:
 			frappe.throw(frappe._("Quantity authorization must be Full or Partial."), frappe.ValidationError)
 
-		if self.quantity_authorization == "Partial" and (self.authorized_quantity_litres or 0) <= 0:
-			frappe.throw(
-				frappe._("Partial authorization requires a positive authorized quantity in litres."),
-				frappe.ValidationError,
-			)
+		if self.quantity_authorization == "Partial":
+			if (self.authorized_quantity_litres or 0) <= 0:
+				frappe.throw(
+					frappe._("Partial authorization requires a positive authorized quantity in litres."),
+					frappe.ValidationError,
+				)
+			previous_state = self._previous_workflow_state() or "Draft"
+			if previous_state == "Draft" and self.workflow_state != "Draft":
+				if not (self.partial_authorization_reason or "").strip():
+					frappe.throw(
+						frappe._("A specific reason is required for a Partial authorization."),
+						frappe.ValidationError,
+					)
 
 	def before_print(self, print_settings=None):
 		# Fleet Users print the green orders they approve (spec 002 D-10).
@@ -733,11 +767,90 @@ def get_request_facts(asset: str):
 		)
 	return {
 		**(get_assignment_snapshot(asset_doc) or {}),
+		"asset_type": asset_doc.asset_type,
+		"vehicle_model": asset_doc.vehicle_model,
+		"fuel_type": asset_doc.fuel_type,
 		"custodian": assignment.custodian if assignment else None,
 		"primary_driver": assignment.primary_driver if assignment else None,
 		"suggested_station": stations[0] if len(stations) == 1 else None,
 		**get_previous_entry(asset_doc.name),
 	}
+
+
+@frappe.whitelist(methods=["POST"])
+def preview_signal(
+	asset=None,
+	name=None,
+	request_meter_reading=None,
+	request_gauge_percent=None,
+	quantity_authorization=None,
+	authorized_quantity_litres=None,
+	operational_location=None,
+	driver=None,
+):
+	"""Preview an unsaved order with the same server-side facts and rules used on save."""
+	if name:
+		order = frappe.get_doc("Fuel Order", name)
+		order.check_permission("read")
+		if order.docstatus == 1:
+			if order.signal_details_json:
+				return json.loads(order.signal_details_json)
+			return {
+				"status": "complete",
+				"signal": order.signal,
+				"reasons": [
+					{"text": reason, "details": [], "next_action": "Review the approved order snapshot."}
+					for reason in (order.signal_reasons or "").split("\n")
+					if reason
+				],
+				"next_action": "Review the approved order snapshot.",
+			}
+		order.check_permission("write")
+	else:
+		if not frappe.has_permission("Fuel Order", "create"):
+			frappe.throw(frappe._("You cannot create Fuel Orders."), frappe.PermissionError)
+		order = frappe.new_doc("Fuel Order")
+		order.request_datetime = now_datetime()
+
+	if asset is not None:
+		order.asset = asset
+	if request_meter_reading is not None or name:
+		order.request_meter_reading = request_meter_reading
+	if request_gauge_percent is not None or name:
+		order.request_gauge_percent = request_gauge_percent
+	if quantity_authorization is not None or name:
+		order.quantity_authorization = quantity_authorization or "Full"
+	if authorized_quantity_litres is not None or name:
+		order.authorized_quantity_litres = authorized_quantity_litres
+	if operational_location is not None or name:
+		order.operational_location = operational_location
+	if driver is not None or name:
+		order.driver = driver
+
+	if not order.asset:
+		return waiting_signal_result(["Asset"])
+
+	asset_doc = frappe.get_doc("Fleet Asset", order.asset)
+	asset_doc.check_permission("read")
+	asset_type = asset_doc.asset_type
+	waiting_for = missing_signal_readings(
+		{
+			"asset": order.asset,
+			"asset_type": asset_type,
+			"current_reading": order.request_meter_reading,
+			"gauge_percent": order.request_gauge_percent,
+		}
+	)
+	if order.operational_location:
+		frappe.get_doc("Fleet Location", order.operational_location).check_permission("read")
+	order._set_asset_assignment_snapshot()
+	order._set_previous_entry()
+	result = order._calculate_signal_result()
+	if waiting_for:
+		waiting = waiting_signal_result(waiting_for)
+		waiting["request_summary"] = result["request_summary"]
+		return waiting
+	return result
 
 
 @frappe.whitelist(methods=["POST"])

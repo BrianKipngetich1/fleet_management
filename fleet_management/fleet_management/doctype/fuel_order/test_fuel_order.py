@@ -13,6 +13,7 @@ from fleet_management.fleet_management.doctype.fuel_order.fuel_order import (
 from fleet_management.tests.utils import attach_request_photos, decide, make_photo, send_up
 
 
+# specs/009-fuel-order-ux Requirements 1.1, 1.2, 1.4, 1.5, 1.6, 1.7, 1.8, 3.3
 class TestFuelOrder(IntegrationTestCase):
 	def setUp(self):
 		super().setUp()
@@ -155,9 +156,94 @@ class TestFuelOrder(IntegrationTestCase):
 		self.assertEqual(order.asset_tank_capacity_snapshot, 60)
 		self.assertEqual(order.asset_target_km_per_litre_snapshot, 10)
 		self.assertEqual(order.asset_tolerance_percent_snapshot, 2)
+		facts = get_request_facts(self.asset.name)
+		self.assertEqual(facts["asset_type"], "Vehicle")
+		self.assertEqual(facts["vehicle_model"], self.vehicle_model.name)
+		self.assertEqual(facts["fuel_type"], self.fuel_type.name)
 		self.assertTrue(order.owner)
 		for person in (self.requester, self.driver, self.custodian, self.company_representative):
 			self.assertFalse(frappe.db.get_value("Fleet Person", person.name, "user"))
+
+	def test_entry_form_groups_and_conditions_review_fields(self):
+		meta = frappe.get_meta("Fuel Order")
+		section_labels = [field.label for field in meta.fields if field.fieldtype == "Section Break"]
+		self.assertEqual(
+			section_labels[:4],
+			[
+				"Vehicle and Order",
+				"People and Location",
+				"Readings and Evidence",
+				"Quantity, Approval and Audit",
+			],
+		)
+		self.assertEqual(meta.get_field("section_break_system_details").collapsible, 1)
+
+		field_positions = {field.fieldname: index for index, field in enumerate(meta.fields)}
+		self.assertLess(field_positions["asset"], field_positions["column_break_vehicle_driver"])
+		self.assertLess(field_positions["driver"], field_positions["column_break_vehicle_requester"])
+		self.assertLess(field_positions["column_break_vehicle_requester"], field_positions["actual_requester"])
+		self.assertLess(field_positions["company_representative"], field_positions["operational_location"])
+		self.assertLess(field_positions["request_meter_reading"], field_positions["request_gauge_percent"])
+		self.assertLess(field_positions["request_gauge_percent"], field_positions["signal_panel_html"])
+		self.assertLess(field_positions["signal_panel_html"], field_positions["meter_photo"])
+		self.assertLess(field_positions["meter_photo"], field_positions["quantity_authorization"])
+		self.assertGreater(field_positions["signal"], field_positions["section_break_system_details"])
+		self.assertGreater(field_positions["signal_reasons"], field_positions["section_break_system_details"])
+		self.assertEqual(meta.get_field("signal_reasons").fieldtype, "Long Text")
+		self.assertFalse(meta.get_field("signal_panel_html").hidden)
+
+		for fieldname in (
+			"vehicle_model",
+			"asset_type",
+			"custodian",
+			"assigned_location_snapshot",
+			"previous_entry_source",
+			"previous_meter_reading",
+			"previous_entry_date",
+			"estimated_litres",
+			"average_km_per_litre",
+		):
+			self.assertEqual(meta.get_field(fieldname).read_only, 1, fieldname)
+
+		for fieldname in ("request_gauge_percent", "gauge_photo"):
+			self.assertEqual(meta.get_field(fieldname).depends_on, "eval:doc.asset_type=='Vehicle'", fieldname)
+		self.assertEqual(meta.get_field("meter_photo").fieldtype, "Attach Image")
+		self.assertEqual(
+			meta.get_field("authorized_quantity_litres").depends_on,
+			"eval:doc.quantity_authorization=='Partial'",
+		)
+		self.assertEqual(
+			meta.get_field("partial_authorization_reason").depends_on,
+			"eval:doc.quantity_authorization=='Partial'",
+		)
+		self.assertEqual(
+			meta.get_field("partial_authorization_reason").mandatory_depends_on,
+			"eval:doc.quantity_authorization=='Partial' && doc.workflow_state!='Draft'",
+		)
+
+	def test_partial_authorization_requires_reason_before_leaving_draft(self):
+		requester = self._user(("Fleet User",), self.location.name)
+		with self.set_user(requester):
+			order = attach_request_photos(
+				self.make_order(
+					quantity_authorization="Partial",
+					authorized_quantity_litres=42.5,
+					request_gauge_percent=80,
+				).insert()
+			)
+			with self.assertRaises(frappe.ValidationError):
+				send_up(order)
+
+			order.reload()
+			order.partial_authorization_reason = "Only 42.5 litres are needed for this trip."
+			order.save()
+			pending = send_up(order)
+
+		self.assertEqual(pending.workflow_state, "Pending Approval")
+		self.assertEqual(
+			pending.partial_authorization_reason,
+			"Only 42.5 litres are needed for this trip.",
+		)
 
 	def test_rejects_inactive_references(self):
 		invalid_references = (
@@ -400,7 +486,9 @@ class TestFuelOrder(IntegrationTestCase):
 			order = send_up(
 				attach_request_photos(
 					self.make_order(
-						quantity_authorization="Partial", authorized_quantity_litres=42.5
+						quantity_authorization="Partial",
+						authorized_quantity_litres=42.5,
+						partial_authorization_reason="One trip requires 42.5 litres.",
 					).insert()
 				)
 			)

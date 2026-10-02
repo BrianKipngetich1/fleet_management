@@ -67,7 +67,7 @@ This change will arrange the existing request into four main sections, explain t
 
 #### Acceptance Criteria
 
-1. WHEN the order is saved or a workflow action is taken THE system SHALL CONTINUE TO calculate the signal on the server, reject client attempts to set or override it, recompute it before approval, and freeze its approved result and source snapshots.
+1. WHEN the order is saved or a workflow action is taken THE system SHALL CONTINUE TO calculate the signal on the server, reject client attempts to set or override it, recompute it before approval, and freeze its approved result, full-tank baseline, and source snapshots.
 2. WHEN the existing “Mileage does not add up” check runs THE system SHALL CONTINUE TO use its current Previous Entry behavior, configured margin, and treatment of missing history, missing average, and a meter that has not moved forward; the new check SHALL have its own distinct reason and SHALL NOT replace or weaken this check.
 3. WHEN an order is green or red THE system SHALL CONTINUE TO enforce the current approval and rejection roles, independent-approver rule, location scope, notifications, evidence gate, server validations, and immutable approved snapshots.
 4. WHEN an order is approved and later fuel is recorded THE system SHALL CONTINUE TO keep authorization separate from actual fueling and reconciliation, using the linked actual-fueling record as the source for what happened at the station.
@@ -124,10 +124,6 @@ Use the existing disposable test-site people, vehicles, generators, fueling hist
 
 Invoice discrepancy handling, late-entry rules, meter resets, and cost fields are not included in this implementation unless separately defined and approved.
 
-## Working assumption for review
-
-The history records an issue when a reason first appears in a saved result or when that issue’s captured readings or limits change. Re-saving an unchanged result does not add a duplicate. A later result that clears the issue records its resolution.
-
 ## Out of scope
 
 - Changing who may enter or decide an order, the existing location restrictions, or the current approval and rejection policy.
@@ -144,4 +140,6 @@ The history records an issue when a reason first appears in a saved result or wh
 
 ## Open questions
 
-None. The requester's answers are recorded above; the history timing is stated as a working assumption for approval.
+1. For a signal issue, should history record its first saved appearance, add a new snapshot only when the captured readings or limits change, deduplicate identical saves, and add a separate entry when the issue is later resolved?
+2. If a full-tank baseline exists but tank capacity or gauge information is missing or unusable, should the new check add a red “cannot calculate” reason, or skip that check?
+3. If the gauge says the tank is already full, estimated fuel consumed is zero. Should the new check add a red “cannot calculate” reason, or skip that check?
