@@ -253,6 +253,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 
 	def _submit_measured_transaction(self, order, user=None, **values):
 		user = user or self.user
+		values.setdefault("invoice_amount", 3700)
 		values.setdefault("actual_fueling_datetime", get_datetime(order.approved_on) + timedelta(minutes=1))
 		values.setdefault("fueling_time_source", "Printed on invoice")
 		values.setdefault("attendant_name", "Test Attendant")
@@ -285,6 +286,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 	def _prepare_transaction(self, order=None, user=None, **values):
 		order = order or self.order
 		user = user or self.user
+		values.setdefault("invoice_amount", 3700)
 		values.setdefault("actual_fueling_datetime", get_datetime(order.approved_on) + timedelta(minutes=1))
 		values.setdefault("fueling_time_source", "Printed on invoice")
 		values.setdefault("attendant_name", "Test Attendant")
@@ -299,6 +301,19 @@ class TestFuelingTransaction(IntegrationTestCase):
 		transaction = self._prepare_transaction(invoice_litres=20, vehicle_odometer=1000)
 		transaction.signed_invoice = None
 		with self.set_user(self.user), self.assertRaises(frappe.ValidationError):
+			transaction.submit()
+
+	def test_submission_requires_a_positive_invoice_total(self):
+		# spec 008-overseer-reports, Requirements 1.4, 5.1.
+		transaction = self._prepare_transaction(
+			invoice_litres=20, invoice_amount=0, vehicle_odometer=1000
+		)
+		with (
+			self.set_user(self.user),
+			self.assertRaisesRegex(
+				frappe.ValidationError, "Invoice total must be positive before submission"
+			),
+		):
 			transaction.submit()
 
 	def test_missing_signed_order_attachment_is_rejected(self):
@@ -335,6 +350,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 				transaction.submit()
 
 	def test_private_pdf_jpg_and_png_attachments_allow_submission_and_stay_linked(self):
+		# spec 008-overseer-reports, Requirement 1.4: a printed unit price is optional.
 		for extension in ("pdf", "jpg", "png"):
 			with self.subTest(extension=extension):
 				order = self._make_approved_order(self.location, self.station, self.user, self.approver)
@@ -344,6 +360,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 						"actual_fueling_datetime": get_datetime(order.approved_on) + timedelta(minutes=1),
 						"fueling_time_source": "Printed on invoice",
 						"invoice_litres": 20,
+						"invoice_amount": 3700,
 						"vehicle_odometer": 1000,
 						"attendant_name": "Test Attendant",
 					}
@@ -354,8 +371,9 @@ class TestFuelingTransaction(IntegrationTestCase):
 				with self.set_user(self.user):
 					transaction.submit()
 
-				self.assertEqual(transaction.docstatus, 1)
-				self.assertEqual(transaction.submitted_by, self.user)
+					self.assertEqual(transaction.docstatus, 1)
+					self.assertEqual(transaction.submitted_by, self.user)
+					self.assertFalse(transaction.printed_unit_price)
 				for fieldname, file_doc in (
 					("signed_invoice", invoice),
 					("signed_order", signed_order),
@@ -530,6 +548,8 @@ class TestFuelingTransaction(IntegrationTestCase):
 			+ timedelta(minutes=1),
 			"fueling_time_source": "Printed on invoice",
 			"fueling_time_explanation": "Changed after submission.",
+			"invoice_amount": transaction.invoice_amount + 1,
+			"printed_unit_price": 190,
 		}
 		for fieldname, value in changes.items():
 			with self.subTest(fieldname=fieldname):

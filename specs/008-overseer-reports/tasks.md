@@ -14,7 +14,7 @@ criterion is cited by at least one task. Tick a task's checkbox when it is commi
 
 **Tracer:** an overseer can review monthly litres, transaction counts, and recorded KES spend, inspect each fueling and its invoice prices, and export the same filtered rows.
 
-- [ ] 1.1 Add invoice total and optional printed unit price to new Fueling Transactions; require a positive total on submission while leaving existing submitted transactions unchanged.
+- [x] 1.1 Add invoice total and optional printed unit price to new Fueling Transactions; require a positive total on submission while leaving existing submitted transactions unchanged.
   - _Requirements: 1.4, 5.1_
 - [ ] 1.2 Build Fueling Summary with inclusive date filters, monthly litres/counts/spend, recorded and unavailable amount handling, calculated and printed prices, detail rows, monthly trend, and standard export; cap the implementation at three reports.
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 3.4_
@@ -51,4 +51,5 @@ criterion is cited by at least one task. Tick a task's checkbox when it is commi
 
 ## Progress log
 
-- `02/10/2026`: Initial requirements draft committed as `37c0044`; the requester approved the requirements in conversation. Approval attribution and design approval remain pending. Next: record the confirmed approval, review the design, then Phase 1.
+- `02/10/2026`: The requester approved the requirements earlier and the current design in this conversation; approval attribution awaits confirmation of the full name. Phase 1 is in progress.
+- `02/10/2026`: Task 1.1 complete. Added optional KES invoice fields, positive-total submission validation, submitted-value immutability, and positive synthetic sample invoices. The test-site migration and Fueling Transaction tests passed (31 integration tests, 2 unit tests; 1 concurrency test skipped). JSON validation, Python compilation, diff checks, and spec-check passed; lint was skipped because Ruff and pre-commit are unavailable. Next: task 1.2.

@@ -666,6 +666,9 @@ def _completed_cycle(asset, days_ago, meter, gauge, litres, full, station, seque
 			# A vehicle drives a few kilometres to the station; a generator's hours do not move.
 			**({"hour_meter": meter} if generator else {"vehicle_odometer": meter + 4}),
 			"invoice_litres": litres,
+			# Synthetic values for the disposable site; real old transactions are never backfilled.
+			"invoice_amount": round(litres * 185, 2),
+			"printed_unit_price": 185,
 			"full_tank_confirmed": full,
 			"attendant_name": ATTENDANTS[sequence % len(ATTENDANTS)],
 		}

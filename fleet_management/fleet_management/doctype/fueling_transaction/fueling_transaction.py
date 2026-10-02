@@ -287,6 +287,10 @@ class FuelingTransaction(Document):
 	def _validate_measured_values(self):
 		if flt(self.invoice_litres) <= 0:
 			frappe.throw(frappe._("Invoice litres must be positive."), frappe.ValidationError)
+		if flt(self.invoice_amount) <= 0:
+			frappe.throw(
+				frappe._("Invoice total must be positive before submission."), frappe.ValidationError
+			)
 
 		self.attendant_name = str(self.attendant_name or "").strip()
 		if not self.attendant_name:
@@ -320,6 +324,8 @@ class FuelingTransaction(Document):
 			"actual_fueling_datetime",
 			"fueling_time_source",
 			"fueling_time_explanation",
+			"invoice_amount",
+			"printed_unit_price",
 			"approved_station",
 			"approved_fuel_type",
 			"attendant_name",
