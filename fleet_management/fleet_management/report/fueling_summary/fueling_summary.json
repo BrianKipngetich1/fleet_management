@@ -16,5 +16,8 @@
  "ref_doctype": "Fueling Transaction",
  "report_name": "Fueling Summary",
  "report_type": "Script Report",
- "roles": [{"role": "Fleet Admin"}]
+ "roles": [
+  {"role": "Fleet Approver"},
+  {"role": "Fleet Admin"}
+ ]
 }

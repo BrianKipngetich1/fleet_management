@@ -1,5 +1,12 @@
+import csv
+from io import StringIO
+
 import frappe
-from frappe.tests import UnitTestCase
+from frappe.desk.query_report import _export_query, run
+from frappe.tests import IntegrationTestCase, UnitTestCase
+from frappe.utils import flt, getdate
+
+from fleet_management.sample_data import AMINA, FLEET_ADMIN, PHILIP, VIKAS
 
 from fleet_management.fleet_management.report.fueling_summary.fueling_summary import (
 	_build_report_rows,
@@ -70,3 +77,135 @@ class TestFuelingSummary(UnitTestCase):
 		self.assertIsNone(data[4]["printed_unit_price"])
 		self.assertEqual(chart["data"]["labels"], ["2025-12", "2026-01"])
 		self.assertEqual(chart["data"]["datasets"][0]["values"], [4000, 0])
+
+
+class TestFuelingSummaryPermissions(IntegrationTestCase):
+	"""Exercise spec 008-overseer-reports Requirements 1.5, 4.1, and 4.2."""
+
+	date_filters = {"from_date": "2000-01-01", "to_date": "2099-12-31"}
+
+	def _run_report(self, filters=None):
+		return run("Fueling Summary", filters or self.date_filters)
+
+	def _details(self, result):
+		return [row for row in result["result"] if row.get("row_type") == "Fueling transaction"]
+
+	def _export_csv(self, filters):
+		name, extension, content = _export_query(
+			frappe._dict(
+				report_name="Fueling Summary",
+				file_format_type="CSV",
+				custom_columns="[]",
+				include_indentation=0,
+				include_filters=0,
+				visible_idx=[],
+				ignore_visible_idx=1,
+				include_hidden_columns=0,
+				filters=filters,
+				applied_filters=filters,
+			),
+			{"delimiter": ",", "quoting": csv.QUOTE_NONNUMERIC, "decimal_sep": "."},
+			populate_response=False,
+		)
+		self.assertEqual(extension, "csv")
+		self.assertTrue(name.startswith("Fueling Summary"))
+		return list(csv.DictReader(StringIO(content.decode("utf-8"))))
+
+	def test_approvers_see_only_permitted_locations_and_linked_records(self):
+		for user, expected_location in ((VIKAS, "Nairobi"), (AMINA, "Mombasa")):
+			with self.subTest(user=user), self.set_user(user):
+				location_choices = {
+					row.name for row in frappe.get_list("Fleet Location", fields=["name"], limit=100)
+				}
+				self.assertEqual(location_choices, {expected_location})
+
+				result = self._run_report()
+				details = self._details(result)
+				self.assertTrue(details)
+				self.assertEqual({row["location"] for row in details}, {expected_location})
+				for row in details:
+					doc = frappe.get_doc("Fueling Transaction", row["name"])
+					self.assertTrue(frappe.has_permission("Fueling Transaction", "read", doc=doc))
+
+				self.assertTrue(frappe.permissions.can_export("Fueling Transaction"))
+				csv_rows = self._export_csv(self.date_filters)
+				csv_details = [row for row in csv_rows if row["Row Type"] == "Fueling transaction"]
+				self.assertEqual({row["Location"] for row in csv_details}, {expected_location})
+				self.assertEqual(
+					{row["Fueling Transaction"] for row in csv_details},
+					{row["name"] for row in details},
+				)
+
+	def test_filters_match_source_totals_trend_details_and_export(self):
+		with self.set_user(VIKAS):
+			source = frappe.get_list(
+				"Fueling Transaction",
+				filters={"docstatus": 1},
+				fields=[
+					"name",
+					"asset",
+					"fuel_type",
+					"actual_station",
+					"actual_fueling_datetime",
+				],
+				order_by="actual_fueling_datetime asc, name asc",
+				limit=1,
+			)[0]
+			fueling_date = getdate(source.actual_fueling_datetime)
+			filters = {
+				"from_date": fueling_date,
+				"to_date": fueling_date,
+				"location": "Nairobi",
+				"asset": source.asset,
+				"fuel_type": source.fuel_type,
+				"station": source.actual_station,
+			}
+			source_rows = frappe.get_list(
+				"Fueling Transaction",
+				filters={
+					"docstatus": 1,
+					"actual_fueling_datetime": [
+						"between",
+						[f"{fueling_date} 00:00:00", f"{fueling_date} 23:59:59"],
+					],
+					"asset": source.asset,
+					"fuel_type": source.fuel_type,
+					"actual_station": source.actual_station,
+				},
+				fields=["name", "invoice_litres"],
+				limit=1000,
+			)
+			report = self._run_report(filters)
+			details = self._details(report)
+			self.assertTrue(details)
+			self.assertEqual({row["name"] for row in details}, {row.name for row in source_rows})
+			self.assertTrue(all(row["location"] == "Nairobi" for row in details))
+			self.assertTrue(all(row["asset"] == source.asset for row in details))
+			self.assertTrue(all(row["fuel_type"] == source.fuel_type for row in details))
+			self.assertTrue(all(row["station"] == source.actual_station for row in details))
+
+			monthly = [row for row in report["result"] if row.get("row_type") == "Monthly total"]
+			self.assertEqual([row["month"] for row in monthly], [fueling_date.strftime("%Y-%m")])
+			self.assertEqual(monthly[0]["transaction_count"], len(details))
+			self.assertEqual(
+				monthly[0]["delivered_litres"], sum(flt(row.invoice_litres) for row in source_rows)
+			)
+			self.assertEqual(report["chart"]["data"]["labels"], [fueling_date.strftime("%Y-%m")])
+			csv_rows = self._export_csv(filters)
+			csv_details = [row for row in csv_rows if row["Row Type"] == "Fueling transaction"]
+			self.assertEqual(
+				{row["Fueling Transaction"] for row in csv_details},
+				{row["name"] for row in details},
+			)
+
+	def test_approver_cannot_select_another_location_and_user_cannot_open_report(self):
+		with self.set_user(VIKAS), self.assertRaises(frappe.PermissionError):
+			self._run_report({**self.date_filters, "location": "Mombasa"})
+
+		with self.set_user(PHILIP), self.assertRaises(frappe.PermissionError):
+			self._run_report()
+
+	def test_fleet_admin_retains_all_location_access(self):
+		with self.set_user(FLEET_ADMIN):
+			details = self._details(self._run_report())
+			self.assertTrue({"Nairobi", "Mombasa"}.issubset({row["location"] for row in details}))
