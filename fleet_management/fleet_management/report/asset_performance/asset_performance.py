@@ -23,6 +23,7 @@ ORDER_LOCATION_EXPRESSION = (
 )
 
 COLUMNS = [
+	{"fieldname": "month", "label": _("Month"), "fieldtype": "Data", "width": 90},
 	{"fieldname": "activity_date", "label": _("Activity Date"), "fieldtype": "Datetime", "width": 145},
 	{"fieldname": "record_type", "label": _("Activity"), "fieldtype": "Data", "width": 145},
 	{
@@ -100,6 +101,8 @@ COLUMNS = [
 		"precision": 2,
 		"width": 125,
 	},
+	{"fieldname": "fuel_order_count", "label": _("Fuel Order Count"), "fieldtype": "Int", "width": 125},
+	{"fieldname": "fueling_count", "label": _("Fueling Count"), "fieldtype": "Int", "width": 115},
 	{
 		"fieldname": "request_status",
 		"label": _("Request Status"),
@@ -174,9 +177,10 @@ def execute(filters=None):
 	asset = frappe.get_doc("Fleet Asset", filters.asset)
 	asset.check_permission("read")
 
-	orders = _get_orders(filters.asset, from_date, to_date)
-	transactions = _get_transactions(filters.asset, from_date, to_date)
-	return COLUMNS, _build_rows(asset, orders, transactions, from_date, to_date), None, None
+	orders = _get_orders(filters, from_date, to_date)
+	transactions = _get_transactions(filters, from_date, to_date)
+	rows, chart = _build_rows(asset, orders, transactions, from_date, to_date)
+	return COLUMNS, rows, None, chart
 
 
 def _assert_report_access():
@@ -189,7 +193,7 @@ def _assert_report_access():
 				frappe.throw(_("You do not have permission to report on {0}.").format(doctype), frappe.PermissionError)
 
 
-def _get_orders(asset, from_date, to_date):
+def _get_orders(filters, from_date, to_date):
 	conditions = [
 		f"{ORDER_TABLE}.asset = %(asset)s",
 		f"({ORDER_TABLE}.docstatus != 0 OR {ORDER_TABLE}.workflow_state = 'Pending Approval')",
@@ -201,6 +205,15 @@ def _get_orders(asset, from_date, to_date):
 			"BETWEEN %(from_date)s AND %(to_date)s))"
 		),
 	]
+	query_filters = {"asset": filters.asset, "from_date": from_date, "to_date": to_date}
+	for fieldname, expression in (
+		("location", ORDER_LOCATION_EXPRESSION),
+		("fuel_type", f"{ORDER_TABLE}.fuel_type"),
+		("station", f"{ORDER_TABLE}.planned_station"),
+	):
+		if filters.get(fieldname):
+			conditions.append(f"{expression} = %({fieldname})s")
+			query_filters[fieldname] = filters.get(fieldname)
 	order_scope = get_report_query_conditions("Fuel Order")
 	if order_scope:
 		conditions.append(f"({order_scope})")
@@ -243,17 +256,26 @@ def _get_orders(asset, from_date, to_date):
 		WHERE {' AND '.join(conditions)}
 		ORDER BY {ORDER_TABLE}.request_datetime, {ORDER_TABLE}.name
 		""",
-		{"asset": asset, "from_date": from_date, "to_date": to_date},
+		query_filters,
 		as_dict=True,
 	)
 
 
-def _get_transactions(asset, from_date, to_date):
+def _get_transactions(filters, from_date, to_date):
 	conditions = [
 		f"{TRANSACTION_TABLE}.asset = %(asset)s",
 		f"{TRANSACTION_TABLE}.docstatus = 1",
 		f"DATE({TRANSACTION_TABLE}.actual_fueling_datetime) BETWEEN %(from_date)s AND %(to_date)s",
 	]
+	query_filters = {"asset": filters.asset, "from_date": from_date, "to_date": to_date}
+	for fieldname, expression in (
+		("location", LOCATION_EXPRESSION),
+		("fuel_type", f"{TRANSACTION_TABLE}.fuel_type"),
+		("station", f"{TRANSACTION_TABLE}.actual_station"),
+	):
+		if filters.get(fieldname):
+			conditions.append(f"{expression} = %({fieldname})s")
+			query_filters[fieldname] = filters.get(fieldname)
 	for doctype in ("Fueling Transaction", "Fuel Order"):
 		scope = get_report_query_conditions(doctype)
 		if scope:
@@ -296,7 +318,7 @@ def _get_transactions(asset, from_date, to_date):
 		WHERE {' AND '.join(conditions)}
 		ORDER BY {TRANSACTION_TABLE}.actual_fueling_datetime, {TRANSACTION_TABLE}.name
 		""",
-		{"asset": asset, "from_date": from_date, "to_date": to_date},
+		query_filters,
 		as_dict=True,
 	)
 
@@ -315,6 +337,7 @@ def _build_rows(asset, orders, transactions, from_date, to_date):
 				"asset": order.asset,
 				"asset_type": asset.asset_type,
 				"fuel_order": order.name,
+				"fuel_order_count": 1,
 				"request_date": order.request_datetime,
 				"decision_date": _decision_date(order),
 				"requester": order.requester,
@@ -352,6 +375,7 @@ def _build_rows(asset, orders, transactions, from_date, to_date):
 				"asset_type": asset.asset_type,
 				"fuel_order": transaction.fuel_order,
 				"fueling_transaction": transaction.name,
+				"fueling_count": 1,
 				"request_date": transaction.request_datetime,
 				"decision_date": _decision_date(transaction),
 				"requester": transaction.requester,
@@ -379,7 +403,41 @@ def _build_rows(asset, orders, transactions, from_date, to_date):
 			}
 		)
 
-	return sorted(rows, key=lambda row: (get_datetime(row["activity_date"]), row["record_type"]))
+	rows.sort(key=lambda row: (get_datetime(row["activity_date"]), row["record_type"]))
+	rows_by_month = {}
+	for row in rows:
+		month = get_datetime(row["activity_date"]).strftime("%Y-%m")
+		row["month"] = month
+		rows_by_month.setdefault(month, []).append(row)
+
+	data = []
+	labels = []
+	litre_values = []
+	for month in sorted(rows_by_month):
+		month_rows = rows_by_month[month]
+		delivered_litres = sum(flt(row.get("delivered_litres")) for row in month_rows)
+		data.append(
+			{
+				"month": month,
+				"record_type": _("Monthly total"),
+				"asset": asset.name,
+				"asset_type": asset.asset_type,
+				"fuel_order_count": sum(flt(row.get("fuel_order_count")) for row in month_rows),
+				"fueling_count": sum(flt(row.get("fueling_count")) for row in month_rows),
+				"delivered_litres": flt(delivered_litres, 2),
+			}
+		)
+		data.extend(month_rows)
+		labels.append(month)
+		litre_values.append(flt(delivered_litres, 2))
+
+	chart = None
+	if labels:
+		chart = {
+			"data": {"labels": labels, "datasets": [{"name": _("Delivered Litres"), "values": litre_values}]},
+			"type": "line",
+		}
+	return data, chart
 
 
 def _order_activity(order, from_date, to_date):

@@ -21,9 +21,30 @@ frappe.query_reports["Asset Performance"] = {
 			reqd: 1,
 			default: frappe.datetime.get_today(),
 		},
+		{
+			fieldname: "location",
+			label: __("Location"),
+			fieldtype: "Link",
+			options: "Fleet Location",
+		},
+		{
+			fieldname: "fuel_type",
+			label: __("Fuel Type"),
+			fieldtype: "Link",
+			options: "Fuel Type",
+		},
+		{
+			fieldname: "station",
+			label: __("Station"),
+			fieldtype: "Link",
+			options: "Fuel Station",
+		},
 	],
 	formatter(value, row, column, data, default_formatter) {
 		const formatted = default_formatter(value, row, column, data);
+		if (data?.record_type === __("Monthly total")) {
+			return `<strong>${formatted}</strong>`;
+		}
 		if (column.fieldname !== "efficiency_rating" || !data?.efficiency_rating) {
 			return formatted;
 		}
