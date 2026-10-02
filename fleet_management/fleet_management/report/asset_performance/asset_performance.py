@@ -1,3 +1,5 @@
+from decimal import Decimal, InvalidOperation
+
 import frappe
 from frappe import _
 from frappe.utils import cint, flt, get_datetime, getdate, now_datetime
@@ -116,7 +118,48 @@ COLUMNS = [
 		"fieldtype": "Data",
 		"width": 145,
 	},
-	{"fieldname": "meter_reading", "label": _("Meter Reading"), "fieldtype": "Float", "width": 120},
+	{"fieldname": "vehicle_odometer", "label": _("Vehicle Odometer"), "fieldtype": "Float", "width": 135},
+	{"fieldname": "hour_meter", "label": _("Hour Meter"), "fieldtype": "Float", "width": 110},
+	{
+		"fieldname": "distance_km",
+		"label": _("Interval Distance (km)"),
+		"fieldtype": "Float",
+		"precision": 2,
+		"width": 140,
+	},
+	{
+		"fieldname": "qualifying_litres",
+		"label": _("Interval Qualifying Litres"),
+		"fieldtype": "Float",
+		"precision": 2,
+		"width": 160,
+	},
+	{
+		"fieldname": "efficiency_km_per_litre",
+		"label": _("Vehicle Efficiency (km/L)"),
+		"fieldtype": "Float",
+		"precision": 2,
+		"width": 165,
+	},
+	{
+		"fieldname": "target_km_per_litre",
+		"label": _("Target (km/L)"),
+		"fieldtype": "Float",
+		"precision": 2,
+		"width": 115,
+	},
+	{
+		"fieldname": "efficiency_rating",
+		"label": _("Efficiency Rating"),
+		"fieldtype": "Data",
+		"width": 145,
+	},
+	{
+		"fieldname": "efficiency_status",
+		"label": _("Efficiency Status"),
+		"fieldtype": "Data",
+		"width": 200,
+	},
 ]
 
 
@@ -191,6 +234,7 @@ def _get_orders(asset, from_date, to_date):
 			{ORDER_TABLE}.planned_station AS station,
 			{ORDER_TABLE}.estimated_litres,
 			{ORDER_TABLE}.authorized_quantity_litres,
+			{ORDER_TABLE}.request_meter_reading,
 			EXISTS (
 				SELECT 1 FROM {TRANSACTION_TABLE}
 				WHERE {' AND '.join(has_transaction)}
@@ -227,6 +271,13 @@ def _get_transactions(asset, from_date, to_date):
 			{TRANSACTION_TABLE}.invoice_litres AS delivered_litres,
 			{TRANSACTION_TABLE}.vehicle_odometer,
 			{TRANSACTION_TABLE}.hour_meter,
+			{TRANSACTION_TABLE}.full_tank_confirmed,
+			{TRANSACTION_TABLE}.previous_full_fill,
+			{TRANSACTION_TABLE}.closing_full_fill,
+			{TRANSACTION_TABLE}.distance_km,
+			{TRANSACTION_TABLE}.qualifying_litres,
+			{TRANSACTION_TABLE}.km_per_litre,
+			{TRANSACTION_TABLE}.asset_target_km_per_litre_snapshot,
 			{TRANSACTION_TABLE}.attendant_name AS fuel_attendant,
 			{ORDER_TABLE}.name AS fuel_order,
 			{ORDER_TABLE}.request_datetime,
@@ -252,6 +303,7 @@ def _get_transactions(asset, from_date, to_date):
 
 def _build_rows(asset, orders, transactions, from_date, to_date):
 	rows = []
+	interval_states = _get_interval_target_states(asset.name, transactions) if asset.asset_type == "Vehicle" else {}
 	for order in orders:
 		activity_date, record_type = _order_activity(order, from_date, to_date)
 		status = _request_status(order)
@@ -271,6 +323,10 @@ def _build_rows(asset, orders, transactions, from_date, to_date):
 				"station": order.station,
 				"requested_litres": _optional_float(order.estimated_litres),
 				"authorized_litres": _optional_float(order.authorized_quantity_litres),
+				"vehicle_odometer": (
+					_optional_float(order.request_meter_reading) if asset.asset_type == "Vehicle" else None
+				),
+				"hour_meter": _optional_float(order.request_meter_reading) if asset.asset_type == "Generator" else None,
 				"request_status": status,
 				"fulfillment_status": _fulfillment_status(order),
 				"cancellation_status": _("Cancelled") if cint(order.docstatus) == 2 else None,
@@ -306,10 +362,20 @@ def _build_rows(asset, orders, transactions, from_date, to_date):
 				"requested_litres": _optional_float(transaction.estimated_litres),
 				"authorized_litres": _optional_float(transaction.authorized_quantity_litres),
 				"delivered_litres": _optional_float(transaction.delivered_litres),
+				"vehicle_odometer": (
+					_optional_float(transaction.vehicle_odometer) if asset.asset_type == "Vehicle" else None
+				),
+				"hour_meter": (
+					_optional_float(transaction.hour_meter) if asset.asset_type == "Generator" else None
+				),
 				"request_status": _request_status(order),
 				"fulfillment_status": _fulfillment_status(order),
 				"cancellation_status": None,
-				"meter_reading": _optional_float(transaction.hour_meter or transaction.vehicle_odometer),
+				**(
+					_vehicle_efficiency_columns(transaction, interval_states)
+					if asset.asset_type == "Vehicle"
+					else {}
+				),
 			}
 		)
 
@@ -361,3 +427,170 @@ def _fulfillment_status(order, now=None):
 
 def _optional_float(value):
 	return flt(value) if value not in (None, "") else None
+
+
+def _valid_interval(transaction):
+	return (
+		transaction.closing_full_fill == transaction.name
+		and transaction.previous_full_fill
+		and flt(transaction.distance_km) > 0
+		and flt(transaction.qualifying_litres) > 0
+		and flt(transaction.km_per_litre) > 0
+	)
+
+
+def _vehicle_efficiency_columns(transaction, target_states):
+	if not _valid_interval(transaction):
+		return {"efficiency_status": _("Unavailable")}
+
+	efficiency = flt(transaction.km_per_litre)
+	target = _optional_float(transaction.asset_target_km_per_litre_snapshot)
+	state = target_states.get(transaction.name, "unknown")
+	if not target:
+		status = _("Target unavailable; not rated")
+		rating = None
+	elif state == "changed":
+		status = _("Target changed within interval; not rated")
+		rating = None
+	elif state != "stable":
+		status = _("Target history unavailable; not rated")
+		rating = None
+	else:
+		status = None
+		rating = _rate_efficiency(efficiency, target)
+
+	return {
+		"distance_km": _optional_float(transaction.distance_km),
+		"qualifying_litres": _optional_float(transaction.qualifying_litres),
+		"efficiency_km_per_litre": efficiency,
+		"target_km_per_litre": target,
+		"efficiency_rating": rating,
+		"efficiency_status": status,
+	}
+
+
+def _rate_efficiency(efficiency, target):
+	efficiency_value = _decimal(efficiency)
+	target_value = _decimal(target)
+	if efficiency_value is None or target_value is None or target_value <= 0:
+		return None
+	deviation = abs((efficiency_value - target_value) / target_value)
+	if deviation <= Decimal("0.10"):
+		return _("Green")
+	if deviation <= Decimal("0.20"):
+		return _("Orange")
+	return _("Red")
+
+
+def _decimal(value):
+	try:
+		return Decimal(str(value)) if value not in (None, "") else None
+	except (InvalidOperation, ValueError):
+		return None
+
+
+def _target_history_state(baseline, values):
+	baseline_value = _decimal(baseline)
+	if baseline_value is None or baseline_value <= 0:
+		return "unknown"
+	missing = False
+	for value in values:
+		value = _decimal(value)
+		if value is None:
+			missing = True
+		elif value != baseline_value:
+			return "changed"
+	return "unknown" if missing else "stable"
+
+
+def _get_interval_target_states(asset, transactions):
+	closings = [row for row in transactions if _valid_interval(row)]
+	if not closings:
+		return {}
+
+	opening_names = sorted({row.previous_full_fill for row in closings})
+	escaped_names = ", ".join(frappe.db.escape(name, percent=False) for name in opening_names)
+	transaction_scope = get_report_query_conditions("Fueling Transaction")
+	opening_conditions = [
+		f"{TRANSACTION_TABLE}.asset = %(asset)s",
+		f"{TRANSACTION_TABLE}.docstatus = 1",
+		f"{TRANSACTION_TABLE}.name IN ({escaped_names})",
+	]
+	if transaction_scope:
+		opening_conditions.append(f"({transaction_scope})")
+	openings = frappe.db.sql(
+		f"""
+		SELECT name, actual_fueling_datetime, asset_target_km_per_litre_snapshot
+		FROM {TRANSACTION_TABLE}
+		WHERE {' AND '.join(opening_conditions)}
+		""",
+		{"asset": asset},
+		as_dict=True,
+	)
+	openings = {row.name: row for row in openings}
+	known_openings = [openings.get(name) for name in opening_names]
+	known_openings = [row for row in known_openings if row and row.actual_fueling_datetime]
+	if not known_openings:
+		return {row.name: "unknown" for row in closings}
+
+	from_datetime = min(get_datetime(row.actual_fueling_datetime) for row in known_openings)
+	to_datetime = max(get_datetime(row.actual_fueling_datetime) for row in closings)
+	interval_conditions = [
+		f"{TRANSACTION_TABLE}.asset = %(asset)s",
+		f"{TRANSACTION_TABLE}.docstatus = 1",
+		f"{TRANSACTION_TABLE}.actual_fueling_datetime BETWEEN %(from_datetime)s AND %(to_datetime)s",
+	]
+	if transaction_scope:
+		interval_conditions.append(f"({transaction_scope})")
+	interval_transactions = frappe.db.sql(
+		f"""
+		SELECT actual_fueling_datetime, asset_target_km_per_litre_snapshot
+		FROM {TRANSACTION_TABLE}
+		WHERE {' AND '.join(interval_conditions)}
+		""",
+		{"asset": asset, "from_datetime": from_datetime, "to_datetime": to_datetime},
+		as_dict=True,
+	)
+
+	order_scope = get_report_query_conditions("Fuel Order")
+	order_conditions = [
+		f"{ORDER_TABLE}.asset = %(asset)s",
+		f"{ORDER_TABLE}.request_datetime BETWEEN %(from_datetime)s AND %(to_datetime)s",
+	]
+	if order_scope:
+		order_conditions.append(f"({order_scope})")
+	interval_orders = frappe.db.sql(
+		f"""
+		SELECT request_datetime, asset_target_km_per_litre_snapshot
+		FROM {ORDER_TABLE}
+	WHERE {' AND '.join(order_conditions)}
+		""",
+		{"asset": asset, "from_datetime": from_datetime, "to_datetime": to_datetime},
+		as_dict=True,
+	)
+
+	states = {}
+	for closing in closings:
+		opening = openings.get(closing.previous_full_fill)
+		if not opening or not opening.actual_fueling_datetime:
+			states[closing.name] = "unknown"
+			continue
+		start = get_datetime(opening.actual_fueling_datetime)
+		end = get_datetime(closing.actual_fueling_datetime)
+		if start >= end:
+			states[closing.name] = "unknown"
+			continue
+
+		values = [closing.asset_target_km_per_litre_snapshot]
+		values.extend(
+			row.asset_target_km_per_litre_snapshot
+			for row in interval_transactions
+			if start < get_datetime(row.actual_fueling_datetime) <= end
+		)
+		values.extend(
+			row.asset_target_km_per_litre_snapshot
+			for row in interval_orders
+			if start < get_datetime(row.request_datetime) <= end
+		)
+		states[closing.name] = _target_history_state(opening.asset_target_km_per_litre_snapshot, values)
+	return states

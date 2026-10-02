@@ -22,4 +22,17 @@ frappe.query_reports["Asset Performance"] = {
 			default: frappe.datetime.get_today(),
 		},
 	],
+	formatter(value, row, column, data, default_formatter) {
+		const formatted = default_formatter(value, row, column, data);
+		if (column.fieldname !== "efficiency_rating" || !data?.efficiency_rating) {
+			return formatted;
+		}
+		const colors = {
+			[__("Green")]: "green",
+			[__("Orange")]: "orange",
+			[__("Red")]: "red",
+		};
+		const color = colors[data.efficiency_rating];
+		return color ? `<span class="indicator-pill ${color}">${formatted}</span>` : formatted;
+	},
 };
