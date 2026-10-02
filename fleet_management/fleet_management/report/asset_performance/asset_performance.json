@@ -12,7 +12,7 @@
  "name": "Asset Performance",
  "owner": "Administrator",
  "prepared_report": 0,
- "ref_doctype": "Fleet Asset",
+ "ref_doctype": "Fueling Transaction",
  "report_name": "Asset Performance",
  "report_type": "Script Report",
  "roles": [

@@ -196,7 +196,10 @@ def _assert_report_access():
 def _get_orders(filters, from_date, to_date):
 	conditions = [
 		f"{ORDER_TABLE}.asset = %(asset)s",
-		f"({ORDER_TABLE}.docstatus != 0 OR {ORDER_TABLE}.workflow_state = 'Pending Approval')",
+		(
+			f"({ORDER_TABLE}.docstatus != 0 OR "
+			f"{ORDER_TABLE}.workflow_state IN ('Pending Approval', 'Rejected'))"
+		),
 		(
 			f"(DATE({ORDER_TABLE}.request_datetime) BETWEEN %(from_date)s AND %(to_date)s "
 			f"OR DATE({ORDER_TABLE}.approved_on) BETWEEN %(from_date)s AND %(to_date)s "
@@ -422,8 +425,8 @@ def _build_rows(asset, orders, transactions, from_date, to_date):
 				"record_type": _("Monthly total"),
 				"asset": asset.name,
 				"asset_type": asset.asset_type,
-				"fuel_order_count": sum(flt(row.get("fuel_order_count")) for row in month_rows),
-				"fueling_count": sum(flt(row.get("fueling_count")) for row in month_rows),
+				"fuel_order_count": sum(cint(row.get("fuel_order_count")) for row in month_rows),
+				"fueling_count": sum(cint(row.get("fueling_count")) for row in month_rows),
 				"delivered_litres": flt(delivered_litres, 2),
 			}
 		)
@@ -495,6 +498,11 @@ def _valid_interval(transaction):
 		and flt(transaction.qualifying_litres) > 0
 		and flt(transaction.km_per_litre) > 0
 	)
+
+
+def _fueling_source_key(transaction):
+	# Keep the full-fill ordering used by FuelingTransaction._source_key.
+	return get_datetime(transaction.actual_fueling_datetime), str(transaction.name)
 
 
 def _vehicle_efficiency_columns(transaction, target_states):
@@ -602,7 +610,7 @@ def _get_interval_target_states(asset, transactions):
 		interval_conditions.append(f"({transaction_scope})")
 	interval_transactions = frappe.db.sql(
 		f"""
-		SELECT actual_fueling_datetime, asset_target_km_per_litre_snapshot
+		SELECT name, actual_fueling_datetime, asset_target_km_per_litre_snapshot
 		FROM {TRANSACTION_TABLE}
 		WHERE {' AND '.join(interval_conditions)}
 		""",
@@ -633,17 +641,19 @@ def _get_interval_target_states(asset, transactions):
 		if not opening or not opening.actual_fueling_datetime:
 			states[closing.name] = "unknown"
 			continue
-		start = get_datetime(opening.actual_fueling_datetime)
-		end = get_datetime(closing.actual_fueling_datetime)
-		if start >= end:
+		start_key = _fueling_source_key(opening)
+		end_key = _fueling_source_key(closing)
+		if start_key >= end_key:
 			states[closing.name] = "unknown"
 			continue
+		start = start_key[0]
+		end = end_key[0]
 
 		values = [closing.asset_target_km_per_litre_snapshot]
 		values.extend(
 			row.asset_target_km_per_litre_snapshot
 			for row in interval_transactions
-			if start < get_datetime(row.actual_fueling_datetime) <= end
+			if start_key < _fueling_source_key(row) <= end_key
 		)
 		values.extend(
 			row.asset_target_km_per_litre_snapshot
