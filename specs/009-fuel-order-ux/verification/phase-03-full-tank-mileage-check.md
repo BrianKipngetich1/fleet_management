@@ -48,7 +48,7 @@ stateDiagram-v2
 
 ## Verification
 
-On `fleet_management-test.localhost`, the new baseline tests pass: `test_latest_full_tank_baseline_ignores_partial_and_cancelled_fuelings` and `test_full_tank_baseline_is_missing_without_vehicle_history_or_for_generator`. The existing `test_signal_is_frozen_once_approved` now checks the captured source against raw MariaDB and verifies it remains unchanged when a newer full tank is added after approval.
+On `fleet_management-test.localhost`, the new baseline tests pass: `test_latest_full_tank_baseline_ignores_partial_and_cancelled_fuelings` and `test_full_tank_baseline_is_missing_without_vehicle_history_or_for_generator`. The existing `test_signal_is_frozen_once_approved` now checks the captured source against raw MariaDB and verifies it remains unchanged when a newer full tank is added after approval. The full migration on this site stopped in orphan cleanup; a focused Fuel Order DocType reload was used before testing. The local main-site migration also stopped in the same cleanup and moved two standard reports into Frappe's recovery bin; no tests ran there, and their restoration is pending the requester.
 
 | # | Put the system in this state | Expect | Covers |
 |---|---|---|---|
