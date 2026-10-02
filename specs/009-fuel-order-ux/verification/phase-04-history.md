@@ -19,19 +19,23 @@ A Fleet User, Fleet Approver, or fleet administrator can follow the original sig
 
 ```mermaid
 stateDiagram-v2
-    [*] --> ExistingChangeHistory
+    [*] --> VersionHistoryOnOrderAndTransaction
+    Approved --> ExtensionJSON: prior and new validity, reason, actor, time
+    Approved --> LatestPrintFields: current revision and last print time only
+    Approved --> SubmittedFuelingTransaction: actual source facts stay on source record
+    Cancelled --> NoRequiredReason
 ```
 
 ### Design vs. observed
 
 | Specification edge | Observed | Verdict |
 |---|---|---|
-| `SavedIssue → ImmutableSnapshot` | Not yet observed | Unbuilt or untested |
-| `IssueCleared → ResolutionEvent` | Not yet observed | Unbuilt or untested |
-| `WorkflowAction → ActorAndReasonEvent` | Not yet observed | Unbuilt or untested |
-| `Cancellation → ReasonedEvent` | Not yet observed | Unbuilt or untested |
-| `PrintOrExtension → SeparateEvent` | Not yet observed | Unbuilt or untested |
-| `FuelingTransaction → SourceAndEvidenceLink` | Not yet observed | Unbuilt or untested |
+| `SavedIssue → ImmutableSnapshot` | The order retains its latest `signal_details_json` snapshot, but a later save replaces it; no append-only issue event exists | Unbuilt — the selected snapshot timing rule is pending the requester |
+| `IssueCleared → ResolutionEvent` | No resolution event is recorded when a later signal no longer contains a reason | Unbuilt |
+| `WorkflowAction → ActorAndReasonEvent` | Current workflow fields retain the latest decision; no separate action event links an explanation to its red reason | Unbuilt |
+| `Cancellation → ReasonedEvent` | Frappe's existing cancellation permission remains authoritative, but neither Fuel Order nor Fueling Transaction requires a cancellation reason | Unbuilt |
+| `PrintOrExtension → SeparateEvent` | Each extension is appended to `validity_extension_history` with old/new dates, reason, actor, and time. Print bookkeeping retains only the current revision and latest print time; printing an unchanged revision creates no event | Extension source exists; per-action history is unbuilt |
+| `FuelingTransaction → SourceAndEvidenceLink` | Submitted transaction facts and attached evidence remain on an immutable source record, but no Fuel Order history event links those values and evidence | Source integrity exists; history link is unbuilt |
 
 ## Frappe-first / native-first
 
@@ -62,7 +66,7 @@ stateDiagram-v2
 
 ## What we learned that the plan did not predict
 
-The existing extension JSON records prior extensions, but the current form retains only the latest print revision and time. A separate durable history event is needed to show each print and link it to the extension that required it.
+The existing extension JSON already preserves earlier validity changes. The print handler updates bookkeeping only when a new slip revision needs printing, so repeated prints of the same revision leave no durable record. Submitted fueling facts and evidence are already kept on the source transaction and its immutable validation; history should link to that source rather than rewrite it. Fuel Order History reads will need to use the existing linked-order location scope from the permission hooks. Frappe provides both a client `before_cancel` event and a server `before_cancel` lifecycle method, so a written reason can be collected before cancel while the server continues to enforce its existing cancel permission.
 
 ## Known limitations — accepted, not fixed
 
