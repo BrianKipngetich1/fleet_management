@@ -8,6 +8,7 @@ from frappe.utils import get_datetime, now_datetime
 
 from fleet_management.fleet_management.doctype.fuel_order.fuel_order import (
 	get_average_km_per_litre,
+	get_latest_full_tank_baseline,
 	get_mileage_intervals,
 	has_open_order,
 	preview_signal,
@@ -351,16 +352,114 @@ class TestFuelOrderSignal(IntegrationTestCase):
 		order = self.make_order().insert(ignore_permissions=True)
 		self.assertEqual(order.average_km_per_litre, 10.0)
 
+	def test_latest_full_tank_baseline_ignores_partial_and_cancelled_fuelings(self):
+		first_time = now_datetime() - timedelta(days=3)
+		newer_full_time = now_datetime() - timedelta(days=2)
+		partial_time = now_datetime() - timedelta(days=1)
+		cancelled_full_time = now_datetime()
+		rows = (
+			("baseline", first_time, 10000, 1, 1),
+			("newer-full", newer_full_time, 10500, 1, 1),
+			("partial", partial_time, 11000, 0, 1),
+			("cancelled-full", cancelled_full_time, 12000, 1, 2),
+		)
+		for suffix, fueling_time, odometer, full_tank, docstatus in rows:
+			frappe.get_doc(
+				{
+					"doctype": "Fueling Transaction",
+					"name": f"AC09-{suffix}-{self.suffix}",
+					"docstatus": docstatus,
+					"asset": self.asset.name,
+					"vehicle_odometer": odometer,
+					"actual_fueling_datetime": fueling_time,
+					"full_tank_confirmed": full_tank,
+				}
+			).db_insert()
+
+		baseline = get_latest_full_tank_baseline(self.asset.name)
+		self.assertEqual(baseline.name, f"AC09-newer-full-{self.suffix}")
+		self.assertEqual(baseline.vehicle_odometer, 10500)
+		self.assertEqual(baseline.actual_fueling_datetime, newer_full_time)
+
+	def test_full_tank_baseline_is_missing_without_vehicle_history_or_for_generator(self):
+		self.assertIsNone(get_latest_full_tank_baseline(self.asset.name))
+		generator = self._insert(
+			"Fleet Asset",
+			asset_identifier=f"AC09 Generator {self.suffix}",
+			asset_type="Generator",
+			fuel_type=self.fuel_type.name,
+			target_km_per_litre=10,
+			assignments=[
+				{
+					"doctype": "Asset Assignment",
+					"custodian": self.custodian.name,
+					"assigned_location": self.location.name,
+					"effective_from": "2026-01-01",
+				}
+			],
+		)
+		frappe.get_doc(
+			{
+				"doctype": "Fueling Transaction",
+				"name": f"AC09-generator-full-{self.suffix}",
+				"docstatus": 1,
+				"asset": generator.name,
+				"vehicle_odometer": 10000,
+				"actual_fueling_datetime": now_datetime(),
+				"full_tank_confirmed": 1,
+			}
+		).db_insert()
+		self.assertIsNone(get_latest_full_tank_baseline(generator.name))
+
 	def test_signal_is_frozen_once_approved(self):
+		first_baseline_time = now_datetime() - timedelta(days=2)
+		first_baseline = f"AC09-initial-full-{self.suffix}"
+		frappe.get_doc(
+			{
+				"doctype": "Fueling Transaction",
+				"name": first_baseline,
+				"docstatus": 1,
+				"asset": self.asset.name,
+				"vehicle_odometer": 650,
+				"actual_fueling_datetime": first_baseline_time,
+				"full_tank_confirmed": 1,
+			}
+		).db_insert()
 		approved = self._approve_green()
 		self.assertEqual(approved.signal, "Green")
 		approved_details = approved.signal_details_json
+		self.assertEqual(
+			json.loads(approved_details)["signal_inputs"]["full_tank_baseline"]["name"],
+			first_baseline,
+		)
+		self.assertIn("signal_details_json", frappe.get_meta("Fuel Order").get_valid_fields())
+		self.assertTrue(frappe.db.has_column("Fuel Order", "signal_details_json"))
+		self.assertEqual(
+			frappe.db.sql(
+				"SELECT signal_details_json FROM `tabFuel Order` WHERE name=%s",
+				approved.name,
+				as_dict=True,
+			)[0].signal_details_json,
+			approved_details,
+		)
 		approver = self._user(("Fleet Approver",), self.location.name)
 
 		self._save_settings(gauge_limit_percent=10)
+		frappe.get_doc(
+			{
+				"doctype": "Fueling Transaction",
+				"name": f"AC09-new-full-{self.suffix}",
+				"docstatus": 1,
+				"asset": self.asset.name,
+				"vehicle_odometer": 1100,
+				"actual_fueling_datetime": now_datetime() + timedelta(hours=1),
+				"full_tank_confirmed": 1,
+			}
+		).db_insert()
 		new_valid_until = get_datetime(approved.valid_until) + timedelta(hours=1)
 		with self.set_user(approver):
 			approved.extend_validity(new_valid_until.strftime("%Y-%m-%d %H:%M:%S"), "Signal freeze check")
+		self.assertEqual(approved.signal_details_json, approved_details)
 
 		persisted = frappe.get_doc("Fuel Order", approved.name)
 		self.assertEqual(persisted.slip_revision, 2)

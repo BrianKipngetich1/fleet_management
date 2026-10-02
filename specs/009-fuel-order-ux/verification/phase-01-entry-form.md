@@ -58,7 +58,7 @@ stateDiagram-v2
 
 The `fleet_management.fleet_management.doctype.fuel_order.test_fuel_order` module passed **28/28 integration tests** on `fleet_management-test.localhost`. It covers the metadata and Partial reason tests added in this phase, plus the existing request, permission, evidence, approval, extension, and slip behavior. JSON validation and JavaScript syntax checks also pass.
 
-The requested visual walkthrough could not be completed. The test site redirects to its sign-in page, and the required local `specs/001-fleet-fuel-management/verification/CREDENTIALS.md` is missing from both worktrees. No test account or password was invented, and no new sample user was added. The site rebuild helper also requires that missing file. A migration on the disposable site synced the 009 DocType fields, then exited with `Module None not found` during Frappe's unrelated orphan cleanup. The updated site was used for tests; the migration failure was not repaired or bypassed. The main site received no tests or migration.
+The requested visual walkthrough could not be completed. The test site redirects to its sign-in page, and the required local `specs/001-fleet-fuel-management/verification/CREDENTIALS.md` is missing from both worktrees. No test account or password was invented, and no new sample user was added. The site rebuild helper also requires that missing file. A full migration on the disposable site exited with `Module None not found` during Frappe's orphan cleanup. A focused `reload-doc fleet_management doctype fuel_order` then synced the intended 009 form fields from this worktree; the tests below ran against that metadata. No cleanup repair was made. The main site received no tests or migration.
 
 ## What we learned that the plan did not predict
 

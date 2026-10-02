@@ -28,11 +28,13 @@
 
 **Tracer:** a vehicle order shows a separate comparison from the latest confirmed full tank, while the existing Previous Entry check remains unchanged.
 
-- [ ] 3.1 Add the latest full-tank baseline lookup, estimated-consumption calculation, distinct reason, visible source and result, and immutable approved snapshot; skip the check for generators and when there is no baseline.
+- [x] 3.1 Add the latest submitted full-tank vehicle baseline lookup and capture its transaction name, actual odometer, and fueling date/time in the server result snapshot; keep partial and cancelled records out and generators without a baseline.
+  - _Requirements: 3.1, 3.2, 4.1, 4.3, 4.5, 4.6_
+- [ ] 3.2 Add the separate distance comparison, estimated-consumption formula, reason explanation, and approved freeze; skip without a baseline and add the already-agreed cannot-calculate reason when economy data is unavailable. Resolve the capacity/gauge and zero-consumption behavior first.
   - _Requirements: 3.1, 3.2, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6_
-- [ ] 3.2 Test no partial fueling, later partial fuelings, a newer full tank, no full-tank history, cancelled transactions, exact and beyond-margin values, differing old/new results, generators, unavailable economy, invalid inputs, and approved snapshot freezing.
+- [ ] 3.3 Test no partial fueling, later partial fuelings, a newer full tank, no full-tank history, cancelled transactions, exact and beyond-margin values, differing old/new results, generators, unavailable economy, the answered invalid-input cases, and approved snapshot freezing.
   - _Requirements: 3.1, 3.2, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6_
-- [ ] 3.3 Walk through a red full-tank comparison and a generator order on the disposable test site; confirm the source and result shown to the person match the saved server result.
+- [ ] 3.4 Walk through a red full-tank comparison and a generator order on the disposable test site; confirm the source and result shown to the person match the saved server result.
   - _Requirements: 2.1, 2.3, 2.4, 2.5, 3.1, 3.2, 4.1, 4.2, 4.5, 4.6_
 
 ## Phase 4: Issue and action history
@@ -54,4 +56,5 @@
 - 2026-10-02 — 1.2: added the conditional Partial reason and server enforcement before leaving Draft; existing partial slip test now supplies its reason. The focused order integration tests pass.
 - 2026-10-02 — 1.3: added focused layout and Partial authorization checks; 28 Fuel Order integration tests pass on the disposable site.
 - 2026-10-02 — 2.1: replaced the repeated alert and raw fields in the entry path with one server-backed panel; save, approval, and preview share the server result builder.
-- 2026-10-02 — 2.2: added waiting-state, parity, explanations, source-input snapshot, server-authority, and approval-time recalculation checks; 14 signal integration and 34 signal unit tests pass on the disposable site. The DocType sync completed, but the migration exited during unrelated orphan cleanup (`Module None not found`).
+- 2026-10-02 — 2.2: added waiting-state, parity, explanations, source-input snapshot, server-authority, and approval-time recalculation checks; 16 signal integration and 34 signal unit tests pass on the disposable site. The focused DocType reload succeeded after full migration stopped during unrelated orphan cleanup (`Module None not found`).
+- 2026-10-02 — 3.1: added latest submitted full-tank vehicle source lookup and captured its transaction name, actual odometer, and fueling time in the server signal snapshot. Tests confirm newer full tanks replace older ones, partial and cancelled records do not, missing history and generators return no baseline, and approval freezes the captured baseline. The comparison waits on the open capacity/gauge and zero-consumption decisions.

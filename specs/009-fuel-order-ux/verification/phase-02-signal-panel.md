@@ -57,12 +57,12 @@ stateDiagram-v2
 
 On the disposable `fleet_management-test.localhost` MariaDB site:
 
-- `fleet_management.fleet_management.doctype.fuel_order.test_fuel_order_signal`: **14/14 integration tests pass**.
+- `fleet_management.fleet_management.doctype.fuel_order.test_fuel_order_signal`: **16/16 integration tests pass**, including two Phase 3 baseline lookup/freeze tests.
 - `fleet_management.tests.test_fuel_signal`: **34/34 unit tests pass**. Existing exact-margin, beyond-margin, no-forward-movement, missing-history, and old distance-check cases still pass.
 - `fleet_management.fleet_management.doctype.fuel_order.test_fuel_order`: **28/28 integration tests pass** after the Phase 1 and signal-field layout changes.
 - `node --check fleet_management/public/js/fuel_order.js`, JSON validation, Python compilation, and `python3 scripts/spec-check.py specs/009-fuel-order-ux` pass. The spec checker reports test-name coverage warnings for the still-unbuilt UI walkthrough, full-tank phase, and history phase. Ruff and Prettier were unavailable in the environment.
 
-The Desk walkthrough remains blocked by the missing local `specs/001-fleet-fuel-management/verification/CREDENTIALS.md`. The isolated browser reached the test site's sign-in page; no login or extra test account was created. A fresh disposable-site rebuild also remains unavailable for the same missing file. A migration on the disposable site synced the 009 DocType fields, then exited with `Module None not found` during Frappe's unrelated orphan cleanup. The updated site was used for all functional and database tests; the migration failure was not repaired or bypassed. The main site received no tests or migration.
+The Desk walkthrough remains blocked by the missing local `specs/001-fleet-fuel-management/verification/CREDENTIALS.md`. The isolated browser reached the test site's sign-in page; no login or extra test account was created. A fresh disposable-site rebuild also remains unavailable for the same missing file. A full migration on the disposable site exited with `Module None not found` during Frappe's orphan cleanup. A focused `reload-doc fleet_management doctype fuel_order` then synced the intended 009 signal fields from this worktree; the tests below ran against that metadata. No cleanup repair was made. The main site received no tests or migration.
 
 ## What we learned that the plan did not predict
 

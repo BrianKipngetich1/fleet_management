@@ -187,6 +187,7 @@ class FuelOrder(Document):
 	def _calculate_signal_result(self):
 		asset_type = self._asset_type()
 		is_vehicle = asset_type == "Vehicle"
+		baseline = get_latest_full_tank_baseline(self.asset) if is_vehicle else None
 		intervals = get_mileage_intervals(self.asset) if is_vehicle else []
 		average = (
 			get_average_km_per_litre(intervals, self.asset_target_km_per_litre_snapshot)
@@ -210,6 +211,15 @@ class FuelOrder(Document):
 		facts = {
 			"asset": self.asset,
 			"asset_type": asset_type,
+			"full_tank_baseline": (
+				{
+					"name": baseline.name,
+					"vehicle_odometer": baseline.vehicle_odometer,
+					"actual_fueling_datetime": str(baseline.actual_fueling_datetime),
+				}
+				if baseline
+				else None
+			),
 			"tank_capacity": self.asset_tank_capacity_snapshot,
 			"gauge_percent": self.request_gauge_percent,
 			"current_reading": self.request_meter_reading,
@@ -692,6 +702,21 @@ def get_previous_entry(asset, exclude_order=None):
 			"previous_entry_date": order[0].approved_on,
 		}
 	return {"previous_entry_source": "none", "previous_meter_reading": None, "previous_entry_date": None}
+
+
+def get_latest_full_tank_baseline(asset):
+	"""Latest submitted vehicle fueling that confirmed a full tank."""
+	if not asset or frappe.db.get_value("Fleet Asset", asset, "asset_type") != "Vehicle":
+		return None
+
+	rows = frappe.get_all(
+		"Fueling Transaction",
+		filters={"asset": asset, "docstatus": 1, "full_tank_confirmed": 1},
+		fields=["name", "vehicle_odometer", "actual_fueling_datetime"],
+		order_by="actual_fueling_datetime desc, creation desc",
+		limit=1,
+	)
+	return rows[0] if rows else None
 
 
 def get_signal_limits():

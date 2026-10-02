@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Specification | [`../requirements.md`](../requirements.md) @ working tree |
-| Status | Not started |
+| Status | In progress; baseline lookup and approved source snapshot verified; comparison not built |
 | Started / Closed | 2026-10-02 / — |
 | Author | Codex |
 | Reviewed by | — |
@@ -20,17 +20,21 @@ A vehicle's new mileage comparison starts from its latest submitted, non-cancell
 ```mermaid
 stateDiagram-v2
     [*] --> ExistingMileageCheck
+    ExistingMileageCheck --> LatestFullTankLookup: vehicle only
+    LatestFullTankLookup --> CapturedBaseline: latest submitted full tank
+    LatestFullTankLookup --> NoBaseline: no qualifying record or generator
+    CapturedBaseline --> SeparateComparison: pending capacity/gauge edge decisions
 ```
 
 ### Design vs. observed
 
 | Specification edge | Observed | Verdict |
 |---|---|---|
-| `LatestFullTank → NewBaseline` | Not yet observed | Unbuilt or untested |
-| `PartialFueling → BaselineUnchanged` | Not yet observed | Unbuilt or untested |
-| `NoBaseline → NewCheckSkipped` | Not yet observed | Unbuilt or untested |
-| `ApprovedOrder → BaselineAndResultFrozen` | Not yet observed | Unbuilt or untested |
-| `Generator → VehicleMileageChecksSkipped` | Not yet observed | Unbuilt or untested |
+| `LatestFullTank → NewBaseline` | `test_latest_full_tank_baseline_ignores_partial_and_cancelled_fuelings` checks actual event-time ordering and returns the newer full transaction, actual odometer, and fueling time | Lookup verified; comparison not built |
+| `PartialFueling → BaselineUnchanged` | The lookup test places a later partial between the full tanks and confirms the partial does not replace the source | Lookup verified; estimated consumption not built |
+| `NoBaseline → NewCheckSkipped` | `get_latest_full_tank_baseline` returns no source without vehicle history | Source lookup verified; signal behavior not yet connected |
+| `ApprovedOrder → BaselineAndResultFrozen` | `test_signal_is_frozen_once_approved` checks the saved baseline in raw MariaDB and confirms it stays unchanged after a newer source appears | Baseline snapshot verified; comparison result not built |
+| `Generator → VehicleMileageChecksSkipped` | `test_full_tank_baseline_is_missing_without_vehicle_history_or_for_generator` confirms the vehicle-only lookup returns no generator baseline | Lookup verified; signal behavior not yet connected |
 
 ## Frappe-first / native-first
 
@@ -43,6 +47,8 @@ stateDiagram-v2
 **Scope deliberately not taken:** Do not change the current mileage check, fueling transactions, generator checks, or vehicle economy intervals.
 
 ## Verification
+
+On `fleet_management-test.localhost`, the new baseline tests pass: `test_latest_full_tank_baseline_ignores_partial_and_cancelled_fuelings` and `test_full_tank_baseline_is_missing_without_vehicle_history_or_for_generator`. The existing `test_signal_is_frozen_once_approved` now checks the captured source against raw MariaDB and verifies it remains unchanged when a newer full tank is added after approval.
 
 | # | Put the system in this state | Expect | Covers |
 |---|---|---|---|
@@ -60,7 +66,7 @@ stateDiagram-v2
 
 **How to run it.** All calculation and database rows are focused tests on the disposable MariaDB site. The visible source and result need a Fleet User Desk walkthrough on that site.
 
-**Result:** Not run yet. Rows 11 awaits the requester's open decisions.
+**Result:** The baseline lookup and frozen source snapshot are verified. The independent comparison, reason text, formula, and boundary cases have not been built. Row 11 still awaits the requester's capacity/gauge and zero-consumption decisions; no Desk walkthrough has run.
 
 ## What we learned that the plan did not predict
 
@@ -77,4 +83,4 @@ The current previous-entry lookup already excludes cancelled transactions and in
 
 **Closure:** Not reviewed.
 
-**Next:** Resolve the capacity, gauge, and zero-consumption decisions, then build the separate check.
+**Next:** Continue the separate comparison after the pending business questions are answered; then run the complete Phase 3 matrix.

@@ -334,6 +334,7 @@ def evaluate_signal_result(facts, limits=None, workflow_state="Draft"):
 		"signal_inputs": {
 			"asset": facts.get("asset"),
 			"asset_type": facts.get("asset_type"),
+			"full_tank_baseline": facts.get("full_tank_baseline"),
 			"current_reading": facts.get("current_reading"),
 			"previous_entry_source": facts.get("previous_entry_source"),
 			"previous_reading": facts.get("previous_reading"),
