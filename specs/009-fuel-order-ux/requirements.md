@@ -135,6 +135,13 @@ The history records an issue when a reason first appears in a saved result or wh
 - Adding invoice discrepancy rules, late-entry behavior, meter resets, or invoice cost fields.
 - Changing the printed approval-slip layout or the station’s fueling process.
 
+## Proposed phases for review
+
+1. **Entry form:** arrange the four sections, vehicle summary, conditional gauge and quantity fields, and partial-authorization reason.
+2. **Signal panel:** add the single server-backed live preview and explain the existing signal reasons with their readings, comparisons, limits, and next actions.
+3. **Full-tank check:** add the separate baseline calculation, visible source and result, approved snapshot, and the worked boundary cases.
+4. **History:** add durable issue and action events, cancellation reasons, extension and print records, and the link to the actual fueling record; keep the listed invoice, late-entry, meter-reset, and cost gaps out of scope.
+
 ## Open questions
 
 None. The requester's answers are recorded above; the history timing is stated as a working assumption for approval.
