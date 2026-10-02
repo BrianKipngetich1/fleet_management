@@ -16,7 +16,7 @@ criterion is cited by at least one task. Tick a task's checkbox when it is commi
 
 - [x] 1.1 Add invoice total and optional printed unit price to new Fueling Transactions; require a positive total on submission while leaving existing submitted transactions unchanged.
   - _Requirements: 1.4, 5.1_
-- [ ] 1.2 Build Fueling Summary with inclusive date filters, monthly litres/counts/spend, recorded and unavailable amount handling, calculated and printed prices, detail rows, monthly trend, and standard export; cap the implementation at three reports.
+- [x] 1.2 Build Fueling Summary with inclusive date filters, monthly litres/counts/spend, recorded and unavailable amount handling, calculated and printed prices, detail rows, monthly trend, and standard export; cap the implementation at three reports.
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 3.4_
 - [ ] 1.3 Restrict report roles, location filter choices, report rows, linked records, and exports to the existing Fleet Approver and Fleet Admin access rules.
   - _Requirements: 4.1, 4.2_
@@ -53,3 +53,4 @@ criterion is cited by at least one task. Tick a task's checkbox when it is commi
 
 - `02/10/2026`: The requester approved the requirements earlier and the current design in this conversation; approval attribution awaits confirmation of the full name. Phase 1 is in progress.
 - `02/10/2026`: Task 1.1 complete. Added optional KES invoice fields, positive-total submission validation, submitted-value immutability, and positive synthetic sample invoices. The test-site migration and Fueling Transaction tests passed (31 integration tests, 2 unit tests; 1 concurrency test skipped). JSON validation, Python compilation, diff checks, and spec-check passed; lint was skipped because Ruff and pre-commit are unavailable. Next: task 1.2.
+- `02/10/2026`: Task 1.2 complete. Added the Fueling Summary Script Report with inclusive date filters, month totals, recorded-only spend and calculated prices, separate printed prices, unavailable legacy amounts, detail rows, a monthly recorded-spend trend, and the standard export result. The query uses the existing location scope and excludes non-submitted transactions. Test-site migration and 2 report unit checks passed; live report runs included the 30/09/2026 boundary and returned only Mombasa rows for a Mombasa filter. JSON, Python compilation, JavaScript syntax, diff checks, and spec-check passed; lint was skipped because Ruff and pre-commit are unavailable. Next: task 1.3.
