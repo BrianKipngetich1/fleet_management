@@ -1,4 +1,5 @@
 import csv
+from collections import defaultdict
 from io import StringIO
 
 import frappe
@@ -9,6 +10,7 @@ from frappe.utils import flt, getdate
 from fleet_management.sample_data import AMINA, FLEET_ADMIN, PHILIP, VIKAS
 
 from fleet_management.fleet_management.report.fueling_summary.fueling_summary import (
+	LOCATION_EXPRESSION,
 	_build_report_rows,
 	_get_date_range,
 )
@@ -80,7 +82,7 @@ class TestFuelingSummary(UnitTestCase):
 
 
 class TestFuelingSummaryPermissions(IntegrationTestCase):
-	"""Exercise spec 008-overseer-reports Requirements 1.5, 4.1, and 4.2."""
+	"""Exercise spec 008-overseer-reports Requirements 1.3, 1.4, 1.5, 3.4, 4.1, and 4.2."""
 
 	date_filters = {"from_date": "2000-01-01", "to_date": "2099-12-31"}
 
@@ -209,3 +211,102 @@ class TestFuelingSummaryPermissions(IntegrationTestCase):
 		with self.set_user(FLEET_ADMIN):
 			details = self._details(self._run_report())
 			self.assertTrue({"Nairobi", "Mombasa"}.issubset({row["location"] for row in details}))
+
+	def test_report_matches_two_location_source_and_excludes_cancelled_legacy_rows(self):
+		def source_rows(docstatus):
+			return frappe.db.sql(
+				f"""
+				SELECT
+					`tabFueling Transaction`.name,
+					{LOCATION_EXPRESSION} AS location,
+					`tabFueling Transaction`.actual_fueling_datetime AS fueling_datetime,
+					`tabFueling Transaction`.invoice_litres AS delivered_litres,
+					`tabFueling Transaction`.invoice_amount AS invoice_amount
+				FROM `tabFueling Transaction`
+				LEFT JOIN `tabFuel Order`
+					ON `tabFuel Order`.name = `tabFueling Transaction`.fuel_order
+				WHERE `tabFueling Transaction`.docstatus = %(docstatus)s
+				ORDER BY `tabFueling Transaction`.actual_fueling_datetime, `tabFueling Transaction`.name
+				""",
+				{"docstatus": docstatus},
+				as_dict=True,
+			)
+
+		frappe.db.savepoint("fueling_summary_source_check")
+		try:
+			with self.set_user(FLEET_ADMIN):
+				before = source_rows(1)
+				self.assertTrue({"Nairobi", "Mombasa"}.issubset({row.location for row in before}))
+				legacy = next((row for row in before if flt(row.invoice_amount) <= 0), None)
+				self.assertIsNotNone(
+					legacy,
+					"The disposable source data should include a legacy transaction without an amount.",
+				)
+
+				to_cancel = next(
+					row
+					for row in before
+					if row.location == "Nairobi"
+					and not any(
+						frappe.db.exists(
+							"Fueling Transaction",
+							{fieldname: row.name, "name": ["!=", row.name]},
+						)
+						for fieldname in ("previous_full_fill", "closing_full_fill")
+					)
+				)
+				frappe.get_doc("Fueling Transaction", to_cancel.name).cancel()
+				active = source_rows(1)
+				cancelled = source_rows(2)
+				self.assertIn(to_cancel.name, {row.name for row in cancelled})
+				self.assertNotIn(to_cancel.name, {row.name for row in active})
+
+				report = self._run_report()
+				details = self._details(report)
+				self.assertEqual({row["name"] for row in details}, {row.name for row in active})
+				self.assertEqual({row["location"] for row in details}, {"Nairobi", "Mombasa"})
+				self.assertNotIn(to_cancel.name, {row["name"] for row in details})
+				self.assertIn("Monthly spend totals include only recorded invoice amounts", report["message"])
+
+				legacy_detail = next(row for row in details if row["name"] == legacy.name)
+				self.assertEqual(legacy_detail["amount_status"], "Unavailable")
+				self.assertIsNone(legacy_detail["recorded_spend"])
+
+				monthly_source = defaultdict(
+					lambda: {
+						"count": 0,
+						"litres": 0.0,
+						"spend": 0.0,
+						"priced_litres": 0.0,
+						"unavailable": 0,
+					}
+				)
+			for row in active:
+				month = getdate(row.fueling_datetime).strftime("%Y-%m")
+				bucket = monthly_source[month]
+				bucket["count"] += 1
+				bucket["litres"] += flt(row.delivered_litres)
+				if flt(row.invoice_amount) > 0:
+					bucket["spend"] += flt(row.invoice_amount)
+					bucket["priced_litres"] += flt(row.delivered_litres)
+				else:
+					bucket["unavailable"] += 1
+
+			monthly_report = {
+				row["month"]: row for row in report["result"] if row.get("row_type") == "Monthly total"
+			}
+			self.assertEqual(set(monthly_report), set(monthly_source))
+			for month, source in monthly_source.items():
+				total = monthly_report[month]
+				self.assertEqual(total["transaction_count"], source["count"])
+				self.assertAlmostEqual(total["delivered_litres"], source["litres"], places=2)
+				if source["spend"]:
+					self.assertAlmostEqual(total["recorded_spend"], source["spend"], places=2)
+					self.assertAlmostEqual(
+						total["calculated_price_per_litre"], source["spend"] / source["priced_litres"], places=4
+					)
+				else:
+					self.assertIsNone(total["recorded_spend"])
+				self.assertIn(f"{source['unavailable']} unavailable", total["amount_status"])
+		finally:
+			frappe.db.rollback(save_point="fueling_summary_source_check")
