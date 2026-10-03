@@ -2,12 +2,10 @@ import frappe
 from frappe.tests import IntegrationTestCase
 from frappe.utils import now_datetime
 
-from fleet_management.tests.utils import attach_request_photos, decide, send_up
+from fleet_management.tests.utils import attach_request_photos, decide, make_photo, send_up
 
 
-class TestFuelingDiscrepancy(IntegrationTestCase):
-	"""Integration checks for spec 008-overseer-reports Requirements 3.3 and 4.1."""
-
+class FuelingDiscrepancyFixture:
 	def setUp(self):
 		super().setUp()
 		suffix = frappe.generate_hash(length=8)
@@ -24,7 +22,21 @@ class TestFuelingDiscrepancy(IntegrationTestCase):
 		)
 		self.person = self._insert("Fleet Person", person_name=f"AC08 Person {suffix}")
 		self.users = {}
+		self.approvers = {}
+		self.assets = {}
+		self.stations = {}
+		self.orders = {}
 		self.transactions = {}
+		settings = frappe.get_single("Fleet Management Settings")
+		settings.update(
+			{
+				"gauge_limit_percent": 30,
+				"mileage_margin_percent": 15,
+				"litres_excess_percent": 10,
+				"min_hours_between_fuelings": 24,
+			}
+		)
+		settings.save(ignore_permissions=True)
 		for name, location in self.locations.items():
 			station = self._insert(
 				"Fuel Station",
@@ -52,7 +64,11 @@ class TestFuelingDiscrepancy(IntegrationTestCase):
 			requester = self._user("Fleet User", location.name)
 			approver = self._user("Fleet Approver", location.name)
 			self.users[name] = requester
+			self.approvers[name] = approver
+			self.assets[name] = asset
+			self.stations[name] = station
 			order = self._make_approved_order(location, station, asset, requester, approver)
+			self.orders[name] = order
 			with self.set_user(requester):
 				self.transactions[name] = frappe.get_doc(
 					{"doctype": "Fueling Transaction", "fuel_order": order.name}
@@ -99,6 +115,32 @@ class TestFuelingDiscrepancy(IntegrationTestCase):
 		with self.set_user(decision_maker):
 			return decide(order, "Approve")
 
+	def _make_rejected_order(self, location_name):
+		location = self.locations[location_name]
+		station = self.stations[location_name]
+		asset = self.assets[location_name]
+		requester = self.users[location_name]
+		approver = self.approvers[location_name]
+		with self.set_user(requester):
+			order = frappe.get_doc(
+				{
+					"doctype": "Fuel Order",
+					"actual_requester": self.person.name,
+					"driver": self.person.name,
+					"custodian": self.person.name,
+					"company_representative": self.person.name,
+					"asset": asset.name,
+					"operational_location": location.name,
+					"planned_station": station.name,
+					"request_meter_reading": 2000,
+					"request_gauge_percent": 40,
+				}
+			).insert()
+			order = attach_request_photos(order)
+			order = send_up(order)
+		with self.set_user(approver):
+			return decide(order, "Reject", "The request has an incorrect meter reading.")
+
 	def _insert_discrepancy(self, transaction, **values):
 		return frappe.get_doc(
 			{
@@ -110,6 +152,37 @@ class TestFuelingDiscrepancy(IntegrationTestCase):
 				**values,
 			}
 		).insert()
+
+	def _submit_transaction(self, location_name):
+		transaction = self.transactions[location_name]
+		order = frappe.get_doc("Fuel Order", transaction.fuel_order)
+		user = self.users[location_name]
+		with self.set_user(user):
+			frappe.get_print("Fuel Order", order.name, print_format="Fuel Order Approval Slip", no_letterhead=1)
+			transaction.update(
+				{
+					"actual_station": order.planned_station,
+					"fuel_type": order.fuel_type,
+					"actual_fueling_datetime": now_datetime(),
+					"fueling_time_source": "Printed on invoice",
+					"attendant_name": "Test Attendant",
+					"invoice_litres": 20,
+					"invoice_amount": 4000,
+					"printed_unit_price": 200,
+					"invoice_number": f"AC08-INV-{frappe.generate_hash(length=8)}",
+					"cu_number": f"AC08-CU-{frappe.generate_hash(length=8)}",
+					"vehicle_odometer": 1000,
+					"signed_invoice": make_photo("pdf").file_url,
+					"signed_order": make_photo("pdf").file_url,
+				}
+			)
+			transaction.save()
+			transaction.submit()
+		return frappe.get_doc("Fueling Transaction", transaction.name)
+
+
+class TestFuelingDiscrepancy(FuelingDiscrepancyFixture, IntegrationTestCase):
+	"""Integration checks for spec 008-overseer-reports Requirements 3.3 and 4.1."""
 
 	def test_recorder_and_date_are_server_set_and_source_transaction_is_unchanged(self):
 		transaction = self.transactions["Nairobi"]
