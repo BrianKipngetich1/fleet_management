@@ -128,6 +128,10 @@ class TestRequestsAudit(FuelingDiscrepancyFixture, IntegrationTestCase):
 			"station": self.stations["Nairobi"].name,
 		}
 		with self.set_user(self.approvers["Nairobi"]):
+			with self.assertRaises(frappe.ValidationError) as error:
+				self._run_report({**filters, "from_date": "2099-12-31", "to_date": "2000-01-01"})
+			self.assertIn("From Date cannot be later than To Date.", str(error.exception))
+
 			result = self._run_report(filters)
 			rows = result["result"]
 			self.assertTrue(rows)
