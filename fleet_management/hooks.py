@@ -172,6 +172,7 @@ permission_query_conditions = {
 		"Asset Assignment",
 		"Fuel Order",
 		"Fueling Transaction",
+		"Fueling Discrepancy",
 	)
 }
 

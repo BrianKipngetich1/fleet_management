@@ -22,6 +22,7 @@ SCOPED_DOCTYPES = frozenset(
 		"Asset Assignment",
 		"Fuel Order",
 		"Fueling Transaction",
+		"Fueling Discrepancy",
 	}
 )
 
@@ -131,6 +132,12 @@ def _document_location_names(doc):
 		if doc.get("fuel_order"):
 			location = frappe.db.get_value("Fuel Order", doc.get("fuel_order"), "assigned_location_snapshot")
 			return {str(location)} if location else set()
+	if doctype == "Fueling Discrepancy":
+		try:
+			transaction = frappe.get_doc("Fueling Transaction", doc.get("fueling_transaction"))
+		except frappe.DoesNotExistError:
+			return set()
+		return _document_location_names(transaction)
 
 	locations = _location_values(doc, doctype)
 	return locations or _linked_asset_locations(doc, doctype)
@@ -151,6 +158,14 @@ def _assignment_exists_condition(parent_expression, locations):
 
 
 def _query_condition(doctype, locations):
+	if doctype == "Fueling Discrepancy":
+		transaction_scope = _query_condition("Fueling Transaction", locations)
+		return (
+			"EXISTS (SELECT 1 FROM `tabFueling Transaction` "
+			"WHERE `tabFueling Transaction`.`name` = `tabFueling Discrepancy`.`fueling_transaction` "
+			f"AND ({transaction_scope}))"
+		)
+
 	if doctype == "Fleet Location":
 		return f"{_table(doctype)}.`name` IN ({_escaped_locations(locations)})"
 
