@@ -23,6 +23,7 @@ Approved by: pending
 - Fueling transactions have no invoice total or printed unit price fields. The transaction form already requires a private invoice attachment.
 - `fleet_management.permissions` already provides location-scoped document checks and `get_report_query_conditions()` for `Fuel Order` and `Fueling Transaction`. A report must apply those conditions itself; report filters alone do not protect rows or exports.
 - The approved 001 role plan says Fleet Approvers can view reports for permitted locations and Fleet Admins can access all operational and audit records. It describes a Fleet Auditor as optional, only if a separate auditor login is needed.
+- Requests & Audit currently returns warning status as text. The Fuel Order form and Asset Performance report already use Frappe's green and red indicator colors for the same status values.
 
 ## Words in this request
 
@@ -50,6 +51,7 @@ Approved by: pending
 - `D-9`: Use the existing full-to-full interval values and ordering rules for vehicle efficiency. Use an earlier full fill outside the visible date range when required by the interval, but do not display its activity as an in-range row. Do not rate an interval when its target changed.
 - `D-10`: Exclude cancelled transactions from fueling, efficiency, and spending totals. Show them in Requests & Audit with their cancellation status. Filter fueling records by actual fueling date; filter requests and their decisions by their request or decision event date.
 - `D-11`: Do not change existing request, approval, or transaction submission rules. Fleet Users may record a discrepancy only for a transaction they can access; Fleet Approver and Fleet Admin may also record one within their existing scope.
+- `D-12`: Render Green and Red warning statuses in Requests & Audit with the existing Frappe `indicator-pill` green and red classes. Use the standard report formatter and leave the returned status value unchanged, so CSV export and warning reasons are unaffected.
 
 ## Design
 
@@ -71,7 +73,7 @@ stateDiagram-v2
 |---|---|
 | Fueling Summary | Monthly delivered litres, transaction counts, recorded invoice totals in KES, weighted calculated price per litre for records with an amount, printed unit price as its own detail value, monthly trend, and source transaction rows. Rows without an amount are visibly unavailable and counted separately. |
 | Asset Performance | The selected asset's Fuel Orders and fueling transactions in the requested period, links to each source, request and fulfillment status, and vehicle interval efficiency or generator delivered litres and hour-meter readings. |
-| Requests & Audit | Request decisions and reasons, warning signals and reasons, recorded discrepancies, and cancelled fueling transactions with their status and source links. |
+| Requests & Audit | Request decisions and reasons, warning signals shown with their matching Green/Red flag colours and reasons, recorded discrepancies, and cancelled fueling transactions with their status and source links. |
 
 All reports use inclusive start and end dates and accept any span covered by retained records. The relevant filters are date range, location, asset, fuel type, and station. A location, asset, fuel, or station filter applies to every summary, trend, detail row, and export in that report. The Workspace is a navigation page only; it adds no fourth report or separate calculations.
 
@@ -85,6 +87,7 @@ For a month with records that lack invoice amounts, the total is the sum of reco
 | One place to open the reports | A standard Desk Workspace with links to the three reports | None beyond its report links and role visibility. |
 | Invoice amount and printed unit price | `Currency` fields on `Fueling Transaction` | Controller validation must require an amount on new submissions and preserve submitted-record immutability. |
 | Discrepancy observations | A standard `Fueling Discrepancy` DocType linked to `Fueling Transaction` | Controller and permission hooks must set audit fields on the server and enforce the linked transaction's location scope. |
+| Warning status colors | Standard Script Report formatter and Frappe `indicator-pill` CSS | A small client formatter maps the existing Green/Red status values to their matching flag colors; no new CSS or report data is needed. |
 | Full-fill efficiency | Existing `Fueling Transaction` interval fields and shared interval calculation | The report must select a prior full fill outside the visible period when needed and suppress ratings when the target changed. |
 
 ## Data and migration plan
@@ -92,6 +95,8 @@ For a month with records that lack invoice amounts, the total is the sum of reco
 Add `invoice_amount` and `printed_unit_price` as optional `Currency` fields in the schema so existing submitted transactions migrate without invented values. New transactions require a positive invoice amount at submission. A printed unit price is optional and is saved separately when present. The report derives calculated unit price; it does not store a duplicate calculation.
 
 Add the `Fueling Discrepancy` DocType with a link to `Fueling Transaction`, discrepancy type, details, reason, recorded-by user, and recorded-on timestamp. The server sets the audit fields. A discrepancy is its own record; neither adding it nor viewing it changes or amends the transaction. No existing records are changed or backfilled. Existing transactions without a discrepancy entry display “No discrepancy was recorded,” which does not claim that no issue occurred.
+
+The warning color is presentation-only. It reads the stored Green or Red status and uses existing Frappe indicator classes. No records or exports are changed.
 
 ## Correctness properties
 

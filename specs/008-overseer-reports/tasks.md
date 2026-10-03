@@ -48,8 +48,12 @@ criterion is cited by at least one task. Tick a task's checkbox when it is commi
   - _Requirements: 1.6, 4.1_
 - [x] 3.4 Check that canceled transactions appear in Requests & Audit but are absent from summary and performance totals, and that current request and fueling workflows still enforce their existing rules.
   - _Requirements: 3.4, 5.1_
+- [x] 3.5 Show Green and Red warning statuses in their matching flag colours on Requests & Audit while preserving the status text and export values.
+  - _Requirements: 3.2_
 
 ## Progress log
+
+- `03/10/2026`: Task 3.5 complete. Requests & Audit formats Green statuses with the green flag color and Red statuses with the red flag color while preserving status and export values. Main and disposable test-site migrations exited successfully; JS syntax, all 30 JSON files, diff checks, and spec-check passed (spec-check retains its existing test-naming warnings). Ruff/pre-commit were unavailable. A Desk walkthrough was skipped because agent-browser could not create its socket under read-only `/run/user/1000/agent-browser`; its diagnostic check passed. No test records were created on the main site.
 
 - `02/10/2026`: The requester approved the requirements earlier and the current design in this conversation; approval attribution awaits confirmation of the full name. Phase 1 is in progress.
 - `02/10/2026`: Task 1.1 complete. Added optional KES invoice fields, positive-total submission validation, submitted-value immutability, and positive synthetic sample invoices. The test-site migration and Fueling Transaction tests passed (31 integration tests, 2 unit tests; 1 concurrency test skipped). JSON validation, Python compilation, diff checks, and spec-check passed; lint was skipped because Ruff and pre-commit are unavailable. Next: task 1.2.

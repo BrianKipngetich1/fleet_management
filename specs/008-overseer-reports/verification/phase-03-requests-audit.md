@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Specification | [`../requirements.md`](../requirements.md), [`../design.md`](../design.md) — approved by the requester in a prior conversation; approval attribution remains pending |
-| Status | `Complete` (implementation and backend verification; not reviewed or signed off) |
+| Status | `Complete` (implementation and backend verification; warning-color Desk walkthrough not run; not reviewed or signed off) |
 | Started / Closed | `2026-10-03` / `2026-10-03` |
 | Author | Codex agent |
 | Reviewed by | Not reviewed |
@@ -13,7 +13,7 @@
 
 ## What this phase makes true
 
-An overseer can review requests, decisions, warnings, fulfillment states, recorded discrepancies, and cancelled fuelings in one audit report. Each discrepancy is recorded separately from its fueling transaction, with the recorder and date set by the server. The report links back to source records, applies the selected filters and permitted location scope, and distinguishes “no discrepancy was recorded” from a claim that no issue occurred. Fleet Approvers and Fleet Admins can open the Workspace and its three reports, while cancelled transactions stay out of fueling, performance, and spend totals.
+An overseer can review requests, decisions, warnings, fulfillment states, recorded discrepancies, and cancelled fuelings in one audit report. Green and Red warning statuses appear in matching flag colors while keeping their original text values. Each discrepancy is recorded separately from its fueling transaction, with the recorder and date set by the server. The report links back to source records, applies the selected filters and permitted location scope, and distinguishes “no discrepancy was recorded” from a claim that no issue occurred. Fleet Approvers and Fleet Admins can open the Workspace and its three reports, while cancelled transactions stay out of fueling, performance, and spend totals.
 
 ## The rule, as observed
 
@@ -57,8 +57,9 @@ stateDiagram-v2
 | 4 | Cancel a submitted transaction, then run Requests & Audit, Fueling Summary, and Asset Performance with matching filters. | Requests & Audit retains the transaction with `Cancelled` status; the summary and performance report exclude its row and its counts, litres, and spend. | `3.4` |
 | 5 | Open Fleet Oversight as Fleet Approver and Fleet Admin, then try as Fleet User. | Each overseer sees exactly the three approved reports; Fleet User does not gain report access. | `1.6`, `4.1` |
 | 6 | Create, decide, and fulfill requests using the existing request and fueling workflows, including a request that fails an existing validation. | Existing approval, reason, evidence, and location checks continue to govern those actions. | `5.1` |
+| 7 | Open Requests & Audit and inspect rows with Green and Red warning statuses, then export the report. | Green appears with the green flag color and Red with the red flag color; displayed text and exported status values remain Green and Red. | `3.2` |
 
-**How to run it.** Rebuild the disposable site with `bench fleet-test-site up --replace`, confirm it reports MariaDB and `dd/mm/yyyy`, then run the Requests & Audit, Fueling Discrepancy, Fleet Oversight Workspace, Fueling Summary, Asset Performance, Fuel Order, decision, signal, and Fueling Transaction test modules on `fleet_management-test.localhost`. No Desk walkthrough or full app suite was run in this phase turn; the pre-PR pipeline was not started. The fresh rebuild command currently lacks its configured `specs/001-fleet-fuel-management/verification/CREDENTIALS.md`, so verification used the existing disposable site after migration. Local outcomes and skipped checks are summarized in [`tasks.md`](../tasks.md#progress-log).
+**How to run it.** Rebuild the disposable site with `bench fleet-test-site up --replace`, confirm it reports MariaDB and `dd/mm/yyyy`, then run the Requests & Audit, Fueling Discrepancy, Fleet Oversight Workspace, Fueling Summary, Asset Performance, Fuel Order, decision, signal, and Fueling Transaction test modules on `fleet_management-test.localhost`. The warning-color Desk walkthrough was attempted on 03/10/2026 but skipped because agent-browser could not create its session socket under read-only `/run/user/1000/agent-browser`; its diagnostic check passed. The full app suite was not run and the pre-PR pipeline was not started. The fresh rebuild command currently lacks its configured `specs/001-fleet-fuel-management/verification/CREDENTIALS.md`, so verification used the existing disposable site after migration. Local outcomes and skipped checks are summarized in [`tasks.md`](../tasks.md#progress-log).
 
 **Result:** The Phase 3 cancellation regression, discrepancy, Workspace, Asset Performance, and request/fueling workflow tests passed. One separate Fueling Summary integration assertion still expects a legacy seeded transaction without an invoice amount; the current sample data contains no such row. Its cancellation-specific cross-report check passed. This fixture mismatch is recorded for follow-up before a full-suite run.
 
@@ -71,6 +72,7 @@ stateDiagram-v2
 ## Known limitations — accepted, not fixed
 
 - Desk walkthrough, full app suite, and pre-PR checks remain outstanding. They were not started because the requester asked to stop at Phase 3 and not begin the pre-PR pipeline.
+- The task 3.5 warning-color Desk walkthrough remains outstanding due to the read-only agent-browser socket directory; the report JS passed syntax checking and uses the indicator-pill classes already present in Asset Performance.
 - The Fueling Summary legacy-row fixture mismatch is outside Phase 3 and was not changed in this phase.
 
 ## Review

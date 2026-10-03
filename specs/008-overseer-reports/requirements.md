@@ -60,7 +60,7 @@ more than three reports, with figures that can be traced to the records they sum
 #### Acceptance Criteria
 
 1. WHEN a fuel request is rejected or withdrawn THE system SHALL show the action, written reason, decision-maker, and decision date while distinguishing rejection from withdrawal.
-2. WHEN a fuel request has a system warning THE system SHALL show its warning status, recorded reasons, and request date.
+2. WHEN a fuel request has a system warning THE system SHALL show its warning status in the matching flag colour (green for Green and red for Red), recorded reasons, and request date.
 3. WHEN staff identify one or more fueling discrepancies THE system SHALL let them record each type, details, reason, recorder, and date against the related fueling record and show those details in the report; WHEN an older fueling record has no discrepancy entry THE system SHALL show that no discrepancy was recorded without implying that none occurred.
 4. WHEN a fueling record is cancelled THE system SHALL exclude it from fueling, performance, and spending totals and retain it in the audit report with its cancellation status.
 

@@ -1,4 +1,13 @@
 frappe.query_reports["Requests & Audit"] = {
+	formatter(value, row, column, data, default_formatter) {
+		const formatted = default_formatter(value, row, column, data);
+		if (column.fieldname !== "warning_status") {
+			return formatted;
+		}
+
+		const color = { Green: "green", Red: "red" }[value];
+		return color ? `<span class="indicator-pill ${color}">${formatted}</span>` : formatted;
+	},
 	filters: [
 		{
 			fieldname: "from_date",
