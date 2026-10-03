@@ -198,3 +198,40 @@ class TestRequestsAudit(FuelingDiscrepancyFixture, IntegrationTestCase):
 
 		with self.set_user(self.users["Nairobi"]), self.assertRaises(frappe.PermissionError):
 			self._run_report(self.date_filters)
+
+	def test_cancelled_transaction_stays_in_audit_and_out_of_summary_and_performance(self):
+		transaction = self._submit_transaction("Nairobi")
+		with self.set_user("Administrator"):
+			frappe.get_doc("Fueling Transaction", transaction.name).cancel()
+
+		day = getdate(transaction.actual_fueling_datetime)
+		filters = {
+			"from_date": day,
+			"to_date": day,
+			"location": self.locations["Nairobi"].name,
+			"asset": self.assets["Nairobi"].name,
+			"fuel_type": self.fuel_type.name,
+			"station": self.stations["Nairobi"].name,
+		}
+		with self.set_user(self.approvers["Nairobi"]):
+			audit_rows = self._run_report(filters)["result"]
+			cancelled = next(row for row in audit_rows if row.get("fueling_transaction") == transaction.name)
+			self.assertEqual(cancelled["activity"], "Cancelled fueling transaction")
+			self.assertEqual(cancelled["fueling_status"], "Cancelled")
+
+			summary_rows = run("Fueling Summary", filters)["result"]
+			self.assertFalse(
+				any(
+					row.get("name") == transaction.name or row.get("row_type") == "Monthly total"
+					for row in summary_rows
+				)
+			)
+
+			performance_rows = run("Asset Performance", filters)["result"]
+			self.assertNotIn(
+				transaction.name,
+				{row.get("fueling_transaction") for row in performance_rows},
+			)
+			monthly = [row for row in performance_rows if row.get("record_type") == "Monthly total"]
+			self.assertEqual(sum(row.get("fueling_count", 0) or 0 for row in monthly), 0)
+			self.assertEqual(sum(row.get("delivered_litres", 0) or 0 for row in monthly), 0)
