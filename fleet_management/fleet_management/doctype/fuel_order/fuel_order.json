@@ -114,12 +114,10 @@
    "description": "Operational person who requested the fuel; a Frappe login is not required."
   },
   {
-   "default": "Now",
    "fieldname": "request_datetime",
    "fieldtype": "Datetime",
    "in_list_view": 1,
    "label": "Request Date and Time",
-   "reqd": 1,
    "read_only": 1
   },
   {
@@ -395,7 +393,7 @@
   {
    "fieldname": "asset_target_km_per_litre_snapshot",
    "fieldtype": "Float",
-   "label": "Target km/L",
+   "label": "Vehicle Target Fuel Economy (km/L)",
    "no_copy": 1,
    "read_only": 1,
    "depends_on": "eval:doc.asset_type=='Vehicle'"
@@ -427,7 +425,7 @@
   {
    "fieldname": "previous_meter_reading",
    "fieldtype": "Float",
-   "label": "Previous Meter Reading",
+   "label": "Previous Odometer / Hour Meter",
    "no_copy": 1,
    "read_only": 1
   },
@@ -449,10 +447,10 @@
   },
   {
    "depends_on": "eval:doc.asset_type=='Vehicle'",
-   "description": "The vehicle's own kilometres per litre over its last five completed intervals; its target until it has one.",
+   "description": "The applicable fuel economy: the recent weighted average when usable completed full-to-full intervals exist, otherwise the vehicle target.",
    "fieldname": "average_km_per_litre",
    "fieldtype": "Float",
-   "label": "Average km/L",
+   "label": "Applicable Fuel Economy (km/L)",
    "no_copy": 1,
    "read_only": 1
   },

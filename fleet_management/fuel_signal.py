@@ -34,8 +34,8 @@ def _check_mileage(facts, limits):
 	distance = facts.get("current_reading") - previous_reading
 	if distance <= 0:
 		return (
-			f"Mileage does not add up: the meter has not moved forward since the previous "
-			f"entry ({previous_reading:g})."
+			f"Mileage does not add up: the Odometer has not moved forward since the Previous Entry "
+			f"({previous_reading:g} km)."
 		)
 
 	expected = average * room
@@ -47,7 +47,7 @@ def _check_mileage(facts, limits):
 	if round(variance, 6) > margin:
 		expected_rounded = round(expected, 1)
 		return (
-			f"Mileage does not add up: {distance:g} km since the previous entry, "
+			f"Mileage does not add up: {distance:g} km of Odometer distance since the Previous Entry, "
 			f"{expected_rounded:g} km expected ({variance:.0f}% off; limit {margin:g}%)."
 			f"{_approx_note(facts)}"
 		)
@@ -135,7 +135,8 @@ def _full_tank_mileage_result(facts, limits):
 	}
 	if not passed:
 		result["reason"] = (
-			f"{baseline_label} mileage does not add up: {distance:g} km since the selected baseline, "
+			f"{baseline_label} mileage does not add up: {distance:g} km of Odometer distance since "
+			f"the selected baseline, "
 			f"{expected:.1f} km expected ({variance:.0f}% off; limit {margin:g}%)."
 		)
 	return result
@@ -230,11 +231,12 @@ def _check_trend(facts, limits):
 	off = abs(last - average) / average * 100
 	margin = limits["mileage_margin_percent"]
 	if round(off, 6) > margin:
-		last_rounded = round(last, 2)
-		average_rounded = round(average, 2)
+		direction = "below" if last < average else "above"
 		return (
-			f"Mileage off its own trend: the last interval gave {last_rounded:g} km/L against "
-			f"an average of {average_rounded:g} km/L ({off:.0f}% off; limit {margin:g}%)."
+			f"Mileage off its own trend: {_economy_comparison(average, 'Recent reference')}. "
+			f"{_economy_comparison(last, 'Latest observed full-to-full interval')}. "
+			f"The observed interval is {off:g}% {direction} the reference; "
+			f"the allowed difference is {margin:g}%."
 		)
 	return None
 
@@ -299,18 +301,29 @@ def _display(value):
 	return f"{value:g}" if isinstance(value, (int, float)) else str(value)
 
 
+def _economy_comparison(value, label):
+	return (
+		f"{label}: {_display(value)} km/L ({1 / value:.3f} L/km; {100 / value:.1f} L/100 km)"
+		if value is not None and value > 0
+		else f"{label}: not available"
+	)
+
+
 def _economy_details(facts):
 	average = facts.get("average_km_per_litre")
 	if average in (None, ""):
-		return ["Applicable fuel economy: not available"]
+		return ["Applicable fuel economy used by this check: not available"]
 
 	source = facts.get("average_source")
 	if source == "recent_average" and average > 0:
 		return [
-			f"Observed full-to-full average: {average:g} km/L "
-			f"({1 / average:.3f} L/km; {100 / average:.1f} L/100 km)"
+			_economy_comparison(average, "Recent observed full-to-full average"),
+			f"Applicable fuel economy used by this check: {average:g} km/L (recent weighted average)",
 		]
-	return [f"Applicable fuel economy: {average:g} km/L (vehicle target)"]
+	return [
+		f"Vehicle target fuel economy: {average:g} km/L",
+		f"Applicable fuel economy used by this check: {average:g} km/L (vehicle target)",
+	]
 
 
 def _explain_reason(text, facts, limits):
@@ -321,14 +334,21 @@ def _explain_reason(text, facts, limits):
 		current = facts.get("current_reading")
 		room = _room_litres(facts)
 		average = facts.get("average_km_per_litre")
+		previous_source = facts.get("previous_entry_source")
+		if previous_source:
+			details.append(f"Previous Entry source: {previous_source}")
 		details.extend(
 			[
-				f"Previous Entry: {_display(previous)} km",
-				f"Current odometer: {_display(current)} km",
+				f"Previous Entry Odometer: {_display(previous)} km",
+				f"Current Odometer: {_display(current)} km",
 			]
 		)
+		if facts.get("previous_entry_date"):
+			details.append(f"Previous Entry date and time: {facts['previous_entry_date']}")
 		if previous is not None and current is not None:
-			details.append(f"Distance since Previous Entry: {_display(current - previous)} km")
+			details.append(
+				f"Odometer distance travelled since Previous Entry: {_display(current - previous)} km"
+			)
 		if room is not None:
 			details.append(f"Fuel estimate from current gauge: {room:g} L estimated to fill")
 		if average not in (None, "") and room is not None:
@@ -343,16 +363,17 @@ def _explain_reason(text, facts, limits):
 		details.extend(
 			[
 				f"Baseline used: {label} ({_display(baseline.get('reference'))})",
-				f"Baseline odometer: {_display(check.get('baseline_odometer', baseline.get('vehicle_odometer')))} km",
-				f"Current odometer: {_display(check.get('current_odometer', facts.get('current_reading')))} km",
+				f"Baseline Odometer: {_display(check.get('baseline_odometer', baseline.get('vehicle_odometer')))} km",
+				f"Current Odometer: {_display(check.get('current_odometer', facts.get('current_reading')))} km",
 				f"Tank capacity: {_display(check.get('tank_capacity_litres', facts.get('tank_capacity')))} L",
 				f"Current gauge: {_display(check.get('gauge_percent', facts.get('gauge_percent')))}%",
 			]
 		)
-		if baseline.get("timestamp"):
-			details.append(f"Baseline fueling time: {baseline['timestamp']}")
+		details.append(f"Baseline date and time: {baseline.get('timestamp') or 'not available'}")
 		if check.get("distance_km") is not None:
-			details.append(f"Distance since selected baseline: {_display(check['distance_km'])} km")
+			details.append(
+				f"Odometer distance travelled since selected baseline: {_display(check['distance_km'])} km"
+			)
 		if check.get("estimated_remaining_litres") is not None:
 			details.append(f"Estimated remaining fuel: {_display(check['estimated_remaining_litres'])} L")
 		if check.get("estimated_consumed_litres") is not None:
@@ -365,10 +386,10 @@ def _explain_reason(text, facts, limits):
 			details.append(f"Difference from expected distance: {check['variance_percent']:.1f}%")
 		if check.get("expected_distance_km") is None:
 			if check.get("average_km_per_litre") in (None, ""):
-				details.append("Applicable fuel economy: not available")
+				details.append("Applicable fuel economy used by this check: not available")
 			elif check.get("average_km_per_litre") <= 0:
 				details.append(
-					f"Applicable fuel economy: {check['average_km_per_litre']:g} km/L (not usable)"
+					f"Applicable fuel economy used by this check: {check['average_km_per_litre']:g} km/L (not usable)"
 				)
 			else:
 				details.extend(_economy_details(facts))
@@ -423,22 +444,9 @@ def _explain_reason(text, facts, limits):
 		)
 		action = "Confirm the driver or explain why a different driver is using the asset."
 	elif text.startswith("Mileage off its own trend"):
-		last = facts.get("last_interval_km_per_litre")
-		average = facts.get("average_km_per_litre")
-		details.extend(
-			[
-				f"Latest completed interval: {_display(last)} km/L",
-				f"Recent full-to-full average: {_display(average)} km/L",
-				f"Allowed mileage margin: {limits['mileage_margin_percent']:g}%",
-			]
+		details.append(
+			f"Recent reference is weighted across {facts.get('interval_count', 0)} completed full-to-full intervals."
 		)
-		if last and last > 0 and average and average > 0:
-			details.extend(
-				[
-					f"Latest interval equivalent: {1 / last:.3f} L/km; {100 / last:.1f} L/100 km",
-					f"Average equivalent: {1 / average:.3f} L/km; {100 / average:.1f} L/100 km",
-				]
-			)
 		action = "Check the completed fueling records and readings for this vehicle."
 	else:
 		action = "Check the source information and ask a permitted approver to review the red order."

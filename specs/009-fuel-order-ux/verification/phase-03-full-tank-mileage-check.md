@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Specification | [`../requirements.md`](../requirements.md) @ working tree |
-| Status | Built and database-verified on the disposable MariaDB site; the role-based Desk walkthrough is pending a server serving this worktree |
+| Status | Built and database-verified; red vehicle comparison and generator walkthrough completed on the disposable site |
 | Started / Closed | 2026-10-02 / — |
 | Author | Codex |
 | Reviewed by | — |
@@ -33,7 +33,7 @@ stateDiagram-v2
 |---|---|---|
 | `LatestFullAuthorization → NewBaseline` | `get_latest_full_tank_baseline` now joins the linked Fuel Order and filters for Full authorization. The regression case gives Full transactions `full_tank_confirmed=0` to prove that field does not select the baseline | Observed in database test |
 | `PartialAuthorization → BaselineUnchanged` | The regression case gives a later Partial-authorized transaction `full_tank_confirmed=1` and verifies it does not replace the newer Full-authorized source | Observed in database test |
-| `NoFullBaseline → PreviousEntryFallback` | `_select_mileage_baseline` captures the current Previous Entry as the selected fallback and the signal panel identifies it | Observed in integration test; visual Desk walkthrough pending |
+| `NoFullBaseline → PreviousEntryFallback` | `_select_mileage_baseline` captures the current Previous Entry as the selected fallback and the signal panel identifies it | Source-selection and explanation verified in integration tests; a target-only live form showed “No previous entry” when neither source existed |
 | `NoBaseline → NewCheckSkipped` | Skip only when both the Full-authorized baseline and existing Previous Entry are absent | Confirmed by unit and integration tests |
 | `ApprovedOrder → BaselineAndResultFrozen` | `test_signal_is_frozen_once_approved` asserts the captured transaction and Full order, calculation status, estimated consumption, and expected distance, then adds a newer source and checks approved JSON remains unchanged | Observed in database test |
 | `Generator → VehicleMileageChecksSkipped` | `test_full_tank_baseline_is_missing_without_vehicle_history_or_for_generator` confirms the vehicle-only lookup returns no generator baseline | Confirmed by unit and integration tests |
@@ -52,9 +52,11 @@ stateDiagram-v2
 
 ## Verification
 
-On 05/10/2026, 40 signal unit tests, 18 signal integration tests, and 28 Fuel Order lifecycle integration tests passed on fleet_management-test.localhost, confirmed as MariaDB, using the 009 worktree code. These cover the Full-authorized source, partial records, newer and cancelled transactions, fallback, no baseline, exact/beyond margin, old/new differences, generators, unavailable economy, invalid capacity/gauge and zero-use behavior, preview/save refresh, server authority, and approved freezing. Python compilation, JavaScript syntax, DocType JSON parsing, git diff --check, and spec-check also passed. Ruff was unavailable. No migration or test was run against the main site in this verification.
+The latest focused modules passed on `fleet_management-test.localhost`, confirmed as MariaDB, using the 009 worktree: **41 signal unit tests**, **19 signal integration tests**, and **28 Fuel Order lifecycle integration tests**. The combined six-module run passed **146 tests** with one existing concurrency proof skipped by its environment guard. Coverage includes Full-authorized source selection, partial records, newer and cancelled transactions, Previous Entry fallback, no baseline, exact/beyond margin, independent old/new results, generators, missing and unusable inputs, preview/save refresh, server authority, approval-time recomputation, and frozen approved results. The explanation refinements show the selected baseline source, reading, date/time, distance, estimate, economy source, margin, and next step without describing estimated current-order use as observed consumption.
 
-The role-based Desk walkthrough remains pending: the shared Desk server serves the separate `feature/008-overseer-reports` checkout, while the focused CLI test process imports this 009 worktree. Passwordless test login is supported by `e2e/sid.ts`; a fresh site rebuild remains unavailable because the required local credentials file is absent.
+The live Fleet User walkthrough showed both existing distance reasons on a vehicle preview. For KDA 412M it displayed Full-authorized fueling FT-2026-00007, baseline Odometer 52,024 km at 26/09/2026 10:55, 976 km travelled, 478.1 km expected, 48 L estimated fuel use, the recent weighted average source, and the 15% margin. The saved pending order FO-2026-00043 showed its captured full-tank baseline and server result as Red to the Fleet Approver. A generator switched to Hour Meter, hid gauge/economy controls, and showed only its existing open-order reason, with neither vehicle mileage check. The source and result are also covered by preview/save parity and approved-freeze database tests. The shared Desk server serving `feature/008-overseer-reports` was not used.
+
+Python compilation, JavaScript syntax, DocType JSON, `e2e/sid.ts` import, `git diff --check`, and spec-check passed. No full suite was run. The earlier orphan-cleanup failure and main-site recovery-bin changes remain documented; no functional/database tests or migrations ran against the main site during this verification.
 
 | # | Put the system in this state | Expect | Covers |
 |---|---|---|---|
@@ -72,9 +74,9 @@ The role-based Desk walkthrough remains pending: the shared Desk server serves t
 | 11 | Use a selected baseline with zero/missing tank capacity or an unusable current gauge | Add a red cannot-calculate reason; a gauge not entered yet stays in the current waiting state | `4.2` |
 | 12 | Use a 100% gauge so estimated consumption is zero | Add a red cannot-calculate reason | `4.2` |
 
-**How to run it.** All calculation and database rows are focused tests on the disposable MariaDB site. The visible source and result need a Fleet User Desk walkthrough on that site.
+**How to run it.** All calculation and database rows are focused tests on the disposable MariaDB site. The visible source and result were checked on the Fleet User form and a saved pending order.
 
-**Result:** The code selects the preferred source by linked Fuel Order Full authorization, captures the Previous Entry fallback when needed, and labels the selected source in the signal panel. A separate server calculation now uses the current order gauge, selected baseline, applicable average, and existing rounded margin comparator; unusable capacity/gauge/economy and zero estimated consumption produce a red cannot-calculate reason. The panel shows the selected baseline and successful calculation details. Focused assertions cover source priority, partial readings and litres, cancelled transactions, fallback, exact/beyond margin, differing old/new results, unusable inputs, preview refresh, server authority, and approved freezing. Disposable-site verification passed; the role-based Desk walkthrough has not run.
+**Result:** The code selects the preferred source by linked Fuel Order Full authorization, captures the Previous Entry fallback when needed, and labels the selected source in the signal panel. A separate server calculation now uses the current order gauge, selected baseline, applicable average, and existing rounded margin comparator; unusable capacity/gauge/economy and zero estimated consumption produce a red cannot-calculate reason. The Fleet User preview and Fleet Approver saved view both showed their server results. Focused assertions cover source priority, partial readings and litres, cancelled transactions, fallback, exact/beyond margin, differing old/new results, unusable inputs, preview refresh, server authority, and approved freezing.
 
 ## What we learned that the plan did not predict
 
@@ -82,7 +84,7 @@ The current Previous Entry lookup already excludes cancelled transactions and in
 
 ## Known limitations — accepted, not fixed
 
-- The role-based Desk walkthrough has not yet run against this worktree because the shared server serves another checkout.
+- No Phase 3 visual walkthrough remains pending; the exact trend comparison text was covered by a unit test because the live sample did not produce that reason.
 
 ## Review
 
@@ -91,4 +93,4 @@ The current Previous Entry lookup already excludes cancelled transactions and in
 
 **Closure:** Not reviewed.
 
-**Next:** Complete the role-based Desk walkthrough on a disposable test server serving this worktree. The calculation and database matrix are verified.
+**Next:** Independent review remains; the calculation and database matrix and requested vehicle/generator Desk walkthrough are complete.

@@ -152,7 +152,7 @@ class TestFuelOrderSignal(IntegrationTestCase):
 	def test_signal_preview_waits_for_required_readings_without_reusing_old_result(self):
 		waiting = preview_signal(
 			asset=self.asset.name,
-			request_meter_reading=None,
+			request_meter_reading="",
 			request_gauge_percent=80,
 			operational_location=self.location.name,
 			driver=self.driver.name,
@@ -165,13 +165,23 @@ class TestFuelOrderSignal(IntegrationTestCase):
 		gauge_waiting = preview_signal(
 			asset=self.asset.name,
 			request_meter_reading=1000,
-			request_gauge_percent=None,
+			request_gauge_percent="",
 			operational_location=self.location.name,
 			driver=self.driver.name,
 		)
 		self.assertEqual(gauge_waiting["status"], "waiting")
 		self.assertEqual(gauge_waiting["waiting_for"], ["Current Gauge (%)"])
 		self.assertEqual(gauge_waiting["reasons"], [])
+		partial_waiting = preview_signal(
+			asset=self.asset.name,
+			request_meter_reading=1000,
+			request_gauge_percent=40,
+			quantity_authorization="Partial",
+			authorized_quantity_litres="",
+			operational_location=self.location.name,
+			driver=self.driver.name,
+		)
+		self.assertEqual(partial_waiting["status"], "complete")
 
 		preview = preview_signal(
 			asset=self.asset.name,
@@ -202,6 +212,22 @@ class TestFuelOrderSignal(IntegrationTestCase):
 		self.assertEqual(preview["reasons"], saved["reasons"])
 		self.assertEqual(preview["signal_inputs"], saved["signal_inputs"])
 		self.assertEqual(preview["request_summary"], saved["request_summary"])
+
+	def test_browser_string_inputs_are_normalized_before_signal_calculation(self):
+		preview = preview_signal(
+			asset=self.asset.name,
+			request_meter_reading="1000",
+			request_gauge_percent="40",
+			quantity_authorization="Partial",
+			authorized_quantity_litres="",
+			operational_location=self.location.name,
+			driver=self.driver.name,
+		)
+
+		self.assertEqual(preview["status"], "complete")
+		self.assertEqual(preview["signal"], "Green")
+		self.assertEqual(preview["signal_inputs"]["current_reading"], 1000)
+		self.assertEqual(preview["signal_inputs"]["gauge_percent"], 40)
 
 	def test_client_signal_values_are_replaced_by_server_calculation(self):
 		order = self.make_order(
@@ -367,8 +393,15 @@ class TestFuelOrderSignal(IntegrationTestCase):
 		self.assertEqual(get_average_km_per_litre(intervals, 7.5), 10.0)
 		self.assertEqual(get_average_km_per_litre([], 7.5), 7.5)
 
+		self.asset.target_km_per_litre = 7.5
+		self.asset.save(ignore_permissions=True)
 		order = self.make_order().insert(ignore_permissions=True)
 		self.assertEqual(order.average_km_per_litre, 10.0)
+		summary = json.loads(order.signal_details_json)["request_summary"]
+		self.assertEqual(summary["vehicle_target_km_per_litre"], 7.5)
+		self.assertEqual(summary["recent_observed_average_km_per_litre"], 10.0)
+		self.assertEqual(summary["average_km_per_litre"], 10.0)
+		self.assertEqual(summary["applicable_fuel_economy_source"], "recent_average")
 
 	def test_latest_full_authorized_baseline_ignores_partial_and_cancelled_transactions(self):
 		first_time = now_datetime() - timedelta(days=3)

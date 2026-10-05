@@ -10,10 +10,12 @@
   - _Requirements: 1.4, 3.3_
 - [x] 1.3 Cover the entry form and partial-authorization cases with focused tests.
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 3.3_
-- [ ] 1.4 Walk through the entry form as a Fleet User at wide and narrow sizes, with a vehicle, a generator, a request photo, and both quantity choices.
+- [x] 1.4 Walk through the entry form as a Fleet User at wide and narrow sizes, with a vehicle, a generator, a request photo, and both quantity choices.
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8_
 - [x] 1.5 Refine the entry layout for three/two/one responsive columns, a read-only asset summary, and a dedicated quantity/approval area with the single flagged-reasons panel using existing fields.
   - _Requirements: 1.1, 1.2, 1.3, 1.5, 1.8_
+- [x] 1.6 Keep request date and time server-supplied, and refresh or clear asset-dependent readings, evidence, assignment suggestions, and station selection when Asset changes; test defaults, read-only snapshots, and allowed edits.
+  - _Requirements: 1.2, 1.6, 3.1_
 
 ## Phase 2: Signal panel
 
@@ -23,8 +25,10 @@
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 3.1, 3.2_
 - [x] 2.2 Add focused checks for incomplete previews, matching preview/save results, reason explanations, and server authority over client-supplied signal values.
   - _Requirements: 2.2, 2.3, 2.4, 2.5, 2.6, 3.1, 3.2, 3.3_
-- [ ] 2.3 Walk through green and red orders as the Fleet User and the sent-up order as a permitted Fleet Approver; record the observed panel behavior.
+- [x] 2.3 Walk through green and red orders as the Fleet User and the sent-up order as a permitted Fleet Approver; record the observed panel behavior.
   - _Requirements: 2.1, 2.2, 2.3, 2.6, 3.3_
+- [x] 2.4 Distinguish vehicle target fuel economy from a recent observed average, explain the own-trend direction and equivalent units, and make both distance-only explanations explicit about sources and estimates without changing their rules.
+  - _Requirements: 2.4, 2.5, 3.1, 3.2_
 
 ## Phase 3: Full-tank mileage check
 
@@ -36,7 +40,7 @@
   - _Requirements: 3.1, 3.2, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6_
 - [x] 3.3 Test no partial fueling, later partial fuelings, a newer Full-authorized fueling, fallback to Previous Entry when no Full baseline exists, no baseline at all, cancelled transactions, exact and beyond-margin values, and differing old/new results; prove the existing “Mileage does not add up” result and comparator remain unchanged; cover generators, unavailable economy, the answered invalid-input cases, and approved snapshot freezing.
   - _Requirements: 3.1, 3.2, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6_
-- [ ] 3.4 Walk through a red full-tank comparison and a generator order on the disposable test site; confirm the source and result shown to the person match the saved server result.
+- [x] 3.4 Walk through a red full-tank comparison and a generator order on the disposable test site; confirm the source and result shown to the person match the saved server result.
   - _Requirements: 2.1, 2.3, 2.4, 2.5, 3.1, 3.2, 4.1, 4.2, 4.5, 4.6_
 
 ## Phase 4: Issue and action history
@@ -68,3 +72,7 @@
 - 2026-10-05 — 1.5: regrouped the request fields, paired meter and evidence columns, kept approval notes to two columns, added the read-only responsive asset summary, and placed the signal/history sections before System Details. The focused `test_fuel_order` module passed 28/28 on the disposable MariaDB site after a test-site-only `reload-doc`. JSON, JavaScript syntax, Python compilation, spec-check, and diff checks pass; visual walkthrough remains pending because the shared Desk server serves 008.
 - 2026-10-05 — 4.1 and 4.3: signal history now records the first saved Red result, snapshots changed issue explanations and relevant readings or limits, deduplicates unchanged saves, records a linked resolution on a later Green save, and starts a new issue episode if Red returns. Decision events link to the issue snapshot they explain. The six focused MariaDB modules passed 144 tests with one existing concurrency test skipped by its environment guard. Desk walkthrough remains pending because the shared server serves feature/008 and the local test-site rebuild needs the missing 001 `CREDENTIALS.md`.
 - 2026-10-05 — Added explicit coverage for a changed gauge limit while the reading stays fixed; the Fuel Order history module passed again, 12/12, on the disposable MariaDB site.
+- 2026-10-05 — 1.6: removed the premature Request Date and Time default so the server sets it on first save and preserves it; asset changes now clear dependent readings/evidence/suggestions and ignore stale asynchronous fact responses. Metadata and server-facts tests passed in `test_fuel_order` (28/28), including required/editable participants, read-only snapshots, station suggestion only for one eligible station, and request-time persistence. Browser verification remains pending.
+- 2026-10-05 — 2.4: separated vehicle target, observed recent average, and applicable economy source in the summary; added directional trend wording with km/L and equivalent units, and clarified baseline/date/estimate details for both distance checks. Unit and integration coverage passed, including 10 versus 5 km/L at 15%, target fallback, no false observed wording, and unchanged legacy mileage boundaries.
+- 2026-10-05 — Final focused rerun on the disposable MariaDB test site: 145 passed and one existing concurrency test skipped by its environment guard across the six phase modules. Static checks pass. Wide/medium/phone Desk walkthroughs for Fleet User and Fleet Approver remain pending because the isolated browser could not start Chrome; no form screenshots or visual behavior are claimed.
+- 2026-10-05 — Visual walkthrough on the isolated 009 checkout completed Phases 1–3 at 1440, 900, and 390 px: checked the three/two/one-column layout, editable participant fields, asset-driven driver/location refresh, no-previous-entry display, target fallback, Partial visibility/reason, vehicle/generator controls, native meter/gauge photo preview, server waiting/Red/Green panels, and the full-tank comparison. Fleet Approver reviewed a saved pending Red order read-only. The preview exposed that Desk sends numeric fields as strings; server normalization and a 19th signal integration regression test fix it. An existing order predating event capture showed an empty history panel, so task 4.4 remains pending. Latest six focused modules: 146 passed, one existing concurrency test skipped by its environment guard.

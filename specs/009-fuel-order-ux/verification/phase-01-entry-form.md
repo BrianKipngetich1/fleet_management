@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Specification | [`../requirements.md`](../requirements.md) @ working tree |
-| Status | Built; automated checks pass; Desk walkthrough pending a server serving this worktree |
+| Status | Built and database-verified; Fleet User walkthrough completed at wide, medium, and phone widths |
 | Started / Closed | 2026-10-02 / — |
 | Author | Codex |
 | Reviewed by | — |
@@ -36,11 +36,11 @@ stateDiagram-v2
 | Specification edge | Observed | Verdict |
 |---|---|---|
 | Four named primary sections appear in the required order | `test_entry_form_groups_and_conditions_review_fields` checks the DocType metadata | Verified by automated test |
-| Asset, Driver, Actual Requester share the first row; wide/medium/narrow layouts use three/two/one columns | DocType column breaks and scoped CSS provide the breakpoints | Static layout review passes; visible alignment awaits Desk walkthrough |
-| Vehicle assignment, Previous Entry, and supported estimates appear in a read-only summary | The summary reads the existing server-filled read-only fields and escapes displayed values | Code and static checks pass; visible rendering awaits Desk walkthrough |
-| Vehicle and generator meter labels differ; gauge is vehicle-only | Form script sets the label from the server-supplied asset type; gauge and gauge photo use vehicle dependencies | Metadata and code checked; visible behavior awaits Desk walkthrough |
+| Asset, Driver, Actual Requester share the first row; wide/medium/narrow layouts use three/two/one columns | DocType column breaks and scoped CSS provide the breakpoints | Observed at 1440 px (three columns), 900 px (two columns), and 390 px (one column); phone `scrollWidth` and `clientWidth` both measured 390 px |
+| Vehicle assignment, Previous Entry, and supported estimates appear in a read-only summary | The summary reads the existing server-filled read-only fields and escapes displayed values | Observed summary updated on Asset change; absent history showed “No previous entry” and “Not available,” not 0 km |
+| Vehicle and generator meter labels differ; gauge is vehicle-only | Form script sets the label from the server-supplied asset type; gauge and gauge photo use vehicle dependencies | Observed Odometer and vehicle gauge/photo fields for vehicles; Hour Meter and no gauge/economy fields for the generator |
 | Full hides Partial controls; Partial shows them and requires a reason before leaving Draft | Conditional DocField metadata and `test_partial_authorization_requires_reason_before_leaving_draft` | Verified by automated test |
-| Request photo uses Frappe's native preview | The installed Attach Image control implements its existing hover preview; the order field remains Attach Image | Native control confirmed; visible interaction awaits Desk walkthrough |
+| Request photo uses Frappe's native preview | The installed Attach Image control implements its existing hover preview; the order field remains Attach Image | Opened existing meter and gauge attachments from the form; each rendered as an image in a separate tab |
 | System details are outside the primary sections and collapsible | DocType metadata check confirms the extra collapsible System Details section follows the four entry sections | Verified by automated test |
 
 ## Frappe-first / native-first
@@ -56,13 +56,13 @@ stateDiagram-v2
 
 ## Verification
 
-On 05/10/2026, `fleet_management.fleet_management.doctype.fuel_order.test_fuel_order` passed **28/28 integration tests** on the disposable `fleet_management-test.localhost` MariaDB site. The run includes metadata assertions for the four primary sections, paired meter/evidence fields, a vehicle-only gauge column, quantity and approval grouping, signal placement, and collapsible history before System Details, along with the existing request, permission, evidence, approval, extension, and slip behavior. The test site received a focused `reload-doc fleet_management doctype fuel_order` from this worktree before the run.
+On 05/10/2026, `test_fuel_order` passed **28/28 integration tests** on the disposable `fleet_management-test.localhost` MariaDB site using this 009 worktree. Coverage includes section and field order, read-only system snapshots, editable required participants, no requester/representative/request-time defaults, server-set request time preserved on later save, editable meter and evidence fields, Partial visibility and reason requirements, effective assignment facts, and suggesting a station only when exactly one eligible station exists. The site received a focused `reload-doc fleet_management doctype fuel_order` before the run.
 
-The requested visual walkthrough could not be completed. The test site redirects to its sign-in page, and the required local `specs/001-fleet-fuel-management/verification/CREDENTIALS.md` is missing from both worktrees. No test account or password was invented, and no new sample user was added. The site rebuild helper also requires that missing file. A full migration on the disposable site exited with `Module None not found` during Frappe's orphan cleanup. A focused `reload-doc fleet_management doctype fuel_order` then synced the intended 009 form fields from this worktree; the tests below ran against that metadata. A migration of the local main site reached the same orphan cleanup error; no tests ran there. It placed `Fueling Summary` and `Asset Performance` in Frappe's recovery bin, and their restoration is pending the requester. The missing cleanup condition was not repaired.
+Python compilation, JavaScript syntax, DocType JSON parsing, `e2e/sid.ts` import, `git diff --check`, and spec-check passed. The spec checker retains filename-based coverage warnings for requirements covered from existing test modules. No full suite was run.
 
-For the 05/10/2026 UI refinement, DocType JSON validation, JavaScript syntax, Python hook/test-file compilation, `git diff --check`, and `spec-check` passed. The spec checker reports filename-based test-coverage warnings for existing requirements and properties. The focused integration run and metadata reload targeted only the disposable test site; no tests or migration ran on the main site. The shared Desk server serves the separate `feature/008-overseer-reports` checkout rather than this 009 worktree, so it cannot show these edits.
+The Fleet User walkthrough used a non-debug Gunicorn server bound only to `127.0.0.1:18001`, with the 009 worktree and disposable MariaDB test site. On a new order, Actual Requester and Company Representative stayed blank and editable, Driver and Operational Location received the asset's usual suggestions, Custodian stayed read-only, and Planned Station stayed blank where multiple eligible stations existed. Changing from KDA to KDJ replaced John Mwangi with Samuel Kiprono and cleared the odometer, gauge, and photos. Full hid Partial Litres and its reason; Partial displayed both after Quantity Authorization and those controls remained visible across the asset change. The existing native Meter Photo and Gauge Photo links opened real image previews from copied test fixtures in the temporary shadow site; no order was saved or changed. The responsive screenshots showed the required 3/2/1 columns. The saved sample form displayed its server-set Request Date and Time read-only. The summary now masks Frappe's zero numeric default when `previous_entry_source` is `none`.
 
-Update 05/10/2026: `e2e/sid.ts` provides passwordless test login, so the login inventory is not the remaining blocker. The shared Desk server is attached to the separate `feature/008-overseer-reports` checkout and cannot verify this 009 worktree. The absent credential inventory still prevents a fresh disposable-site rebuild.
+An earlier full migration attempt ended during Frappe orphan cleanup (`Module None not found`) and a prior main-site migration placed Fueling Summary and Asset Performance in Frappe's recovery bin. Neither was restored or changed in this task. No functional/database tests or migrations ran against the main site during this verification.
 
 ## What we learned that the plan did not predict
 
@@ -70,7 +70,7 @@ This Frappe version supports collapsible sections and remembers a user's collaps
 
 ## Known limitations — accepted, not fixed
 
-- The three/two/one column breakpoints, summary-card rendering, meter-label changes, and image hover preview remain visually unverified. Passwordless test login is available through `e2e/sid.ts`, but the shared Desk server serves the separate `feature/008-overseer-reports` checkout rather than this 009 worktree. The missing credential inventory still prevents a fresh disposable-site rebuild.
+- The collapsible System Details section was present after the four primary sections; its review data remain available outside the entry path.
 
 ## Review
 
@@ -79,4 +79,4 @@ This Frappe version supports collapsible sections and remembers a user's collaps
 
 **Closure:** Not reviewed.
 
-**Next:** Complete the Fleet User Desk walkthrough against a test server serving this 009 worktree at wide, medium, and phone widths. The earlier Phase 1 automated checks passed; this visual refinement still needs a Desk walkthrough.
+**Next:** Independent review remains; no further Phase 1 walkthrough is pending.

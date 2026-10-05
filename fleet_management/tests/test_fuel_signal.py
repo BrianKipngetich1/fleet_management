@@ -85,11 +85,18 @@ class TestFuelSignal(UnitTestCase):
 		)
 
 		self.assertIn("Baseline used: Full-authorized fueling (FT-1)", reason["details"])
-		self.assertIn("Distance since selected baseline: 350 km", reason["details"])
+		self.assertIn("Baseline Odometer: 1000 km", reason["details"])
+		self.assertIn("Current Odometer: 1350 km", reason["details"])
+		self.assertIn("Baseline date and time: 2026-10-01 10:00:00", reason["details"])
+		self.assertIn("Odometer distance travelled since selected baseline: 350 km", reason["details"])
 		self.assertIn("Estimated fuel used: 30 L", reason["details"])
 		self.assertIn("Expected distance: 300.0 km", reason["details"])
 		self.assertIn(
-			"Observed full-to-full average: 10 km/L (0.100 L/km; 10.0 L/100 km)",
+			"Recent observed full-to-full average: 10 km/L (0.100 L/km; 10.0 L/100 km)",
+			reason["details"],
+		)
+		self.assertIn(
+			"Applicable fuel economy used by this check: 10 km/L (recent weighted average)",
 			reason["details"],
 		)
 		self.assertIn("Allowed mileage margin: 15%", reason["details"])
@@ -173,12 +180,13 @@ class TestFuelSignal(UnitTestCase):
 		self.assertEqual(
 			result["reasons"][0]["details"],
 			[
-				"Previous Entry: 1000 km",
-				"Current odometer: 1346 km",
-				"Distance since Previous Entry: 346 km",
+				"Previous Entry Odometer: 1000 km",
+				"Current Odometer: 1346 km",
+				"Odometer distance travelled since Previous Entry: 346 km",
 				"Fuel estimate from current gauge: 30 L estimated to fill",
 				"Expected distance: 300 km",
-				"Observed full-to-full average: 10 km/L (0.100 L/km; 10.0 L/100 km)",
+				"Recent observed full-to-full average: 10 km/L (0.100 L/km; 10.0 L/100 km)",
+				"Applicable fuel economy used by this check: 10 km/L (recent weighted average)",
 				"Allowed mileage margin: 15%",
 			],
 		)
@@ -196,8 +204,10 @@ class TestFuelSignal(UnitTestCase):
 		)
 		details = " ".join(result["reasons"][0]["details"])
 		self.assertIn("vehicle target", details)
-		self.assertNotIn("Observed full-to-full", details)
+		self.assertIn("Applicable fuel economy used by this check: 10 km/L (vehicle target)", details)
+		self.assertNotIn("Recent observed full-to-full", details)
 		self.assertNotIn("L/100 km", details)
+		self.assertNotIn("observed interval", details.lower())
 
 	def test_waiting_preview_names_vehicle_and_generator_readings(self):
 		self.assertEqual(
@@ -313,6 +323,27 @@ class TestFuelSignal(UnitTestCase):
 		reasons = evaluate_signal(self._vehicle(last_interval_km_per_litre=11.6))
 		self.assertEqual(len(reasons), 1)
 		self.assertTrue(reasons[0].startswith("Mileage off its own trend"))
+
+	def test_trend_explains_observed_interval_direction_units_and_limit(self):
+		result = evaluate_signal_result(
+			self._vehicle(last_interval_km_per_litre=5, average_km_per_litre=10),
+			{"mileage_margin_percent": 15},
+		)
+		trend = result["reasons"][0]
+		self.assertEqual(
+			trend["text"],
+			"Mileage off its own trend: Recent reference: 10 km/L (0.100 L/km; 10.0 L/100 km). "
+			"Latest observed full-to-full interval: 5 km/L (0.200 L/km; 20.0 L/100 km). "
+			"The observed interval is 50% below the reference; the allowed difference is 15%.",
+		)
+		self.assertIn("weighted across 3 completed full-to-full intervals", trend["details"][0])
+		self.assertIn("completed fueling records", trend["next_action"])
+
+		above = evaluate_signal_result(
+			self._vehicle(last_interval_km_per_litre=15, average_km_per_litre=10),
+			{"mileage_margin_percent": 15},
+		)["reasons"][0]["text"]
+		self.assertIn("The observed interval is 50% above the reference", above)
 
 	def test_trend_too_few_intervals_skips(self):
 		reasons = evaluate_signal(self._vehicle(last_interval_km_per_litre=11.6, interval_count=1))

@@ -62,6 +62,7 @@ function render_vehicle_summary(frm) {
 	}
 
 	const vehicle = frm.doc.asset_type === "Vehicle";
+	const requestSummary = frm._fuel_order_request_summary || {};
 	const meter_unit = vehicle ? "km" : frm.doc.asset_type === "Generator" ? "h" : "";
 	const vehicle_rows = [
 		[__("Asset"), frm.doc.asset],
@@ -72,7 +73,7 @@ function render_vehicle_summary(frm) {
 	if (vehicle) {
 		vehicle_rows.push(
 			[__("Tank size"), frm.doc.asset_tank_capacity_snapshot, "L"],
-			[__("Target economy"), frm.doc.asset_target_km_per_litre_snapshot, "km/L"]
+			[__("Vehicle target fuel economy"), frm.doc.asset_target_km_per_litre_snapshot, "km/L"]
 		);
 	}
 
@@ -81,19 +82,45 @@ function render_vehicle_summary(frm) {
 		[__("Assigned custodian"), frm.doc.custodian],
 		[__("Home location"), frm.doc.assigned_location_snapshot],
 	];
-	const previous_date = frm.doc.previous_entry_date
+	const noPreviousEntry = frm.doc.previous_entry_source === "none";
+	const previous_date = !noPreviousEntry && frm.doc.previous_entry_date
 		? frappe.datetime.str_to_user(frm.doc.previous_entry_date)
 		: null;
 	const history_rows = [
-		[__("Previous entry"), frm.doc.previous_entry_source || __("None recorded")],
-		[__("Previous reading"), frm.doc.previous_meter_reading, meter_unit],
+		[
+			__("Previous entry"),
+			noPreviousEntry
+				? __("No previous entry")
+				: frm.doc.previous_entry_source || __("Not recorded"),
+		],
+		[
+			vehicle ? __("Previous Odometer") : __("Previous Hour Meter"),
+			noPreviousEntry ? null : frm.doc.previous_meter_reading,
+			meter_unit,
+		],
 		[__("Recorded on"), previous_date],
 	];
 	if (vehicle) {
-		history_rows.push(
-			[__("Estimated litres to fill"), frm.doc.estimated_litres, "L"],
-			[__("Recent average"), frm.doc.average_km_per_litre, "km/L"]
-		);
+		history_rows.push([__("Estimated litres to fill"), frm.doc.estimated_litres, "L"]);
+		if (requestSummary.recent_observed_average_km_per_litre != null) {
+			history_rows.push([
+				__("Recent observed full-to-full average"),
+				requestSummary.recent_observed_average_km_per_litre,
+				"km/L",
+			]);
+		}
+		const economySource = requestSummary.applicable_fuel_economy_source;
+		const sourceLabel =
+			economySource === "recent_average"
+				? __("recent weighted average")
+				: economySource === "vehicle_target"
+					? __("vehicle target")
+					: __("source not recorded");
+		history_rows.push([
+			`${__("Applicable fuel economy")} (${sourceLabel})`,
+			requestSummary.average_km_per_litre ?? frm.doc.average_km_per_litre,
+			"km/L",
+		]);
 	}
 
 	const cards = [
@@ -279,11 +306,12 @@ function render_signal_panel(frm, result) {
 		? `<strong>${__("Red signal — review needed")}</strong>`
 		: `<strong>${__("Green signal — every check passed")}</strong>`;
 	const baseline = result.signal_inputs && result.signal_inputs.mileage_baseline;
+	const baselineTime = baseline && baseline.timestamp ? frappe.datetime.str_to_user(baseline.timestamp) : "";
 	const baselineDetails = baseline
 		? [
 				`${escape_panel_text(baseline.label)} — ${escape_panel_text(baseline.reference)}`,
-				`${__("Odometer:")} ${escape_panel_text(baseline.vehicle_odometer)} km`,
-				baseline.timestamp ? escape_panel_text(baseline.timestamp) : "",
+				`${__("Baseline Odometer:")} ${escape_panel_text(baseline.vehicle_odometer)} km`,
+				baselineTime ? `${__("Baseline date and time:")} ${escape_panel_text(baselineTime)}` : "",
 				baseline.fuel_order ? `${__("Fuel Order:")} ${escape_panel_text(baseline.fuel_order)}` : "",
 			]
 				.filter(Boolean)
@@ -302,16 +330,15 @@ function render_signal_panel(frm, result) {
 			const equivalents = [
 				`${(1 / average).toFixed(3)} L/km`,
 				`${(100 / average).toFixed(1)} L/100 km`,
-				__("observed full-to-full average"),
 			].join("; ");
-			economy = `${escape_panel_text(average)} km/L (${equivalents})`;
+			economy = `${escape_panel_text(average)} km/L (${__("recent weighted average")}; ${__("observed full-to-full equivalents")}: ${equivalents})`;
 		}
 		const comparison = [
-			`${escape_panel_text(mileageCheck.distance_km)} km ${__("travelled")}`,
-			`${escape_panel_text(Number(mileageCheck.expected_distance_km).toFixed(1))} km ${__("expected")}`,
-			`${escape_panel_text(mileageCheck.estimated_consumed_litres)} L ${__("estimated use")}`,
-			`${__("at")} ${economy}`,
-			`${__("within the allowed margin of")} ±${escape_panel_text(mileageCheck.margin_percent)}%`,
+			`${__("Odometer distance travelled:")} ${escape_panel_text(mileageCheck.distance_km)} km`,
+			`${__("Expected distance:")} ${escape_panel_text(Number(mileageCheck.expected_distance_km).toFixed(1))} km`,
+			`${__("Estimated fuel used:")} ${escape_panel_text(mileageCheck.estimated_consumed_litres)} L`,
+			`${__("Applicable fuel economy:")} ${economy}`,
+			`${__("Allowed mileage margin:")} ±${escape_panel_text(mileageCheck.margin_percent)}%`,
 		].join("; ");
 		mileageSummary = `<p><strong>${__("Mileage comparison:")}</strong> ${comparison}.</p>`;
 	}
@@ -364,6 +391,7 @@ function show_saved_signal_panel(frm) {
 function update_request_summary(frm, result) {
 	const summary = result && result.request_summary;
 	if (!summary) return;
+	frm._fuel_order_request_summary = summary;
 	frm.set_value({
 		estimated_litres: summary.estimated_litres ?? null,
 		average_km_per_litre: summary.average_km_per_litre ?? null,
@@ -417,9 +445,42 @@ function queue_signal_preview(frm) {
 	}, 200);
 }
 
+async function clear_asset_specific_values(frm) {
+	frm._fuel_order_request_summary = null;
+	await frm.set_value({
+		asset_type: null,
+		vehicle_model: null,
+		fuel_type: null,
+		custodian: null,
+		assigned_location_snapshot: null,
+		asset_tank_capacity_snapshot: null,
+		asset_target_km_per_litre_snapshot: null,
+		previous_entry_source: null,
+		previous_meter_reading: null,
+		previous_entry_date: null,
+		estimated_litres: null,
+		average_km_per_litre: null,
+		request_meter_reading: null,
+		request_gauge_percent: null,
+		meter_photo: null,
+		gauge_photo: null,
+		driver: null,
+		operational_location: null,
+		planned_station: null,
+	});
+	render_vehicle_summary(frm);
+	set_meter_label(frm);
+}
+
+function queue_asset_specific_clear(frm) {
+	const previous = frm._fuel_order_asset_clear || Promise.resolve();
+	const current = previous.catch(() => {}).then(() => clear_asset_specific_values(frm));
+	frm._fuel_order_asset_clear = current;
+	return current;
+}
+
 frappe.ui.form.on("Fuel Order", {
 	setup(frm) {
-		frm._selected_asset_for_form = frm.doc.asset;
 		frm.set_query("operational_location", () => {
 			const permissions = frappe.defaults.get_user_permissions()["Fleet Location"] || [];
 			const locations = permissions.map((permission) => permission.doc).filter(Boolean);
@@ -438,48 +499,28 @@ frappe.ui.form.on("Fuel Order", {
 		queue_signal_preview(frm);
 	},
 	async asset(frm) {
-		const assetChanged =
-			frm._selected_asset_for_form && frm._selected_asset_for_form !== frm.doc.asset;
-		frm._selected_asset_for_form = frm.doc.asset;
+		const requestId = (frm._fuel_order_asset_request_id || 0) + 1;
+		frm._fuel_order_asset_request_id = requestId;
 		if (!frm.doc.asset) {
-			await frm.set_value({
-				asset_type: null,
-				vehicle_model: null,
-				fuel_type: null,
-				custodian: null,
-				assigned_location_snapshot: null,
-				asset_tank_capacity_snapshot: null,
-				asset_target_km_per_litre_snapshot: null,
-				previous_entry_source: null,
-				previous_meter_reading: null,
-				previous_entry_date: null,
-				estimated_litres: null,
-				average_km_per_litre: null,
-				meter_photo: null,
-				gauge_photo: null,
-				request_gauge_percent: null,
-			});
-			render_vehicle_summary(frm);
-			set_meter_label(frm);
+			await queue_asset_specific_clear(frm);
+			if (requestId !== frm._fuel_order_asset_request_id) return;
 			queue_signal_preview(frm);
 			return;
 		}
-		if (assetChanged) {
-			await frm.set_value({
-				meter_photo: null,
-				gauge_photo: null,
-				request_gauge_percent: null,
-				estimated_litres: null,
-				average_km_per_litre: null,
-			});
-		}
+		await queue_asset_specific_clear(frm);
+		if (requestId !== frm._fuel_order_asset_request_id || !frm.doc.asset) return;
 		const selectedAsset = frm.doc.asset;
 		try {
 			const { message: facts } = await frappe.call({
 				method: "fleet_management.fleet_management.doctype.fuel_order.fuel_order.get_request_facts",
 				args: { asset: selectedAsset },
 			});
-			if (!facts || frm.doc.asset !== selectedAsset) return;
+			if (
+				!facts ||
+				requestId !== frm._fuel_order_asset_request_id ||
+				frm.doc.asset !== selectedAsset
+			)
+				return;
 			// The server fills review facts; it recomputes them again on save and preview.
 			await frm.set_value({
 				asset_type: facts.asset_type,
@@ -493,20 +534,26 @@ frappe.ui.form.on("Fuel Order", {
 				previous_meter_reading: facts.previous_meter_reading,
 				previous_entry_date: facts.previous_entry_date,
 			});
+			if (requestId !== frm._fuel_order_asset_request_id || frm.doc.asset !== selectedAsset) return;
 			if (facts.primary_driver) await frm.set_value("driver", facts.primary_driver);
+			if (requestId !== frm._fuel_order_asset_request_id || frm.doc.asset !== selectedAsset) return;
 			if (facts.assigned_location_snapshot) {
 				await frm.set_value("operational_location", facts.assigned_location_snapshot);
 			}
+			if (requestId !== frm._fuel_order_asset_request_id || frm.doc.asset !== selectedAsset) return;
 			if (facts.suggested_station) {
 				await frm.set_value("planned_station", facts.suggested_station);
 			}
+			if (requestId !== frm._fuel_order_asset_request_id || frm.doc.asset !== selectedAsset) return;
 			if (facts.asset_type === "Generator") {
 				await frm.set_value({ request_gauge_percent: null, gauge_photo: null, estimated_litres: null });
 			}
+			if (requestId !== frm._fuel_order_asset_request_id || frm.doc.asset !== selectedAsset) return;
 			render_vehicle_summary(frm);
 			set_meter_label(frm);
 			queue_signal_preview(frm);
 		} catch (error) {
+			if (requestId !== frm._fuel_order_asset_request_id || frm.doc.asset !== selectedAsset) return;
 			render_signal_panel(frm, {
 				status: "unavailable",
 				message: error.message || __("The asset summary could not be loaded."),
@@ -552,6 +599,26 @@ frappe.ui.form.on("Fuel Order", {
 	},
 	refresh(frm) {
 		apply_fuel_order_layout(frm);
+		frm._fuel_order_request_summary = null;
+		if (frm.doc.signal_details_json) {
+			try {
+				const savedSignal = JSON.parse(frm.doc.signal_details_json);
+				const savedSummary = savedSignal.request_summary || null;
+				if (savedSummary) {
+					savedSummary.applicable_fuel_economy_source =
+						savedSummary.applicable_fuel_economy_source || savedSignal.signal_inputs?.average_source;
+					if (
+						savedSummary.recent_observed_average_km_per_litre == null &&
+						savedSummary.applicable_fuel_economy_source === "recent_average"
+					) {
+						savedSummary.recent_observed_average_km_per_litre = savedSummary.average_km_per_litre;
+					}
+				}
+				frm._fuel_order_request_summary = savedSummary;
+			} catch (error) {
+				// A summary from an older saved snapshot is not required to render the form.
+			}
+		}
 		render_vehicle_summary(frm);
 		set_meter_label(frm);
 		show_saved_signal_panel(frm);

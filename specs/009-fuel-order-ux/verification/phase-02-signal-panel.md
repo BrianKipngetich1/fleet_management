@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Specification | [`../requirements.md`](../requirements.md) @ working tree |
-| Status | Built; automated checks pass; Desk walkthrough pending a server serving this worktree |
+| Status | Built, database-verified, and visually walked through as Fleet User and Fleet Approver |
 | Started / Closed | 2026-10-02 / — |
 | Author | Codex |
 | Reviewed by | — |
@@ -35,12 +35,12 @@ stateDiagram-v2
 | Specification edge | Observed | Verdict |
 |---|---|---|
 | Missing reading replaces older signal with a named waiting state | `test_signal_preview_waits_for_required_readings_without_reusing_old_result` and `test_waiting_preview_names_vehicle_and_generator_readings` | Verified by integration and unit tests |
-| Changed readings call the server preview | `preview_signal` accepts entry facts, recomputes authoritative assignment and history facts, and calls `_calculate_signal_result`; client event handlers only request and render | Server method verified; browser event timing awaits Desk walkthrough |
+| Changed readings call the server preview | `preview_signal` accepts entry facts, recomputes authoritative assignment and history facts, and calls `_calculate_signal_result`; client event handlers only request and render | Observed waiting state replaced by the current Red result after readings changed. Desk's string-encoded numeric inputs exposed a TypeError; inputs are now normalized and a browser-shaped regression test passes. |
 | Preview and save use the same result | `test_preview_and_save_use_the_same_server_signal_calculation` compares signal, reasons, captured inputs, and summary | Verified by integration test |
 | Reason gives comparison, threshold, source, and next step | `test_signal_explanation_names_distance_estimate_economy_margin_and_action` and target-source test | Verified by unit tests |
 | Green, red, and sent-up order actions are explained | Signal builder uses workflow state; sent-up integration test checks Fleet Approver action and written reason | Verified by integration tests |
 | Client cannot set the saved result; approval uses current limits | Client override test and approval-after-limit-change test | Verified by integration tests |
-| One panel appears after the final signal-affecting input in Quantity, Approval and Audit | DocType field order places the HTML panel after the conditional quantity fields and before the approval record; the old form introduction was removed | Source and static checks reviewed; visual placement awaits Desk walkthrough |
+| One panel appears after the final signal-affecting input in Quantity, Approval and Audit | DocType field order places the HTML panel after the conditional quantity fields and before the approval record; the old form introduction was removed | Observed as one panel after Partial Litres and its reason. Saved Green as Fleet User and saved Red as Fleet Approver both showed the respective server result; approver fields were read-only. |
 
 ## Frappe-first / native-first
 
@@ -55,20 +55,11 @@ stateDiagram-v2
 
 ## Verification
 
-On the disposable `fleet_management-test.localhost` MariaDB site:
+The latest focused modules passed on the disposable `fleet_management-test.localhost` MariaDB site: `test_fuel_order_signal` **19/19 integration tests**, `test_fuel_signal` **41/41 unit tests**, and `test_fuel_order` **28/28 integration tests**. They cover the waiting state, Desk-style string input, preview/save parity, server authority, approval-time recomputation and frozen results, target fallback versus an actual recent average, the 10 km/L reference versus a 5 km/L observed interval at a 15% margin with equivalent units and direction, and the existing distance-check exact/beyond-margin behavior. Neither distance-only comparison describes estimated current-order use as observed economy.
 
-- `fleet_management.fleet_management.doctype.fuel_order.test_fuel_order_signal`: **16/16 integration tests pass**, including two Phase 3 baseline lookup/freeze tests.
-- `fleet_management.tests.test_fuel_signal`: **34/34 unit tests pass**. Existing exact-margin, beyond-margin, no-forward-movement, missing-history, and old distance-check cases still pass.
-- `fleet_management.fleet_management.doctype.fuel_order.test_fuel_order`: **28/28 integration tests pass** after the Phase 1 and signal-field layout changes.
-- `node --check fleet_management/public/js/fuel_order.js`, JSON validation, Python compilation, and `python3 scripts/spec-check.py specs/009-fuel-order-ux` pass. The spec checker reports test-name coverage warnings for the still-unbuilt UI walkthrough, full-tank phase, and history phase. Ruff and Prettier were unavailable in the environment.
+The live walkthrough showed the empty-reading waiting state, then a Red result after Odometer and gauge entry; changing Asset cleared the prior result and readings and returned to the waiting state. Partial Litres and its distinct reason appeared before the single panel. An approved Green order was read as Fleet User, and a pending Red order with its sign-off explanation was read as Fleet Approver; the approver form was not editable. A target-only asset showed “Applicable fuel economy (vehicle target)” and no recent observed average. The 10 vs. 5 km/L exact trend wording and equivalent units are covered by the unit test; the live sample did not contain a trend reason to display. The shared Desk server serving `feature/008-overseer-reports` was not used.
 
-The Desk walkthrough remains blocked by the missing local `specs/001-fleet-fuel-management/verification/CREDENTIALS.md`. The isolated browser reached the test site's sign-in page; no login or extra test account was created. A fresh disposable-site rebuild also remains unavailable for the same missing file. A full migration on the disposable site exited with `Module None not found` during Frappe's orphan cleanup. A focused `reload-doc fleet_management doctype fuel_order` then synced the intended 009 signal fields from this worktree; the tests below ran against that metadata. A migration of the local main site reached the same orphan cleanup error; no tests ran there. It placed `Fueling Summary` and `Asset Performance` in Frappe's recovery bin, and their restoration is pending the requester. The missing cleanup condition was not repaired.
-
-On 05/10/2026, the installed app source was confirmed as the separate `feature/008-overseer-reports` checkout while the focused CLI test process imports this 009 worktree. `e2e/sid.ts` provides passwordless test login, but the shared Desk server therefore cannot verify this worktree's form or signal panel. A fresh site rebuild remains unavailable because the required local credentials file is absent.
-
-Update 05/10/2026: `e2e/sid.ts` provides passwordless test login, so the login inventory is not the remaining blocker. The shared Desk server is attached to the separate `feature/008-overseer-reports` checkout and cannot verify this 009 worktree. The absent credential inventory still prevents a fresh disposable-site rebuild.
-
-Update 05/10/2026: the single signal/flagged-reasons panel follows the conditional quantity authorization fields in the Quantity, Approval and Audit area. The updated field-order assertion passed in the 28-test Fuel Order integration module on the disposable MariaDB site after a focused DocType reload. No migration or test ran on the main site.
+Python compilation, JavaScript syntax, DocType JSON, `e2e/sid.ts` import, `git diff --check`, and spec-check passed. No full suite was run. The earlier orphan-cleanup failure and main-site recovery-bin changes remain documented; no functional/database tests or migrations ran against the main site during this verification.
 
 ## What we learned that the plan did not predict
 
@@ -76,7 +67,7 @@ The installed Frappe form handles the HTML field directly. `signal_reasons` need
 
 ## Known limitations — accepted, not fixed
 
-- The live Desk panel placement, refresh latency, role-specific text, and narrow-screen layout have not been visually exercised against this worktree because the shared server serves another checkout.
+- The live sample did not include an own-trend reason, so that exact explanation was verified by unit test rather than observed in a saved order.
 
 ## Review
 
@@ -85,4 +76,4 @@ The installed Frappe form handles the HTML field directly. `signal_reasons` need
 
 **Closure:** Not reviewed.
 
-**Next:** Complete the Fleet User and Fleet Approver Desk walkthrough against a test server serving this worktree. Phase 3's calculation and database matrix are now verified.
+**Next:** Independent review remains; no Phase 2 role or responsive walkthrough is pending.

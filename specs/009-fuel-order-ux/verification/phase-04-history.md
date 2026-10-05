@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Specification | [`../requirements.md`](../requirements.md) @ working tree |
-| Status | Issue and action history built and database-verified; Desk walkthrough pending |
+| Status | Issue and action history built and database-verified; event rendering walkthrough remains pending because the existing visual fixture predates event capture |
 | Started / Closed | 2026-10-05 / — |
 | Author | Codex |
 | Reviewed by | — |
@@ -61,20 +61,11 @@ stateDiagram-v2
 
 ## Verification
 
-On 05/10/2026, these focused modules passed on `fleet_management-test.localhost`, confirmed as MariaDB:
+The latest six focused modules passed on `fleet_management-test.localhost`, confirmed as MariaDB: **146 passed and one existing concurrency test skipped by its environment guard**. This includes 12 decision-history integration tests; 2 transaction unit and 31 integration tests (30 passed, one expected skip); 6 permission unit and 8 integration tests; 28 Fuel Order integration tests; 19 signal integration tests; and 41 signal unit tests. Coverage includes first issue appearance, evidence capture, identical-save deduplication, changed readings and limits, resolution and a new issue episode, decision links, immutable events, cancellations, extensions, every print/reprint, actual fueling source and evidence, linked-order permission checks, preview/save parity, approval recalculation, and frozen approved results.
 
-- `fleet_management.fleet_management.doctype.fuel_order.test_fuel_order_decisions`: 12 integration tests.
-- `fleet_management.fleet_management.doctype.fueling_transaction.test_fueling_transaction`: 2 unit and 31 integration tests; one existing concurrency proof was skipped by its environment guard.
-- `fleet_management.tests.test_permissions`: 6 unit and 8 integration tests.
-- `fleet_management.fleet_management.doctype.fuel_order.test_fuel_order`: 28 integration tests.
-- `fleet_management.fleet_management.doctype.fuel_order.test_fuel_order_signal`: 18 integration tests.
-- `fleet_management.tests.test_fuel_signal`: 40 unit tests, including proof that the old mileage check remains unchanged.
+Python compilation, JavaScript syntax, DocType JSON, `e2e/sid.ts` import, `git diff --check`, and spec-check passed. The spec checker reports filename-based coverage warnings because relevant cases live in existing test modules; Ruff was unavailable. No full suite was run.
 
-The latest six-module rerun after adding issue snapshots totals **144 passed and 1 expected skip**. It includes 12 Fuel Order decision-history integration tests, 28 Fuel Order integrations, 18 signal integrations, 40 signal rule unit tests, 2 transaction unit plus 31 transaction integration tests (one existing concurrency test skipped by its environment guard), and 6 permission unit plus 8 permission integration tests. The decision-history module was rerun after adding a changed-limit case and passed 12/12. Coverage includes first issue appearance, evidence capture, identical-save deduplication, changed-reading and changed-limit snapshots, resolution, a new issue after resolution, issue links on decisions, immutable events, cancellations, extensions, every print revision, fueling source/evidence, linked-order location access, the Phase 3 baseline matrix, server-calculated preview/save refresh, approval-time recalculation, and approved result freezing.
-
-Python compilation, `node --check` for `fuel_order.js`, DocType JSON parsing, `git diff --check`, and `python3 scripts/spec-check.py specs/009-fuel-order-ux` pass. The spec checker reports filename-based coverage warnings because these tests live in existing DocType modules rather than files named for the 009 spec. Ruff is unavailable.
-
-The test site is MariaDB and its standard URL responds, but the shared Desk server loads the app from the separate `feature/008-overseer-reports` checkout. The CLI test process imports this 009 worktree via `PYTHONPATH`; a browser at the shared URL would exercise the other checkout, so no 009 Desk walkthrough is claimed. A fresh test-site rebuild was not run because `specs/001-fleet-fuel-management/verification/CREDENTIALS.md`, which the rebuild script requires, is absent. No functional or database tests ran on the main site.
+The Fleet Approver inspected saved pending Red order FO-2026-00043 and expanded its Issue and Action History section. The pre-existing sample order displayed “No saved history events yet,” so that fixture does not exercise event rendering: it predates the history phase. No issue-resolution, cancellation, extension, reprint, or fueling events were created or visually inspected. The current event lifecycle remains database-verified by the focused suites; Phase 4.4 stays unchecked pending a disposable order with post-capture history events. The shared server serving `feature/008-overseer-reports` was not used. The earlier orphan-cleanup failure and main-site recovery-bin changes remain documented; no functional/database tests or migrations ran against the main site during this verification.
 
 | # | Put the system in this state | Expect | Covers |
 |---|---|---|---|
@@ -93,7 +84,7 @@ The existing extension history already captures each earlier validity change, bu
 
 ## Known limitations — accepted, not fixed
 
-- Phase-specific Desk walkthroughs for Phases 1–4 remain pending a safe test UI served from this worktree.
+- The saved history-event lifecycle has not been visually exercised because the existing safe sample order predates event capture and contains no event rows.
 - Historical cancellations do not have reasons and are not rewritten.
 
 ## Review
@@ -103,4 +94,4 @@ The existing extension history already captures each earlier validity change, bu
 
 **Closure:** Not reviewed.
 
-**Next:** Complete the Desk walkthrough against the same 009 worktree before closing Phase 4.
+**Next:** Use a disposable order that has events written by the current history implementation to complete task 4.4; do not rewrite historical cancellations.

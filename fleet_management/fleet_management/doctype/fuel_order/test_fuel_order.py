@@ -156,6 +156,10 @@ class TestFuelOrder(IntegrationTestCase):
 		self.assertEqual(order.asset_tank_capacity_snapshot, 60)
 		self.assertEqual(order.asset_target_km_per_litre_snapshot, 10)
 		self.assertEqual(order.asset_tolerance_percent_snapshot, 2)
+		summary = json.loads(order.signal_details_json)["request_summary"]
+		self.assertEqual(summary["vehicle_target_km_per_litre"], 10)
+		self.assertIsNone(summary["recent_observed_average_km_per_litre"])
+		self.assertEqual(summary["applicable_fuel_economy_source"], "vehicle_target")
 		facts = get_request_facts(self.asset.name)
 		self.assertEqual(facts["asset_type"], "Vehicle")
 		self.assertEqual(facts["vehicle_model"], self.vehicle_model.name)
@@ -206,10 +210,35 @@ class TestFuelOrder(IntegrationTestCase):
 		self.assertFalse(meta.get_field("signal_panel_html").hidden)
 
 		for fieldname in (
+			"asset",
+			"driver",
+			"actual_requester",
+			"company_representative",
+			"operational_location",
+			"planned_station",
+			"request_meter_reading",
+			"quantity_authorization",
+		):
+			self.assertFalse(meta.get_field(fieldname).read_only, fieldname)
+			self.assertEqual(meta.get_field(fieldname).reqd, 1, fieldname)
+		for fieldname in ("actual_requester", "company_representative", "request_datetime"):
+			self.assertFalse(meta.get_field(fieldname).default, fieldname)
+		self.assertFalse(meta.get_field("request_gauge_percent").read_only)
+		self.assertEqual(
+			meta.get_field("request_gauge_percent").mandatory_depends_on,
+			"eval:doc.asset_type=='Vehicle'",
+		)
+		self.assertFalse(meta.get_field("meter_photo").read_only)
+		self.assertFalse(meta.get_field("gauge_photo").read_only)
+
+		for fieldname in (
 			"vehicle_model",
 			"asset_type",
+			"fuel_type",
 			"custodian",
 			"assigned_location_snapshot",
+			"asset_tank_capacity_snapshot",
+			"asset_target_km_per_litre_snapshot",
 			"previous_entry_source",
 			"previous_meter_reading",
 			"previous_entry_date",
@@ -225,6 +254,11 @@ class TestFuelOrder(IntegrationTestCase):
 			meta.get_field("authorized_quantity_litres").depends_on,
 			"eval:doc.quantity_authorization=='Partial'",
 		)
+		self.assertEqual(
+			meta.get_field("authorized_quantity_litres").mandatory_depends_on,
+			"eval:doc.quantity_authorization=='Partial'",
+		)
+		self.assertFalse(meta.get_field("authorized_quantity_litres").read_only)
 		self.assertEqual(
 			meta.get_field("partial_authorization_reason").depends_on,
 			"eval:doc.quantity_authorization=='Partial'",
@@ -654,6 +688,8 @@ class TestFuelOrder(IntegrationTestCase):
 
 		meta = frappe.get_meta("Fuel Order")
 		self.assertEqual(meta.get_field("request_datetime").read_only, 1)
+		self.assertFalse(meta.get_field("request_datetime").reqd)
+		self.assertFalse(meta.get_field("request_datetime").default)
 		self.assertEqual(meta.get_field("naming_series").read_only, 1)
 
 	def test_custodian_comes_from_the_effective_assignment(self):

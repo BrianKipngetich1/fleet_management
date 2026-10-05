@@ -277,6 +277,15 @@ class FuelOrder(Document):
 			if is_vehicle
 			else None
 		)
+		recent_average = (
+			average
+			if intervals
+			and sum(flt(row.get("qualifying_litres")) for row in intervals) > 0
+			and average is not None
+			and average > 0
+			else None
+		)
+		average_source = "recent_average" if recent_average is not None else "vehicle_target"
 		latest = frappe.get_all(
 			"Fueling Transaction",
 			filters={"asset": self.asset, "docstatus": 1},
@@ -315,7 +324,7 @@ class FuelOrder(Document):
 			),
 			"previous_entry_date": str(self.previous_entry_date) if self.previous_entry_date else None,
 			"average_km_per_litre": average,
-			"average_source": "recent_average" if intervals and average else "vehicle_target",
+			"average_source": average_source,
 			"requested_litres": (
 				self.authorized_quantity_litres if self.quantity_authorization == "Partial" else None
 			),
@@ -345,6 +354,9 @@ class FuelOrder(Document):
 		result["request_summary"] = {
 			"estimated_litres": self.estimated_litres,
 			"average_km_per_litre": self.average_km_per_litre,
+			"vehicle_target_km_per_litre": self.asset_target_km_per_litre_snapshot if is_vehicle else None,
+			"recent_observed_average_km_per_litre": recent_average,
+			"applicable_fuel_economy_source": average_source,
 		}
 		return result
 
@@ -962,6 +974,15 @@ def preview_signal(
 	driver=None,
 ):
 	"""Preview an unsaved order with the same server-side facts and rules used on save."""
+	request_meter_reading = (
+		None if request_meter_reading in (None, "") else flt(request_meter_reading)
+	)
+	request_gauge_percent = (
+		None if request_gauge_percent in (None, "") else flt(request_gauge_percent)
+	)
+	authorized_quantity_litres = (
+		None if authorized_quantity_litres in (None, "") else flt(authorized_quantity_litres)
+	)
 	if name:
 		order = frappe.get_doc("Fuel Order", name)
 		order.check_permission("read")
