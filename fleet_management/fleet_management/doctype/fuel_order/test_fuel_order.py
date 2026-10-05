@@ -181,6 +181,14 @@ class TestFuelOrder(IntegrationTestCase):
 			],
 		)
 		self.assertEqual(meta.get_field("section_break_system_details").collapsible, 1)
+		self.assertEqual(
+			meta.get_field("previous_meter_reading").depends_on,
+			"eval:doc.asset && doc.previous_entry_source != 'none'",
+		)
+		self.assertEqual(
+			meta.get_field("previous_entry_date").depends_on,
+			"eval:doc.asset && doc.previous_entry_source != 'none'",
+		)
 
 		field_positions = {field.fieldname: index for index, field in enumerate(meta.fields)}
 		self.assertLess(field_positions["asset"], field_positions["column_break_vehicle_driver"])

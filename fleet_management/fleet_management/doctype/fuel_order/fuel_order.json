@@ -423,6 +423,7 @@
    "read_only": 1
   },
   {
+   "depends_on": "eval:doc.asset && doc.previous_entry_source != 'none'",
    "fieldname": "previous_meter_reading",
    "fieldtype": "Float",
    "label": "Previous Odometer / Hour Meter",
@@ -430,6 +431,7 @@
    "read_only": 1
   },
   {
+   "depends_on": "eval:doc.asset && doc.previous_entry_source != 'none'",
    "fieldname": "previous_entry_date",
    "fieldtype": "Datetime",
    "label": "Previous Entry Date",
