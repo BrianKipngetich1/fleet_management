@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Specification | [`../requirements.md`](../requirements.md) @ working tree |
-| Status | Issue and action history built and database-verified; event rendering walkthrough remains pending because the existing visual fixture predates event capture |
+| Status | Issue and action history built and database-verified; issue and resolution rendering observed for both roles at wide, medium, and phone widths; other action-event walkthroughs remain pending |
 | Started / Closed | 2026-10-05 / — |
 | Author | Codex |
 | Reviewed by | — |
@@ -65,7 +65,11 @@ The latest six focused modules passed on `fleet_management-test.localhost`, conf
 
 Python compilation, JavaScript syntax, DocType JSON, `e2e/sid.ts` import, `git diff --check`, and spec-check passed. The spec checker reports filename-based coverage warnings because relevant cases live in existing test modules; Ruff was unavailable. No full suite was run.
 
-The Fleet Approver inspected saved pending Red order FO-2026-00043 and expanded its Issue and Action History section. The pre-existing sample order displayed “No saved history events yet,” so that fixture does not exercise event rendering: it predates the history phase. No issue-resolution, cancellation, extension, reprint, or fueling events were created or visually inspected. The current event lifecycle remains database-verified by the focused suites; Phase 4.4 stays unchecked pending a disposable order with post-capture history events. The shared server serving `feature/008-overseer-reports` was not used. The earlier orphan-cleanup failure and main-site recovery-bin changes remain documented; no functional/database tests or migrations ran against the main site during this verification.
+On the disposable MariaDB site, Fleet User Philip created new draft order FO-2026-00056 so the history reader had events produced by the current implementation. Saving an initial Red result recorded a `Signal Issue` event: 976 km travelled versus 478.1 km expected. After changing Driver to John Mwangi and the odometer to 52,500 km, the preview became Green (476 km versus 478.1 km expected); saving recorded one linked `Signal Resolved` event. The order remains Draft and Green. Fleet Approver Vikas opened the same order read-only and saw both entries. No pre-existing sample order was changed, and no approval, cancellation, extension, reprint, or actual fueling action was performed.
+
+The issue and resolution history was observed at 1600, 900, and 390 px as Fleet User and Fleet Approver. At all widths the history entries remained readable, the narrow layouts reflowed without horizontal overflow, and the Approver had no editable Driver or Actual Requester inputs. Screenshots: `verification/screenshots/phase-04-01-wide-user-event-history.png`, `phase-04-02-medium-user-event-history.png`, `phase-04-03-phone-user-event-history.png`, `phase-04-04-wide-approver-event-history.png`, `phase-04-05-medium-approver-event-history.png`, and `phase-04-06-phone-approver-event-history.png`.
+
+The old sample order FO-2026-00043 predates history capture, which explains its empty panel; it is no longer being used as the history-rendering fixture. The issue-to-resolution display is now visually verified, while the remaining Phase 4.4 cancellation, extension/reprint, and completed-fueling displays have not been walked through. The shared server serving `feature/008-overseer-reports` was not used. The earlier orphan-cleanup failure and main-site recovery-bin changes remain documented; no functional/database tests or migrations ran against the main site during this verification.
 
 | # | Put the system in this state | Expect | Covers |
 |---|---|---|---|
@@ -84,7 +88,7 @@ The existing extension history already captures each earlier validity change, bu
 
 ## Known limitations — accepted, not fixed
 
-- The saved history-event lifecycle has not been visually exercised because the existing safe sample order predates event capture and contains no event rows.
+- Cancellation, extension/reprint, and completed-fueling event displays remain unwalked; the issue and resolution events are visually verified on a newly created disposable draft order.
 - Historical cancellations do not have reasons and are not rewritten.
 
 ## Review
@@ -94,4 +98,4 @@ The existing extension history already captures each earlier validity change, bu
 
 **Closure:** Not reviewed.
 
-**Next:** Use a disposable order that has events written by the current history implementation to complete task 4.4; do not rewrite historical cancellations.
+**Next:** If Phase 4.4 is resumed, use disposable records to walk through a reasoned cancellation, an extension and reprint, and a completed fueling; do not rewrite historical cancellations.

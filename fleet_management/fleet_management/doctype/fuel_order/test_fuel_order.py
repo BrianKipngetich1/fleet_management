@@ -1,6 +1,7 @@
 import json
 import re
 from datetime import timedelta
+from pathlib import Path
 
 import frappe
 from frappe.tests import IntegrationTestCase
@@ -216,7 +217,6 @@ class TestFuelOrder(IntegrationTestCase):
 		self.assertGreater(field_positions["signal_reasons"], field_positions["section_break_system_details"])
 		self.assertEqual(meta.get_field("signal_reasons").fieldtype, "Long Text")
 		self.assertFalse(meta.get_field("signal_panel_html").hidden)
-
 		for fieldname in (
 			"asset",
 			"driver",
@@ -275,6 +275,80 @@ class TestFuelOrder(IntegrationTestCase):
 			meta.get_field("partial_authorization_reason").mandatory_depends_on,
 			"eval:doc.quantity_authorization=='Partial' && doc.workflow_state!='Draft'",
 		)
+
+	def test_asset_people_default_to_effective_custodian_and_allow_independent_edits(self):
+		meta = frappe.get_meta("Fuel Order")
+		asset = self._insert(
+			"Fleet Asset",
+			asset_identifier=f"AC01 Default Asset {frappe.generate_hash(length=8)}",
+			fuel_type=self.fuel_type.name,
+			vehicle_model=self.vehicle_model.name,
+			target_km_per_litre=10,
+			assignments=[
+				{
+					"doctype": "Asset Assignment",
+					"custodian": self.custodian.name,
+					"assigned_location": self.location.name,
+					"effective_from": getdate(),
+					"primary_driver": self.driver.name,
+				}
+			],
+		)
+		facts = get_request_facts(asset.name)
+		self.assertEqual(facts["custodian"], self.custodian.name)
+		self.assertEqual(facts["primary_driver"], self.driver.name)
+		self.assertNotEqual(facts["custodian"], facts["primary_driver"])
+		self.assertEqual(meta.get_field("custodian").read_only, 1)
+		for fieldname in ("driver", "actual_requester"):
+			field = meta.get_field(fieldname)
+			self.assertEqual(field.reqd, 1, fieldname)
+			self.assertFalse(field.read_only, fieldname)
+			self.assertFalse(field.default, fieldname)
+
+		client_script = (
+			Path(frappe.get_app_path("fleet_management")) / "public/js/fuel_order.js"
+		).read_text()
+		self.assertIn("driver: facts.custodian || null", client_script)
+		self.assertIn("actual_requester: facts.custodian || null", client_script)
+		self.assertIn("actual_requester: null", client_script)
+
+	def test_asset_without_effective_assignment_returns_no_custodian_default(self):
+		asset = self._insert(
+			"Fleet Asset",
+			asset_identifier=f"AC01 Unassigned Asset {frappe.generate_hash(length=8)}",
+			fuel_type=self.fuel_type.name,
+			vehicle_model=self.vehicle_model.name,
+			target_km_per_litre=10,
+			assignments=[],
+		)
+
+		facts = get_request_facts(asset.name)
+
+		self.assertIsNone(facts["custodian"])
+		self.assertIsNone(facts["primary_driver"])
+
+	def test_system_details_uses_wide_sidebar_and_reflows_at_narrow_widths(self):
+		meta = frappe.get_meta("Fuel Order")
+		field_positions = {field.fieldname: index for index, field in enumerate(meta.fields)}
+		system_details_position = field_positions["section_break_system_details"]
+		self.assertGreater(system_details_position, field_positions["section_break_history"])
+		for field in meta.fields[system_details_position + 1 :]:
+			if field.fieldtype not in ("Column Break", "Section Break"):
+				self.assertTrue(field.read_only or field.hidden, field.fieldname)
+
+		app_path = Path(frappe.get_app_path("fleet_management"))
+		client_script = (app_path / "public/js/fuel_order.js").read_text()
+		self.assertIn("sections_dict?.section_break_system_details?.wrapper", client_script)
+		self.assertIn('"fuel-order-system-details"', client_script)
+		css = (app_path / "public/css/fuel_order.css").read_text()
+		self.assertIn("@media (min-width: 1440px)", css)
+		self.assertIn("grid-template-columns: repeat(4, minmax(0, 1fr))", css)
+		self.assertIn("grid-column: 1 / span 3", css)
+		self.assertIn("grid-column: 4", css)
+		self.assertIn("grid-row: 1 / span 8", css)
+		self.assertIn("@media (max-width: 1439.98px)", css)
+		self.assertIn("display: block", css)
+		self.assertIn("grid-column: auto", css)
 
 	def test_partial_authorization_requires_reason_before_leaving_draft(self):
 		requester = self._user(("Fleet User",), self.location.name)

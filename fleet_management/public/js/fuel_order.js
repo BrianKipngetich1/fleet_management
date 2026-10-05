@@ -145,9 +145,11 @@ function render_vehicle_summary(frm) {
 }
 
 function apply_fuel_order_layout(frm) {
-	if (frm.layout && frm.layout.page) {
-		frm.layout.page.addClass("fuel-order-workspace");
-	}
+	if (!frm.layout) return;
+	frm.layout.page?.addClass("fuel-order-workspace");
+	frm.layout.sections_dict?.section_break_system_details?.wrapper?.addClass(
+		"fuel-order-system-details"
+	);
 }
 
 function render_order_history(frm, events, error) {
@@ -465,6 +467,7 @@ async function clear_asset_specific_values(frm) {
 		meter_photo: null,
 		gauge_photo: null,
 		driver: null,
+		actual_requester: null,
 		operational_location: null,
 		planned_station: null,
 	});
@@ -535,7 +538,10 @@ frappe.ui.form.on("Fuel Order", {
 				previous_entry_date: facts.previous_entry_date,
 			});
 			if (requestId !== frm._fuel_order_asset_request_id || frm.doc.asset !== selectedAsset) return;
-			if (facts.primary_driver) await frm.set_value("driver", facts.primary_driver);
+			await frm.set_value({
+				driver: facts.custodian || null,
+				actual_requester: facts.custodian || null,
+			});
 			if (requestId !== frm._fuel_order_asset_request_id || frm.doc.asset !== selectedAsset) return;
 			if (facts.assigned_location_snapshot) {
 				await frm.set_value("operational_location", facts.assigned_location_snapshot);

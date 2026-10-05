@@ -16,6 +16,12 @@
   - _Requirements: 1.1, 1.2, 1.3, 1.5, 1.8_
 - [x] 1.6 Keep request date and time server-supplied, and refresh or clear asset-dependent readings, evidence, assignment suggestions, and station selection when Asset changes; test defaults, read-only snapshots, and allowed edits.
   - _Requirements: 1.2, 1.6, 3.1_
+- [x] 1.7 Place read-only System Details in the far-right fourth column on wide screens, reflow it after the primary sections at medium and narrow widths, and default Driver and Actual Requester to the effective-assignment Custodian on each Asset change.
+  - _Requirements: 1.2, 1.3, 1.8_
+- [x] 1.8 Add focused coverage for custodian-based defaults, independently editable required participants, assets without an effective custodian, and responsive System Details placement.
+  - _Requirements: 1.2, 1.3, 1.8_
+- [x] 1.9 Walk through the updated form as Fleet User and Fleet Approver at wide, medium, and phone widths.
+  - _Requirements: 1.2, 1.3, 1.8_
 
 ## Phase 2: Signal panel
 
@@ -77,3 +83,7 @@
 - 2026-10-05 — Final focused rerun on the disposable MariaDB test site: 145 passed and one existing concurrency test skipped by its environment guard across the six phase modules. Static checks pass. Wide/medium/phone Desk walkthroughs for Fleet User and Fleet Approver remain pending because the isolated browser could not start Chrome; no form screenshots or visual behavior are claimed.
 - 2026-10-05 — Visual walkthrough on the isolated 009 checkout completed Phases 1–3 at 1440, 900, and 390 px: checked the three/two/one-column layout, editable participant fields, asset-driven driver/location refresh, no-previous-entry display, target fallback, Partial visibility/reason, vehicle/generator controls, native meter/gauge photo preview, server waiting/Red/Green panels, and the full-tank comparison. Fleet Approver reviewed a saved pending Red order read-only. The preview exposed that Desk sends numeric fields as strings; server normalization and a 19th signal integration regression test fix it. An existing order predating event capture showed an empty history panel, so task 4.4 remains pending. Latest six focused modules: 146 passed, one existing concurrency test skipped by its environment guard.
 - 2026-10-05 — Follow-up display fix: System Details now hides the default zero Previous Odometer/Hour Meter and blank Previous Entry Date when the server explicitly reports no Previous Entry; focused DocType metadata assertions added.
+- 2026-10-05 — 1.7: moved read-only System Details to the far-right fourth column at wide widths and below the four primary sections at medium/narrow widths; each Asset selection now defaults required editable Driver and Actual Requester to its effective Custodian, leaving both blank when none exists.
+- 2026-10-05 — 1.8: added coverage for custodian-based defaults and asset changes, required/editable independent participants, the missing-custodian case, and responsive System Details placement. Focused `test_fuel_order` passed 31/31 on the disposable MariaDB site; the earlier six-module run was 146 passed with one existing environment-guarded concurrency skip. No full suite was run.
+- 2026-10-05 — 1.9: Fleet User and Fleet Approver views were walked at 1600, 900, and 390 px. Wide layout used three entry columns plus the far-right System Details column; medium and phone layouts reflowed details after the primary sections; document/body widths matched the viewport. Participant defaults, independent edits, and Approver read-only view were observed. Screenshots are recorded in Phase 1 and Phase 4 verification files.
+- 2026-10-05 — Phase 4 event history was visually exercised on a new disposable Draft: Fleet User saved a Red issue and later a Green resolution; Fleet Approver saw both read-only at wide, medium, and phone widths. Task 4.4 remains unchecked because cancellation, extension/reprint, and completed-fueling event displays were not exercised.
