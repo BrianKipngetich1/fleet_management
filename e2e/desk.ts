@@ -186,6 +186,10 @@ export async function submitDoc(page: Page) {
 
 export async function cancelDoc(page: Page) {
 	await pageAction(page, "Cancel");
+	const reason = page.locator('.modal.show [data-fieldname="reason"] textarea');
+	await expect(reason).toBeVisible();
+	await reason.fill("Cancelled by the designated UI lifecycle test");
+	await page.locator('.modal.show .btn-primary:visible', { hasText: "Continue" }).click();
 	await page.waitForFunction(() => window.cur_frm.doc.docstatus === 2);
 }
 

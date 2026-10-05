@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | Specification | [`../requirements.md`](../requirements.md) @ working tree |
-| Status | Not started |
-| Started / Closed | 2026-10-02 / — |
+| Status | Issue and action history built and database-verified; Desk walkthrough pending |
+| Started / Closed | 2026-10-05 / — |
 | Author | Codex |
 | Reviewed by | — |
 | Signed off | — |
@@ -13,65 +13,88 @@
 
 ## What this phase makes true
 
-A Fleet User, Fleet Approver, or fleet administrator can follow the original signal readings and limits, explanations, decisions, partial-authorization reason, cancellation reason, validity changes, every slip print, and the linked actual fueling facts and evidence. Earlier entries remain unchanged, and each person sees history only when they can read the linked order.
+Append-only records retain the first saved Red result, changed issue snapshots, deduplicated unchanged saves, later resolution, workflow decisions and explanations, a separate Partial authorization reason, reasoned cancellations, each slip print, validity extensions, and submitted or cancelled actual fueling with its original source facts and evidence links. Decisions link to the latest issue snapshot they explain. Reads inherit the linked Fuel Order's permissions and location scope.
 
 ## The rule, as observed
 
 ```mermaid
 stateDiagram-v2
-    [*] --> VersionHistoryOnOrderAndTransaction
-    Approved --> ExtensionJSON: prior and new validity, reason, actor, time
-    Approved --> LatestPrintFields: current revision and last print time only
-    Approved --> SubmittedFuelingTransaction: actual source facts stay on source record
-    Cancelled --> NoRequiredReason
+    [*] --> FuelOrder
+    FuelOrder --> WorkflowActionEvent: send, approve, reject, withdraw
+    FuelOrder --> PartialAuthorizationEvent: separate reason and quantity
+    FuelOrder --> CancellationEvent: existing permission plus written reason
+    Approved --> ExtensionEvent: each validity change
+    Approved --> SlipPrintEvent: every print/reprint
+    Approved --> ActualFuelingEvent: source facts and evidence reference
+    SavedSignalIssue --> SameFingerprint: unchanged saved issue
+    SameFingerprint --> SameFingerprint: deduplicate save
+    SavedSignalIssue --> ChangedSnapshot: explanation or relevant facts changed
+    ChangedSnapshot --> ChangedSnapshot: same issue key
+    ChangedSnapshot --> SignalResolved: later saved result is Green
+    SignalResolved --> NewIssueEpisode: later saved result is Red
+    NewIssueEpisode --> SavedSignalIssue: new issue key
+    SavedSignalIssue --> WorkflowActionEvent: decision links to issue snapshot
 ```
 
 ### Design vs. observed
 
 | Specification edge | Observed | Verdict |
 |---|---|---|
-| `SavedIssue → ImmutableSnapshot` | The order retains its latest `signal_details_json` snapshot, but a later save replaces it; no append-only issue event exists | Unbuilt — the selected snapshot timing rule is pending the requester |
-| `IssueCleared → ResolutionEvent` | No resolution event is recorded when a later signal no longer contains a reason | Unbuilt |
-| `WorkflowAction → ActorAndReasonEvent` | Current workflow fields retain the latest decision; no separate action event links an explanation to its red reason | Unbuilt |
-| `Cancellation → ReasonedEvent` | Frappe's existing cancellation permission remains authoritative, but neither Fuel Order nor Fueling Transaction requires a cancellation reason | Unbuilt |
-| `PrintOrExtension → SeparateEvent` | Each extension is appended to `validity_extension_history` with old/new dates, reason, actor, and time. Print bookkeeping retains only the current revision and latest print time; printing an unchanged revision creates no event | Extension source exists; per-action history is unbuilt |
-| `FuelingTransaction → SourceAndEvidenceLink` | Submitted transaction facts and attached evidence remain on an immutable source record, but no Fuel Order history event links those values and evidence | Source integrity exists; history link is unbuilt |
+| `SavedIssue → ImmutableSnapshot` | The first saved Red result creates an immutable `Signal Issue` event. A changed issue explanation or relevant displayed reading/limit appends a linked snapshot under the same issue key; an unchanged save adds nothing. | Verified by database tests for first appearance, evidence capture, deduplication, changed odometer/gauge facts, and a changed gauge limit with the reading held fixed. |
+| `IssueCleared → ResolutionEvent` | A later saved Green result creates one `Signal Resolved` event linked to the latest issue snapshot. Repeated Green saves add nothing; a later Red result starts a new issue key. | Verified by database tests. |
+| `WorkflowAction → ActorAndReasonEvent` | Send-up, approve, reject, and withdraw transitions write actor, time, explanation/decision reason, captured order facts, and a link to the issue snapshot. Partial authorization gets a separate event linked to its approval. | Verified by database tests. |
+| `Cancellation → ReasonedEvent` | The existing cancel permission remains authoritative. A written reason is staged for the native cancel action; the server rejects cancellation without one and saves actor, time, reason, and source facts. | Verified for Fuel Orders and Fueling Transactions. |
+| `PrintOrExtension → SeparateEvent` | Each slip render, including repeat prints of the same revision, writes an event. Each extension records its reason, actor, time, old/new validity, and revision. | Verified by database tests. |
+| `FuelingTransaction → SourceAndEvidenceLink` | Submission and cancellation write separate parent-order events with transaction source facts and private evidence references. Submitted source records remain unchanged. | Verified by database tests. |
+| `HistoryRead → LinkedOrderPermission` | Event read permission checks the linked Fuel Order; list-query conditions filter through the order's assigned location. The history endpoint checks ordinary parent read access. | Verified by database tests. |
+| `EarlierEvent → Immutable` | The event controller refuses update, delete, and rename actions; role permissions grant read only. | Update and delete refusal verified by database tests. |
 
 ## Frappe-first / native-first
 
 | What we needed | Native mechanism used | Custom code, and why it is unavoidable |
 |---|---|---|
-| Preserve the original order and fueling source records | Existing Frappe document change history and submitted-record immutability | It does not retain each signal's captured inputs, decision reason, cancellation reason, and print event as one durable event. |
-| Read the event trail on the Fuel Order | Existing location-scoped Fuel Order read permission | A read-only event record and parent-based permission check are needed to retain the same scope. |
-| Require a cancellation reason | Native before-cancel lifecycle | Prompt and server staging are needed because the action runs across separate client and server requests. |
+| Preserve original order and fueling records | Existing document history and submitted-record immutability | A read-only event DocType retains action-specific facts, reasons, and evidence references across later changes. |
+| Show the trail on a Fuel Order | Existing linked-order read permission and location scope | A small form reader renders the escaped, captured events and checks parent access on the server. |
+| Require cancellation reasons | Native `before_cancel` lifecycle and existing cancel action | A short-lived, user/document-scoped staged reason carries the written answer into the native server cancellation request. |
 
-**Scope deliberately not taken:** No new role, wider location access, invoice discrepancy, late-entry rule, meter-reset record, cost field, or reconciliation process.
+**Scope deliberately not taken:** No new role, wider location access, invoice discrepancy, late-entry rule, meter-reset record, cost field, or reconciliation process. Historical cancellations are not rewritten.
 
 ## Verification
 
+On 05/10/2026, these focused modules passed on `fleet_management-test.localhost`, confirmed as MariaDB:
+
+- `fleet_management.fleet_management.doctype.fuel_order.test_fuel_order_decisions`: 12 integration tests.
+- `fleet_management.fleet_management.doctype.fueling_transaction.test_fueling_transaction`: 2 unit and 31 integration tests; one existing concurrency proof was skipped by its environment guard.
+- `fleet_management.tests.test_permissions`: 6 unit and 8 integration tests.
+- `fleet_management.fleet_management.doctype.fuel_order.test_fuel_order`: 28 integration tests.
+- `fleet_management.fleet_management.doctype.fuel_order.test_fuel_order_signal`: 18 integration tests.
+- `fleet_management.tests.test_fuel_signal`: 40 unit tests, including proof that the old mileage check remains unchanged.
+
+The latest six-module rerun after adding issue snapshots totals **144 passed and 1 expected skip**. It includes 12 Fuel Order decision-history integration tests, 28 Fuel Order integrations, 18 signal integrations, 40 signal rule unit tests, 2 transaction unit plus 31 transaction integration tests (one existing concurrency test skipped by its environment guard), and 6 permission unit plus 8 permission integration tests. The decision-history module was rerun after adding a changed-limit case and passed 12/12. Coverage includes first issue appearance, evidence capture, identical-save deduplication, changed-reading and changed-limit snapshots, resolution, a new issue after resolution, issue links on decisions, immutable events, cancellations, extensions, every print revision, fueling source/evidence, linked-order location access, the Phase 3 baseline matrix, server-calculated preview/save refresh, approval-time recalculation, and approved result freezing.
+
+Python compilation, `node --check` for `fuel_order.js`, DocType JSON parsing, `git diff --check`, and `python3 scripts/spec-check.py specs/009-fuel-order-ux` pass. The spec checker reports filename-based coverage warnings because these tests live in existing DocType modules rather than files named for the 009 spec. Ruff is unavailable.
+
+The test site is MariaDB and its standard URL responds, but the shared Desk server loads the app from the separate `feature/008-overseer-reports` checkout. The CLI test process imports this 009 worktree via `PYTHONPATH`; a browser at the shared URL would exercise the other checkout, so no 009 Desk walkthrough is claimed. A fresh test-site rebuild was not run because `specs/001-fleet-fuel-management/verification/CREDENTIALS.md`, which the rebuild script requires, is absent. No functional or database tests ran on the main site.
+
 | # | Put the system in this state | Expect | Covers |
 |---|---|---|---|
-| 1 | Save a red issue for the first time, save unchanged readings again, change a captured reading or limit, then clear the issue | Follow the requester's chosen snapshot rule; unchanged saves do not create unapproved duplicates if that rule is selected; resolution is a separate event | `5.1`, `5.2` |
-| 2 | Send a red order for approval, then approve or reject it | History retains the explanation, actor, time, decision reason, and link to the issue without changing prior issue facts | `5.2` |
-| 3 | Approve a Partial authorization | Its quantity and separate reason are retained apart from red-order and decision explanations | `1.4`, `5.2` |
-| 4 | Cancel a Fuel Order or Fueling Transaction as a user who already has permission | A blank reason is refused; a written reason, actor, time, and source facts are retained; other roles keep their current cancel access | `3.3`, `5.3` |
-| 5 | Extend an approved order and print the slip more than once, including after the extension | Each extension and each print/reprint appears with its reason where required and the applicable slip revision | `5.4` |
-| 6 | Submit then cancel a Fueling Transaction | History links to the actual station facts, time, meter, litres, invoice identifiers, attendant, and signed evidence; cancellation records its reason without changing those source values | `3.4`, `5.3`, `5.5` |
-| 7 | Read an event as a user with and without access to the linked order's location | Permitted users can read it; users outside the location cannot list or open it directly | `3.3`, `5.1` |
-| 8 | Attempt to edit or delete an earlier event through the form and server API | The event remains unchanged and the attempt is refused | `5.1`, `5.2` |
-
-**How to run it.** Event, cancellation, permission, and append-only checks run on the disposable MariaDB site. A Desk walkthrough uses Fleet User, Fleet Approver, and Fleet Admin only where the existing role permits the action.
-
-**Result:** Not run yet. The issue snapshot timing rule is pending the requester's answer.
+| 1 | Save a red issue, save unchanged readings, change a captured reading or limit, clear it, save green again, then make it red | Keep one initial snapshot for unchanged saves, append changed snapshots and one resolution, then start a new issue episode | `5.1`, `5.2` |
+| 2 | Send a red order for approval, then approve, reject, or withdraw it | Retain explanation, actor, time, decision reason, and any issue link without changing earlier facts | `5.2` |
+| 3 | Approve a Partial authorization | Retain quantity and its separate reason apart from red-order and decision explanations | `1.4`, `5.2` |
+| 4 | Cancel an order or fueling transaction as a user who already has permission | Refuse a blank reason; retain a written reason, actor, time, and source facts; preserve existing role access | `3.3`, `5.3` |
+| 5 | Extend an approved order and print the slip more than once, including after extension | Retain each extension and each print with applicable reason and slip revision | `5.4` |
+| 6 | Submit then cancel a Fueling Transaction | Link station, time, meter, litres, invoice identifiers, attendant, and signed evidence; retain cancellation facts without changing the submitted source | `3.4`, `5.3`, `5.5` |
+| 7 | Read an event as users with and without access to its linked order | Permit the same linked-order readers and deny out-of-location listing and direct reads | `3.3`, `5.1` |
+| 8 | Attempt to edit, delete, or rename an earlier event | Refuse the action and leave the event unchanged | `5.1`, `5.2` |
 
 ## What we learned that the plan did not predict
 
-The existing extension JSON already preserves earlier validity changes. The print handler updates bookkeeping only when a new slip revision needs printing, so repeated prints of the same revision leave no durable record. Submitted fueling facts and evidence are already kept on the source transaction and its immutable validation; history should link to that source rather than rewrite it. Fuel Order History reads will need to use the existing linked-order location scope from the permission hooks. Frappe provides both a client `before_cancel` event and a server `before_cancel` lifecycle method, so a written reason can be collected before cancel while the server continues to enforce its existing cancel permission.
+The existing extension history already captures each earlier validity change, but it did not capture every print of an unchanged revision. The existing transaction is the source of actual fueling facts and signed evidence, so events link and snapshot those values instead of replacing them. The server can enforce a written cancellation reason in the native lifecycle while keeping role and location permissions unchanged. The test CLI can mint browser sessions without a password, but the shared server still serves the separate checkout.
 
 ## Known limitations — accepted, not fixed
 
-- Issue snapshot timing is pending the requester's decision.
-- Historical cancellations do not have reasons and will not be rewritten.
+- Phase-specific Desk walkthroughs for Phases 1–4 remain pending a safe test UI served from this worktree.
+- Historical cancellations do not have reasons and are not rewritten.
 
 ## Review
 
@@ -80,4 +103,4 @@ The existing extension JSON already preserves earlier validity changes. The prin
 
 **Closure:** Not reviewed.
 
-**Next:** Resolve the issue snapshot timing decision, then implement the event record and append-only history.
+**Next:** Complete the Desk walkthrough against the same 009 worktree before closing Phase 4.

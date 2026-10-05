@@ -1,0 +1,141 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 0,
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-10-05 09:45:13.304347",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "fuel_order",
+  "fueling_transaction",
+  "event_type",
+  "event_datetime",
+  "actor",
+  "summary",
+  "reason",
+  "issue_key",
+  "related_event",
+  "slip_revision",
+  "source_facts_json",
+  "evidence_references_json"
+ ],
+ "fields": [
+  {
+   "fieldname": "fuel_order",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Fuel Order",
+   "options": "Fuel Order",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "fueling_transaction",
+   "fieldtype": "Link",
+   "label": "Fueling Transaction",
+   "options": "Fueling Transaction",
+   "read_only": 1
+  },
+  {
+   "fieldname": "event_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Event Type",
+   "options": "Signal Issue\nSignal Resolved\nSent for Approval\nApproved\nRejected\nWithdrawn\nPartial Authorization\nCancelled\nValidity Extended\nSlip Printed\nFueling Submitted\nFueling Cancelled",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "event_datetime",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Event Time",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "actor",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Actor",
+   "options": "User",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "summary",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Summary",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Reason or Explanation",
+   "read_only": 1
+  },
+  {
+   "fieldname": "issue_key",
+   "fieldtype": "Data",
+   "label": "Issue Key",
+   "read_only": 1
+  },
+  {
+   "fieldname": "related_event",
+   "fieldtype": "Link",
+   "label": "Related Event",
+   "options": "Fuel Order History Event",
+   "read_only": 1
+  },
+  {
+   "fieldname": "slip_revision",
+   "fieldtype": "Int",
+   "label": "Slip Revision",
+   "read_only": 1
+  },
+  {
+   "fieldname": "source_facts_json",
+   "fieldtype": "Long Text",
+   "label": "Captured Source Facts",
+   "read_only": 1
+  },
+  {
+   "fieldname": "evidence_references_json",
+   "fieldtype": "Long Text",
+   "label": "Evidence References",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-05 09:45:13.304347",
+ "modified_by": "Administrator",
+ "module": "Fleet Management",
+ "name": "Fuel Order History Event",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "Fleet User",
+   "read": 1
+  },
+  {
+   "role": "Fleet Approver",
+   "read": 1
+  },
+  {
+   "role": "Fleet Admin",
+   "read": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "event_datetime",
+ "sort_order": "ASC",
+ "states": [],
+ "title_field": "summary"
+}

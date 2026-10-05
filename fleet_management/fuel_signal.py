@@ -1,5 +1,7 @@
 """Green/red signal for a Fuel Order (spec 002 D-8). Pure: callers gather the facts."""
 
+import math
+
 DEFAULT_LIMITS = {
 	"mileage_margin_percent": 15,
 	"litres_excess_percent": 10,
@@ -50,6 +52,97 @@ def _check_mileage(facts, limits):
 			f"{_approx_note(facts)}"
 		)
 	return None
+
+
+def _full_tank_mileage_result(facts, limits):
+	"""Calculate the separate baseline check without changing the Previous Entry check."""
+	baseline = facts.get("mileage_baseline")
+	if facts.get("asset_type") != "Vehicle" or not baseline:
+		return {"status": "skipped", "reason": None}
+	if facts.get("current_reading") in (None, "") or facts.get("gauge_percent") in (None, ""):
+		return {"status": "waiting", "reason": None, "baseline": baseline}
+
+	try:
+		capacity = float(facts.get("tank_capacity"))
+		gauge = float(facts.get("gauge_percent"))
+		average = float(facts.get("average_km_per_litre"))
+		current = float(facts.get("current_reading"))
+		baseline_reading = float(baseline.get("vehicle_odometer"))
+	except (TypeError, ValueError):
+		capacity = gauge = average = current = baseline_reading = math.nan
+
+	if (
+		not all(
+			math.isfinite(value) for value in (capacity, gauge, average, current, baseline_reading)
+		)
+		or capacity <= 0
+		or not 0 <= gauge <= 100
+		or average <= 0
+	):
+		return {
+			"status": "cannot_calculate",
+			"reason": (
+				"Mileage check cannot calculate: the baseline, tank capacity, gauge, or fuel economy "
+				"is unusable."
+			),
+			"baseline": baseline,
+			"tank_capacity_litres": facts.get("tank_capacity"),
+			"gauge_percent": facts.get("gauge_percent"),
+			"average_km_per_litre": facts.get("average_km_per_litre"),
+			"average_source": facts.get("average_source"),
+			"current_odometer": facts.get("current_reading"),
+		}
+
+	remaining = capacity * gauge / 100
+	consumed = capacity - remaining
+	if consumed <= 0:
+		return {
+			"status": "cannot_calculate",
+			"reason": "Mileage check cannot calculate: the current gauge estimates zero fuel use.",
+			"baseline": baseline,
+			"current_odometer": current,
+			"tank_capacity_litres": capacity,
+			"gauge_percent": gauge,
+			"estimated_remaining_litres": remaining,
+			"estimated_consumed_litres": consumed,
+			"average_km_per_litre": average,
+			"average_source": facts.get("average_source"),
+		}
+
+	expected = average * consumed
+	distance = current - baseline_reading
+	variance = abs(distance - expected) / expected * 100
+	margin = limits["mileage_margin_percent"]
+	passed = round(variance, 6) <= margin
+	baseline_label = baseline.get("label") or "Mileage baseline"
+	result = {
+		"status": "pass" if passed else "fail",
+		"reason": None,
+		"baseline": baseline,
+		"baseline_odometer": baseline_reading,
+		"current_odometer": current,
+		"distance_km": distance,
+		"tank_capacity_litres": capacity,
+		"gauge_percent": gauge,
+		"estimated_remaining_litres": remaining,
+		"estimated_consumed_litres": consumed,
+		"average_km_per_litre": average,
+		"average_source": facts.get("average_source"),
+		"expected_distance_km": expected,
+		"variance_percent": variance,
+		"margin_percent": margin,
+		"passed": passed,
+	}
+	if not passed:
+		result["reason"] = (
+			f"{baseline_label} mileage does not add up: {distance:g} km since the selected baseline, "
+			f"{expected:.1f} km expected ({variance:.0f}% off; limit {margin:g}%)."
+		)
+	return result
+
+
+def _check_full_tank_mileage(facts, limits):
+	return _full_tank_mileage_result(facts, limits).get("reason")
 
 
 def _check_litres(facts, limits):
@@ -157,6 +250,7 @@ def evaluate_signal(facts, limits=None):
 	else:
 		checks = (
 			_check_mileage,
+			_check_full_tank_mileage,
 			_check_litres,
 			_check_gauge,
 			_check_open_order,
@@ -242,6 +336,47 @@ def _explain_reason(text, facts, limits):
 			details.extend(_economy_details(facts))
 		details.append(f"Allowed mileage margin: {limits['mileage_margin_percent']:g}%")
 		action = "Check the Previous Entry, odometer, and gauge; correct a reading or send the red order for review."
+	elif text.startswith("Mileage check cannot calculate") or "mileage does not add up:" in text.lower():
+		check = facts.get("full_tank_mileage_check") or {}
+		baseline = check.get("baseline") or {}
+		label = baseline.get("label") or "Selected baseline"
+		details.extend(
+			[
+				f"Baseline used: {label} ({_display(baseline.get('reference'))})",
+				f"Baseline odometer: {_display(check.get('baseline_odometer', baseline.get('vehicle_odometer')))} km",
+				f"Current odometer: {_display(check.get('current_odometer', facts.get('current_reading')))} km",
+				f"Tank capacity: {_display(check.get('tank_capacity_litres', facts.get('tank_capacity')))} L",
+				f"Current gauge: {_display(check.get('gauge_percent', facts.get('gauge_percent')))}%",
+			]
+		)
+		if baseline.get("timestamp"):
+			details.append(f"Baseline fueling time: {baseline['timestamp']}")
+		if check.get("distance_km") is not None:
+			details.append(f"Distance since selected baseline: {_display(check['distance_km'])} km")
+		if check.get("estimated_remaining_litres") is not None:
+			details.append(f"Estimated remaining fuel: {_display(check['estimated_remaining_litres'])} L")
+		if check.get("estimated_consumed_litres") is not None:
+			details.append(f"Estimated fuel used: {_display(check['estimated_consumed_litres'])} L")
+		if check.get("expected_distance_km") is not None:
+			details.append(f"Expected distance: {check['expected_distance_km']:.1f} km")
+			if check.get("average_km_per_litre") and check["average_km_per_litre"] > 0:
+				details.extend(_economy_details(facts))
+		if check.get("variance_percent") is not None:
+			details.append(f"Difference from expected distance: {check['variance_percent']:.1f}%")
+		if check.get("expected_distance_km") is None:
+			if check.get("average_km_per_litre") in (None, ""):
+				details.append("Applicable fuel economy: not available")
+			elif check.get("average_km_per_litre") <= 0:
+				details.append(
+					f"Applicable fuel economy: {check['average_km_per_litre']:g} km/L (not usable)"
+				)
+			else:
+				details.extend(_economy_details(facts))
+		details.append(f"Allowed mileage margin: {limits['mileage_margin_percent']:g}%")
+		action = (
+			"Check the baseline, odometer, gauge, tank capacity, and applicable fuel economy; correct "
+			"source data or ask a permitted approver to review the order."
+		)
 	elif text.startswith("More litres than the tank has room for"):
 		room = _room_litres(facts)
 		details.extend(
@@ -313,12 +448,14 @@ def _explain_reason(text, facts, limits):
 
 def evaluate_signal_result(facts, limits=None, workflow_state="Draft"):
 	"""Run the shared signal rules and return a presentation-ready server result."""
-	reasons = evaluate_signal(facts, limits)
 	merged_limits = dict(DEFAULT_LIMITS)
 	for key, value in (limits or {}).items():
 		if value is not None:
 			merged_limits[key] = value
-	findings = [_explain_reason(reason, facts, merged_limits) for reason in reasons]
+	full_tank_mileage_check = _full_tank_mileage_result(facts, merged_limits)
+	explanation_facts = {**facts, "full_tank_mileage_check": full_tank_mileage_check}
+	reasons = evaluate_signal(facts, merged_limits)
+	findings = [_explain_reason(reason, explanation_facts, merged_limits) for reason in reasons]
 	colour = signal_colour(reasons)
 	if workflow_state == "Pending Approval":
 		next_action = "A permitted Fleet Approver may approve or reject this order with a reason."
@@ -335,6 +472,8 @@ def evaluate_signal_result(facts, limits=None, workflow_state="Draft"):
 			"asset": facts.get("asset"),
 			"asset_type": facts.get("asset_type"),
 			"full_tank_baseline": facts.get("full_tank_baseline"),
+			"mileage_baseline": facts.get("mileage_baseline"),
+			"full_tank_mileage_check": full_tank_mileage_check,
 			"current_reading": facts.get("current_reading"),
 			"previous_entry_source": facts.get("previous_entry_source"),
 			"previous_reading": facts.get("previous_reading"),

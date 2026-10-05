@@ -17,7 +17,7 @@ Approved by: pending
 
 Fleet staff already use a vehicle-first fuel request, a server-calculated green or red signal, approval, and a separate record for the actual fueling. The current form puts related facts far apart, repeats the signal, and does not refresh it while a person types. Some information the app says should be recorded, including a separate reason for a partial quantity, is not currently captured.
 
-This change will arrange the existing request into four main sections, explain the signal while the person enters readings, add a second vehicle-mileage check based on the latest confirmed full tank, and keep a durable history from issue through decision and fueling. Existing validation, authority, location access, and approved records remain protected.
+This change will arrange the existing request into four main sections, explain the signal while the person enters readings, add a second vehicle-mileage check based on the latest submitted fueling linked to a Full-authorized order, and keep a durable history from issue through decision and fueling. Existing validation, authority, location access, and approved records remain protected.
 
 ## Current behavior checked
 
@@ -41,9 +41,9 @@ This change will arrange the existing request into four main sections, explain t
 
 1. WHEN a Fleet User opens or reviews an order THE system SHALL present four main sections in this order: Vehicle and Order, People and Location, Readings and Evidence, and Quantity, Approval and Audit.
 2. WHEN a person starts an order THE system SHALL put Asset first and place Asset, Driver, and Actual Requester together on one row when the screen is wide enough, and SHALL show a read-only summary of the vehicle, its assignment, its previous entry, and supported estimates after an asset is selected.
-3. WHEN an order is shown on a desktop THE system SHALL use two or three columns where labels and controls remain readable, and on a narrow screen SHALL stack the same information in one column without horizontal scrolling.
+3. WHEN an order is shown on a wide screen THE system SHALL use three columns where labels and controls remain readable, at medium widths SHALL use two columns, and on a narrow screen SHALL stack the same information in one column without horizontal scrolling.
 4. WHEN a person selects Full authorization THE system SHALL hide partial litres and the partial-authorization reason, and WHEN the person selects Partial authorization THE system SHALL show both and require a specific reason before the order leaves Draft.
-5. WHEN a person enters an order THE system SHALL group the company representative, operating location, and planned station under People and Location, the odometer or hour-meter reading and evidence under Readings and Evidence, and quantity authorization and decision history under Quantity, Approval and Audit.
+5. WHEN a person enters an order THE system SHALL group the company representative, operating location, and planned station under People and Location; pair each applicable meter reading with its photo under Readings and Evidence; and group quantity authorization, conditional partial litres and reason, the single signal and flagged-reasons panel, approval status, approval information, and issue/action history under Quantity, Approval and Audit.
 6. WHEN a vehicle is selected THE system SHALL label its meter reading Odometer and show its gauge and gauge photo, and WHEN a generator is selected THE system SHALL label its meter reading Hour Meter and hide the gauge and gauge photo.
 7. WHEN a person attaches a request photo THE system SHALL let the person inspect an image preview using the existing image attachment control before the order is approved or sent for sign-off.
 8. WHEN a person reviews an order THE system SHALL keep system snapshots, signal calculations, and print bookkeeping available as read-only review details outside the main entry path.
@@ -54,7 +54,7 @@ This change will arrange the existing request into four main sections, explain t
 
 #### Acceptance Criteria
 
-1. WHEN the order form shows a signal THE system SHALL show one textual signal panel immediately after the last applicable reading field, and SHALL not repeat the same alert elsewhere on the form.
+1. WHEN the order form shows a signal THE system SHALL show one textual signal panel after the last input that affects the calculation, including quantity authorization when applicable, and SHALL not repeat the same alert elsewhere on the form.
 2. WHEN a person changes a reading that affects the signal THE system SHALL refresh an unsaved preview using the same server calculation used when an order is saved, and WHEN a required reading is missing THE system SHALL state which reading is needed instead of showing an older result.
 3. WHEN a signal reason is shown THE system SHALL identify the relevant reading, comparison, threshold, and next action, and SHALL distinguish a red result that can be reviewed from a hard validation or permission failure.
 4. WHEN a mileage comparison is shown THE system SHALL identify whether its expected economy comes from the vehicle target or its recent average, SHALL use Odometer for distance and Fuel economy for km/L, and SHALL show km/L with equivalent L/km and L/100 km values when the source data supports an observed efficiency.
@@ -74,14 +74,14 @@ This change will arrange the existing request into four main sections, explain t
 
 ### Requirement 4: A separate mileage check from the latest full tank
 
-**User Story:** As a Fleet User or Fleet Approver, I want a second mileage check from the latest confirmed full tank, so that intervening partial transactions do not move the comparison point.
+**User Story:** As a Fleet User or Fleet Approver, I want a second mileage check from the latest fueling linked to an order authorized as Full, so that intervening partial transactions do not move the comparison point.
 
 #### Acceptance Criteria
 
-1. WHEN a vehicle has a submitted, non-cancelled fueling record confirming a full tank THE system SHALL use the most recent such record’s actual odometer reading and fueling date and time as the new check’s baseline; a later confirmed full tank SHALL replace the earlier baseline.
-2. WHEN the new check has a baseline and a usable economy average THE system SHALL compare request distance from that baseline with expected distance using the existing configured mileage margin, where estimated remaining litres equal tank capacity multiplied by current gauge percent and divided by 100, estimated fuel consumed equals tank capacity minus estimated remaining litres, and expected distance equals the applicable economy average times estimated fuel consumed; the applicable average SHALL use the recent average from up to five completed full-to-full vehicle intervals when available and otherwise use the vehicle target.
-3. WHEN partial fueling records occur after the baseline THE system SHALL keep their odometer readings from replacing that baseline and, per the requester’s decision, SHALL NOT add their litres to the new check’s estimated fuel consumed.
-4. WHEN no submitted, non-cancelled full-tank baseline exists THE system SHALL skip the new check and leave all existing checks unchanged; WHEN a baseline exists but no usable recent average or vehicle target exists THE system SHALL show a distinct red “cannot calculate” reason, while the existing mileage check keeps its current behavior.
+1. WHEN a vehicle has a submitted, non-cancelled Fueling Transaction linked to a Fuel Order with Full quantity authorization THE system SHALL use the most recent such transaction’s actual odometer reading and fueling date and time as the new check’s preferred baseline; a later transaction linked to a Full-authorized order SHALL replace the earlier baseline. The prior order’s gauge and the transaction’s Full Tank Confirmed field SHALL NOT determine this baseline. WHEN no such Full baseline exists but an existing Previous Entry does THE system SHALL use that Previous Entry as the fallback baseline and clearly identify it.
+2. WHEN the new check has a baseline and usable inputs THE system SHALL compare request distance from that baseline with expected distance using the existing configured mileage margin, where estimated remaining litres equal tank capacity multiplied by the current order’s gauge percent and divided by 100, estimated fuel consumed equals tank capacity minus estimated remaining litres, and expected distance equals the applicable economy average times estimated fuel consumed; the applicable average SHALL use the recent average from up to five completed full-to-full vehicle intervals when available and otherwise use the vehicle target. A baseline with unusable capacity or gauge data, no usable economy average, or zero estimated consumption SHALL add a red “cannot calculate” reason; a gauge not entered yet SHALL remain in the existing waiting state.
+3. WHEN a Full-authorized baseline has been selected and transactions linked to Partial-authorized orders occur after it THE system SHALL keep their odometer readings from replacing that Full baseline and, per the requester’s decision, SHALL NOT add their litres to the new check’s estimated fuel consumed.
+4. WHEN no submitted, non-cancelled Full baseline exists but an existing Previous Entry does THE system SHALL use the Previous Entry as the new check’s fallback baseline and clearly identify it; WHEN neither baseline exists THE system SHALL skip only the new check. The existing mileage check SHALL remain unchanged. WHEN a selected baseline exists but no usable recent average or vehicle target exists THE system SHALL show a distinct red “cannot calculate” reason, while the existing mileage check keeps its current behavior.
 5. WHEN the new check is shown THE system SHALL let users and approvers inspect the selected baseline source, reading, date and time, current reading, fuel estimate, expected distance, economy source, and margin, and SHALL preserve the baseline and result used when the order is approved.
 6. WHEN a generator order is checked THE system SHALL skip both vehicle odometer mileage checks and SHALL continue to apply the existing generator checks.
 
@@ -92,12 +92,14 @@ Use a vehicle with a 60-litre tank, a 10 km/L applicable average, and a 15% mile
 - **Example 1 — Full-tank baseline, no later partial fueling:** baseline 10,000 km; current reading 10,300 km; gauge 50%. Remaining fuel is estimated at 30 L, estimated consumption is 30 L, expected distance is 300 km, and the new check passes.
 - **Example 2 — Partial fuelings do not reset or add to the estimate:** baseline 10,000 km; partial records at 10,200 km for 10 L and 10,400 km for 15 L; current reading 10,450 km; gauge 50%. The baseline remains 10,000 km, partial litres are excluded, estimated consumption is 30 L, expected distance is 300 km, and 450 km is 50% above expected, so the new check is red.
 - **Example 3 — A newer full tank becomes the baseline:** an older full tank is at 10,000 km, a later partial record is at 10,400 km, and a newer full tank is at 10,800 km; current reading is 10,915 km; gauge 80%. The new baseline is 10,800 km; expected distance is 120 km and the 115 km distance is within the margin, so the new check passes.
-- **Example 4 — No full-tank history:** the new check is not applied, even if a partial record or approved order supplies the existing Previous Entry; the old check follows its unchanged Previous Entry rules.
+- **Example 4 — No full-tank history:** if a partial record or approved order supplies the existing Previous Entry, use and identify it as the fallback baseline; the old check follows its unchanged Previous Entry rules. If there is no Previous Entry either, the new check is skipped.
 - **Example 5 — A cancelled later full tank:** a valid full-tank baseline is at 10,000 km and a later full-tank record at 10,500 km is cancelled; with a current reading of 10,300 km and gauge 50%, the baseline remains 10,000 km and the new check passes at 300 km expected.
 - **Example 6 — At and beyond the margin:** with 300 km expected, distances of 255 km and 345 km are exactly 15% below or above expected and pass; 254.97 km and 345.03 km are just beyond the margin and fail.
 - **Example 7 — The old and new checks differ:** baseline 10,000 km; a partial record at 10,250 km for 20 L; current reading 10,550 km; gauge 50%. The old check uses the previous reading of 10,250 km and sees 300 km against 300 km expected, so its mileage reason does not fail. The new check uses 10,000 km and sees 550 km against 300 km expected, so it adds its separate red reason.
 - **Example 8 — Generator:** a generator has an hour-meter reading but no vehicle odometer or gauge. Neither vehicle mileage check applies.
-- **Example 9 — No usable economy average:** if a full-tank baseline exists but neither recent average nor vehicle target gives a usable positive km/L value, the new check adds a red reason that says it cannot calculate the comparison; it does not invent an expected distance.
+- **Example 9 — No usable economy average:** if either selected baseline exists but neither recent average nor vehicle target gives a usable positive km/L value, the new check adds a red reason that says it cannot calculate the comparison; it does not invent an expected distance.
+- **Example 10 — Unusable tank estimate:** with a selected baseline but missing/zero tank capacity or an invalid current gauge, the new check adds a red “cannot calculate” reason. If the gauge has not yet been entered, the preview remains in its waiting state.
+- **Example 11 — Gauge already full:** a 100% current gauge estimates zero consumption, so the new check adds a red “cannot calculate” reason.
 
 ### Requirement 5: A durable issue and action history
 
@@ -138,8 +140,10 @@ Invoice discrepancy handling, late-entry rules, meter resets, and cost fields ar
 3. **Full-tank check:** add the separate baseline calculation, visible source and result, approved snapshot, and the worked boundary cases.
 4. **History:** add durable issue and action events, cancellation reasons, extension and print records, and the link to the actual fueling record; keep the listed invoice, late-entry, meter-reset, and cost gaps out of scope.
 
-## Open questions
+## Decisions confirmed during implementation
 
-1. For a signal issue, should history record its first saved appearance, add a new snapshot only when the captured readings or limits change, deduplicate identical saves, and add a separate entry when the issue is later resolved?
-2. If a full-tank baseline exists but tank capacity or gauge information is missing or unusable, should the new check add a red “cannot calculate” reason, or skip that check?
-3. If the gauge says the tank is already full, estimated fuel consumed is zero. Should the new check add a red “cannot calculate” reason, or skip that check?
+- A qualifying baseline is the latest submitted fueling linked to a Full-authorized order. The prior order's gauge and the transaction's Full Tank Confirmed field do not select it.
+- Prefer that Full baseline; if none exists, use the existing Previous Entry as fallback and identify the baseline used. Keep the original mileage check unchanged.
+- Use the current order's gauge to estimate consumption from the Full baseline. If a selected baseline exists but tank capacity or gauge input is unusable, show a red “cannot calculate” reason. A gauge not entered yet remains in the existing waiting state.
+- A 100% current gauge, which estimates zero fuel consumption, adds a red “cannot calculate” reason.
+- A saved Red result starts an issue history episode. Keep the first captured facts, add another snapshot only when the issue explanation or its relevant captured readings or limits change, and deduplicate unchanged saves. A later saved Green result records a separate resolution linked to the latest issue snapshot; a later Red after resolution starts a new episode.

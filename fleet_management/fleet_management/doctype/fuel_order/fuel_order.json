@@ -5,55 +5,61 @@
  "field_order": [
   "section_break_vehicle_order",
   "asset",
-  "vehicle_model",
-  "asset_type",
-  "asset_tank_capacity_snapshot",
-  "asset_target_km_per_litre_snapshot",
   "column_break_vehicle_driver",
   "driver",
-  "custodian",
-  "assigned_location_snapshot",
   "column_break_vehicle_requester",
   "actual_requester",
   "request_datetime",
-  "previous_entry_source",
-  "previous_meter_reading",
-  "previous_entry_date",
-  "estimated_litres",
-  "average_km_per_litre",
   "section_break_request_facts",
   "company_representative",
   "column_break_location",
   "operational_location",
   "column_break_station",
   "planned_station",
-  "fuel_type",
   "section_break_readings_evidence",
   "request_meter_reading",
-  "request_gauge_percent",
-  "signal_panel_html",
   "meter_photo",
+  "column_break_readings_gauge",
+  "request_gauge_percent",
   "gauge_photo",
   "section_break_approval_audit",
   "quantity_authorization",
   "authorized_quantity_litres",
   "partial_authorization_reason",
-  "send_up_explanation",
-  "decision_reason",
+  "section_break_signal_review",
+  "signal_panel_html",
+  "section_break_approval_record",
+  "workflow_state",
   "fulfillment_status",
   "submitted_by",
   "submitted_on",
+  "send_up_explanation",
+  "column_break_approval_decision",
   "approved_by",
   "approved_on",
   "valid_until",
   "rejected_by",
   "rejected_on",
+  "decision_reason",
+  "section_break_history",
+  "history_html",
   "section_break_system_details",
   "signal",
+  "vehicle_model",
+  "asset_type",
+  "asset_tank_capacity_snapshot",
+  "asset_target_km_per_litre_snapshot",
+  "custodian",
+  "assigned_location_snapshot",
+  "previous_entry_source",
+  "previous_meter_reading",
+  "previous_entry_date",
+  "estimated_litres",
+  "average_km_per_litre",
+  "fuel_type",
   "signal_reasons",
   "signal_details_json",
   "naming_series",
-  "workflow_state",
   "assigned_custodian_snapshot",
   "assignment_effective_from",
   "assignment_effective_until",
@@ -82,38 +88,6 @@
    "reqd": 1
   },
   {
-   "depends_on": "eval:doc.asset_type=='Vehicle'",
-   "fetch_from": "asset.vehicle_model",
-   "fieldname": "vehicle_model",
-   "fieldtype": "Link",
-   "label": "Make and Model",
-   "options": "Vehicle Model",
-   "read_only": 1
-  },
-  {
-   "fetch_from": "asset.asset_type",
-   "fieldname": "asset_type",
-   "fieldtype": "Data",
-   "label": "Asset Type",
-   "read_only": 1
-  },
-  {
-   "fieldname": "asset_tank_capacity_snapshot",
-   "fieldtype": "Float",
-   "label": "Tank Size (L)",
-   "no_copy": 1,
-   "read_only": 1,
-   "depends_on": "eval:doc.asset_type=='Vehicle'"
-  },
-  {
-   "fieldname": "asset_target_km_per_litre_snapshot",
-   "fieldtype": "Float",
-   "label": "Target km/L",
-   "no_copy": 1,
-   "read_only": 1,
-   "depends_on": "eval:doc.asset_type=='Vehicle'"
-  },
-  {
    "fieldname": "column_break_vehicle_driver",
    "fieldtype": "Column Break"
   },
@@ -125,23 +99,6 @@
    "options": "Fleet Person",
    "reqd": 1,
    "description": "Operational driver; a Frappe login is not required."
-  },
-  {
-   "fieldname": "custodian",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Custodian",
-   "options": "Fleet Person",
-   "description": "From the vehicle's effective assignment.",
-   "read_only": 1
-  },
-  {
-   "fieldname": "assigned_location_snapshot",
-   "fieldtype": "Link",
-   "label": "Home Location",
-   "no_copy": 1,
-   "options": "Fleet Location",
-   "read_only": 1
   },
   {
    "fieldname": "column_break_vehicle_requester",
@@ -163,45 +120,6 @@
    "in_list_view": 1,
    "label": "Request Date and Time",
    "reqd": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "previous_entry_source",
-   "fieldtype": "Data",
-   "label": "Previous Entry",
-   "no_copy": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "previous_meter_reading",
-   "fieldtype": "Float",
-   "label": "Previous Meter Reading",
-   "no_copy": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "previous_entry_date",
-   "fieldtype": "Datetime",
-   "label": "Previous Entry Date",
-   "no_copy": 1,
-   "read_only": 1
-  },
-  {
-   "depends_on": "eval:doc.asset_type=='Vehicle'",
-   "description": "Tank capacity x (100 - gauge) / 100, calculated by the server.",
-   "fieldname": "estimated_litres",
-   "fieldtype": "Float",
-   "label": "Estimated Litres to Fill",
-   "no_copy": 1,
-   "read_only": 1
-  },
-  {
-   "depends_on": "eval:doc.asset_type=='Vehicle'",
-   "description": "The vehicle's own kilometres per litre over its last five completed intervals; its target until it has one.",
-   "fieldname": "average_km_per_litre",
-   "fieldtype": "Float",
-   "label": "Average km/L",
-   "no_copy": 1,
    "read_only": 1
   },
   {
@@ -244,15 +162,6 @@
    "reqd": 1
   },
   {
-   "fieldname": "fuel_type",
-   "fieldtype": "Link",
-   "label": "Fuel Type",
-   "options": "Fuel Type",
-   "reqd": 1,
-   "fetch_from": "asset.fuel_type",
-   "read_only": 1
-  },
-  {
    "fieldname": "section_break_readings_evidence",
    "fieldtype": "Section Break",
    "label": "Readings and Evidence"
@@ -265,6 +174,11 @@
    "reqd": 1
   },
   {
+   "fieldname": "column_break_readings_gauge",
+   "fieldtype": "Column Break",
+   "depends_on": "eval:doc.asset_type=='Vehicle'"
+  },
+  {
    "depends_on": "eval:doc.asset_type=='Vehicle'",
    "description": "Fuel gauge at request, whole-number percent from 0 to 100.",
    "fieldname": "request_gauge_percent",
@@ -272,11 +186,6 @@
    "label": "Current Gauge (%)",
    "mandatory_depends_on": "eval:doc.asset_type=='Vehicle'",
    "non_negative": 1
-  },
-  {
-   "fieldname": "signal_panel_html",
-   "fieldtype": "HTML",
-   "label": "Signal"
   },
   {
    "fieldname": "meter_photo",
@@ -323,19 +232,29 @@
    "no_copy": 1
   },
   {
-   "description": "Why a red order is genuine; required to send it for sign-off.",
-   "fieldname": "send_up_explanation",
-   "fieldtype": "Small Text",
-   "label": "Explanation for Sign-off",
-   "no_copy": 1,
-   "read_only": 1
+   "fieldname": "section_break_signal_review",
+   "fieldtype": "Section Break",
+   "label": "Signal and Flagged Reasons",
+   "hide_border": 1
   },
   {
-   "description": "The written reason for the approval or rejection that closed this order.",
-   "fieldname": "decision_reason",
-   "fieldtype": "Small Text",
-   "label": "Decision Reason",
+   "fieldname": "signal_panel_html",
+   "fieldtype": "HTML",
+   "label": "Signal"
+  },
+  {
+   "fieldname": "section_break_approval_record",
+   "fieldtype": "Section Break",
+   "label": "Approval Record",
+   "hide_border": 1
+  },
+  {
+   "default": "Draft",
+   "fieldname": "workflow_state",
+   "fieldtype": "Link",
+   "label": "Approval Status",
    "no_copy": 1,
+   "options": "Workflow State",
    "read_only": 1
   },
   {
@@ -361,6 +280,18 @@
    "label": "Submitted for Approval On",
    "no_copy": 1,
    "read_only": 1
+  },
+  {
+   "description": "Why a red order is genuine; required to send it for sign-off.",
+   "fieldname": "send_up_explanation",
+   "fieldtype": "Small Text",
+   "label": "Explanation for Sign-off",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_approval_decision",
+   "fieldtype": "Column Break"
   },
   {
    "fieldname": "approved_by",
@@ -401,6 +332,27 @@
    "read_only": 1
   },
   {
+   "description": "The written reason for the approval or rejection that closed this order.",
+   "fieldname": "decision_reason",
+   "fieldtype": "Small Text",
+   "label": "Decision Reason",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_break_history",
+   "fieldtype": "Section Break",
+   "label": "Issue and Action History"
+  },
+  {
+   "fieldname": "history_html",
+   "fieldtype": "HTML",
+   "label": "History",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
    "collapsible": 1,
    "fieldname": "section_break_system_details",
    "fieldtype": "Section Break",
@@ -411,9 +363,106 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "Signal",
+   "label": "Signal Status",
    "no_copy": 1,
    "options": "\nGreen\nRed",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.asset_type=='Vehicle'",
+   "fetch_from": "asset.vehicle_model",
+   "fieldname": "vehicle_model",
+   "fieldtype": "Link",
+   "label": "Make and Model",
+   "options": "Vehicle Model",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "asset.asset_type",
+   "fieldname": "asset_type",
+   "fieldtype": "Data",
+   "label": "Asset Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "asset_tank_capacity_snapshot",
+   "fieldtype": "Float",
+   "label": "Tank Size (L)",
+   "no_copy": 1,
+   "read_only": 1,
+   "depends_on": "eval:doc.asset_type=='Vehicle'"
+  },
+  {
+   "fieldname": "asset_target_km_per_litre_snapshot",
+   "fieldtype": "Float",
+   "label": "Target km/L",
+   "no_copy": 1,
+   "read_only": 1,
+   "depends_on": "eval:doc.asset_type=='Vehicle'"
+  },
+  {
+   "fieldname": "custodian",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Custodian",
+   "options": "Fleet Person",
+   "description": "From the vehicle's effective assignment.",
+   "read_only": 1
+  },
+  {
+   "fieldname": "assigned_location_snapshot",
+   "fieldtype": "Link",
+   "label": "Home Location",
+   "no_copy": 1,
+   "options": "Fleet Location",
+   "read_only": 1
+  },
+  {
+   "fieldname": "previous_entry_source",
+   "fieldtype": "Data",
+   "label": "Previous Entry",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "previous_meter_reading",
+   "fieldtype": "Float",
+   "label": "Previous Meter Reading",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "previous_entry_date",
+   "fieldtype": "Datetime",
+   "label": "Previous Entry Date",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.asset_type=='Vehicle'",
+   "description": "Tank capacity x (100 - gauge) / 100, calculated by the server.",
+   "fieldname": "estimated_litres",
+   "fieldtype": "Float",
+   "label": "Estimated Litres to Fill",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.asset_type=='Vehicle'",
+   "description": "The vehicle's own kilometres per litre over its last five completed intervals; its target until it has one.",
+   "fieldname": "average_km_per_litre",
+   "fieldtype": "Float",
+   "label": "Average km/L",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "fuel_type",
+   "fieldtype": "Link",
+   "label": "Fuel Type",
+   "options": "Fuel Type",
+   "reqd": 1,
+   "fetch_from": "asset.fuel_type",
    "read_only": 1
   },
   {
@@ -438,16 +487,6 @@
    "label": "Naming Series",
    "options": "FO-.YYYY.-",
    "reqd": 1,
-   "read_only": 1
-  },
-  {
-   "default": "Draft",
-   "fieldname": "workflow_state",
-   "fieldtype": "Link",
-   "hidden": 1,
-   "label": "Workflow State",
-   "no_copy": 1,
-   "options": "Workflow State",
    "read_only": 1
   },
   {

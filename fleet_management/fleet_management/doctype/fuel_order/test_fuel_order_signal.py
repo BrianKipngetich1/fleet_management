@@ -128,6 +128,10 @@ class TestFuelOrderSignal(IntegrationTestCase):
 		self.assertEqual(order.signal, "Green")
 		self.assertEqual(self._reasons(order), [])
 		self.assertEqual(order.average_km_per_litre, 10)
+		self.assertEqual(
+			json.loads(order.signal_details_json)["signal_inputs"]["full_tank_mileage_check"]["status"],
+			"skipped",
+		)
 
 	def test_signal_is_recomputed_on_every_save(self):
 		order = self.make_order().insert(ignore_permissions=True)
@@ -158,6 +162,16 @@ class TestFuelOrderSignal(IntegrationTestCase):
 		self.assertIsNone(waiting["signal"])
 		self.assertEqual(waiting["reasons"], [])
 		self.assertEqual(waiting["request_summary"]["estimated_litres"], 12)
+		gauge_waiting = preview_signal(
+			asset=self.asset.name,
+			request_meter_reading=1000,
+			request_gauge_percent=None,
+			operational_location=self.location.name,
+			driver=self.driver.name,
+		)
+		self.assertEqual(gauge_waiting["status"], "waiting")
+		self.assertEqual(gauge_waiting["waiting_for"], ["Current Gauge (%)"])
+		self.assertEqual(gauge_waiting["reasons"], [])
 
 		preview = preview_signal(
 			asset=self.asset.name,
@@ -194,12 +208,16 @@ class TestFuelOrderSignal(IntegrationTestCase):
 			request_gauge_percent=80,
 			signal="Green",
 			signal_reasons="Client supplied reason",
-			signal_details_json='{"signal":"Green"}',
+			signal_details_json=(
+				'{"signal":"Green","signal_inputs":{"full_tank_mileage_check":{"status":"fail"}}}'
+			),
 		).insert(ignore_permissions=True)
 
 		self.assertEqual(order.signal, "Red")
 		self.assertTrue(order.signal_reasons.startswith("Tank nearly full"))
-		self.assertEqual(json.loads(order.signal_details_json)["signal"], "Red")
+		server_signal = json.loads(order.signal_details_json)
+		self.assertEqual(server_signal["signal"], "Red")
+		self.assertEqual(server_signal["signal_inputs"]["full_tank_mileage_check"]["status"], "skipped")
 
 	def test_signal_is_recomputed_before_approval_after_limits_change(self):
 		requester = self._user(("Fleet User",), self.location.name)
@@ -352,16 +370,27 @@ class TestFuelOrderSignal(IntegrationTestCase):
 		order = self.make_order().insert(ignore_permissions=True)
 		self.assertEqual(order.average_km_per_litre, 10.0)
 
-	def test_latest_full_tank_baseline_ignores_partial_and_cancelled_fuelings(self):
+	def test_latest_full_authorized_baseline_ignores_partial_and_cancelled_transactions(self):
 		first_time = now_datetime() - timedelta(days=3)
 		newer_full_time = now_datetime() - timedelta(days=2)
 		partial_time = now_datetime() - timedelta(days=1)
 		cancelled_full_time = now_datetime()
+		orders = {
+			"baseline": self.make_order(request_gauge_percent=10).insert(ignore_permissions=True),
+			"newer-full": self.make_order(request_gauge_percent=70).insert(ignore_permissions=True),
+			"partial": self.make_order(
+				quantity_authorization="Partial",
+				authorized_quantity_litres=10,
+				partial_authorization_reason="Limited station stock",
+				request_gauge_percent=40,
+			).insert(ignore_permissions=True),
+			"cancelled-full": self.make_order(request_gauge_percent=20).insert(ignore_permissions=True),
+		}
 		rows = (
-			("baseline", first_time, 10000, 1, 1),
-			("newer-full", newer_full_time, 10500, 1, 1),
-			("partial", partial_time, 11000, 0, 1),
-			("cancelled-full", cancelled_full_time, 12000, 1, 2),
+			("baseline", first_time, 10000, 0, 1),
+			("newer-full", newer_full_time, 10500, 0, 1),
+			("partial", partial_time, 11000, 1, 1),
+			("cancelled-full", cancelled_full_time, 12000, 0, 2),
 		)
 		for suffix, fueling_time, odometer, full_tank, docstatus in rows:
 			frappe.get_doc(
@@ -370,16 +399,30 @@ class TestFuelOrderSignal(IntegrationTestCase):
 					"name": f"AC09-{suffix}-{self.suffix}",
 					"docstatus": docstatus,
 					"asset": self.asset.name,
+					"fuel_order": orders[suffix].name,
 					"vehicle_odometer": odometer,
 					"actual_fueling_datetime": fueling_time,
+					"invoice_litres": 25 if suffix == "partial" else 30,
 					"full_tank_confirmed": full_tank,
 				}
 			).db_insert()
 
 		baseline = get_latest_full_tank_baseline(self.asset.name)
 		self.assertEqual(baseline.name, f"AC09-newer-full-{self.suffix}")
+		self.assertEqual(baseline.fuel_order, orders["newer-full"].name)
+		self.assertEqual(baseline.fuel_order_quantity_authorization, "Full")
 		self.assertEqual(baseline.vehicle_odometer, 10500)
 		self.assertEqual(baseline.actual_fueling_datetime, newer_full_time)
+
+		order = self.make_order(request_meter_reading=10800, request_gauge_percent=50).insert(
+			ignore_permissions=True
+		)
+		check = json.loads(order.signal_details_json)["signal_inputs"]["full_tank_mileage_check"]
+		self.assertEqual(check["baseline"]["reference"], baseline.name)
+		self.assertEqual(check["baseline_odometer"], 10500)
+		self.assertEqual(check["estimated_consumed_litres"], 30)
+		self.assertEqual(check["expected_distance_km"], 300)
+		self.assertEqual(check["status"], "pass")
 
 	def test_full_tank_baseline_is_missing_without_vehicle_history_or_for_generator(self):
 		self.assertIsNone(get_latest_full_tank_baseline(self.asset.name))
@@ -411,18 +454,126 @@ class TestFuelOrderSignal(IntegrationTestCase):
 		).db_insert()
 		self.assertIsNone(get_latest_full_tank_baseline(generator.name))
 
+	def test_mileage_baseline_falls_back_to_previous_entry_without_full_history(self):
+		partial_order = self.make_order(
+			quantity_authorization="Partial",
+			authorized_quantity_litres=10,
+			partial_authorization_reason="Limited station stock",
+		).insert(ignore_permissions=True)
+		fueling_time = now_datetime() - timedelta(days=1)
+		fueling_name = f"AC09-partial-fallback-{self.suffix}"
+		frappe.get_doc(
+			{
+				"doctype": "Fueling Transaction",
+				"name": fueling_name,
+				"docstatus": 1,
+				"asset": self.asset.name,
+				"fuel_order": partial_order.name,
+				"vehicle_odometer": 900,
+				"actual_fueling_datetime": fueling_time,
+				"full_tank_confirmed": 0,
+			}
+		).db_insert()
+
+		order = self.make_order(request_meter_reading=1000).insert(ignore_permissions=True)
+		inputs = json.loads(order.signal_details_json)["signal_inputs"]
+		self.assertIsNone(inputs["full_tank_baseline"])
+		self.assertEqual(inputs["mileage_baseline"]["source"], "previous_entry_fallback")
+		self.assertEqual(inputs["mileage_baseline"]["reference"], f"Fueling {fueling_name}")
+		self.assertEqual(inputs["mileage_baseline"]["vehicle_odometer"], 900)
+		self.assertEqual(
+			inputs["full_tank_mileage_check"]["baseline"]["source"], "previous_entry_fallback"
+		)
+		self.assertEqual(
+			get_datetime(inputs["mileage_baseline"]["timestamp"]),
+			get_datetime(
+				frappe.db.get_value("Fueling Transaction", fueling_name, "actual_fueling_datetime")
+			),
+		)
+
+	def test_server_preview_and_save_refresh_the_full_tank_result_from_newer_history(self):
+		first_baseline_order = self.make_order().insert(ignore_permissions=True)
+		first_baseline_time = now_datetime() - timedelta(days=2)
+		first_baseline_name = f"AC09-preview-full-1-{self.suffix}"
+		frappe.get_doc(
+			{
+				"doctype": "Fueling Transaction",
+				"name": first_baseline_name,
+				"docstatus": 1,
+				"asset": self.asset.name,
+				"fuel_order": first_baseline_order.name,
+				"vehicle_odometer": 1000,
+				"actual_fueling_datetime": first_baseline_time,
+				"full_tank_confirmed": 0,
+			}
+		).db_insert()
+		values = {
+			"asset": self.asset.name,
+			"request_meter_reading": 1300,
+			"request_gauge_percent": 50,
+			"operational_location": self.location.name,
+			"driver": self.driver.name,
+			"quantity_authorization": "Full",
+		}
+
+		preview = preview_signal(**values)
+		order = self.make_order(**{key: value for key, value in values.items() if key != "asset"}).insert(
+			ignore_permissions=True
+		)
+		saved = json.loads(order.signal_details_json)
+		self.assertEqual(
+			preview["signal_inputs"]["full_tank_mileage_check"],
+			saved["signal_inputs"]["full_tank_mileage_check"],
+		)
+		self.assertEqual(
+			saved["signal_inputs"]["full_tank_mileage_check"]["baseline"]["reference"],
+			first_baseline_name,
+		)
+
+		newer_baseline_order = self.make_order().insert(ignore_permissions=True)
+		newer_baseline_name = f"AC09-preview-full-2-{self.suffix}"
+		frappe.get_doc(
+			{
+				"doctype": "Fueling Transaction",
+				"name": newer_baseline_name,
+				"docstatus": 1,
+				"asset": self.asset.name,
+				"fuel_order": newer_baseline_order.name,
+				"vehicle_odometer": 1100,
+				"actual_fueling_datetime": now_datetime() - timedelta(days=1),
+				"full_tank_confirmed": 0,
+			}
+		).db_insert()
+		preview = preview_signal(**values)
+		self.assertEqual(
+			preview["signal_inputs"]["full_tank_mileage_check"]["baseline"]["reference"],
+			newer_baseline_name,
+		)
+		values["request_gauge_percent"] = 40
+		preview = preview_signal(**values)
+		self.assertEqual(
+			preview["signal_inputs"]["full_tank_mileage_check"]["expected_distance_km"], 360
+		)
+		order.request_gauge_percent = 40
+		order.save(ignore_permissions=True)
+		saved_check = json.loads(order.signal_details_json)["signal_inputs"]["full_tank_mileage_check"]
+		self.assertEqual(saved_check["baseline"]["reference"], newer_baseline_name)
+		self.assertEqual(saved_check, preview["signal_inputs"]["full_tank_mileage_check"])
+
 	def test_signal_is_frozen_once_approved(self):
 		first_baseline_time = now_datetime() - timedelta(days=2)
 		first_baseline = f"AC09-initial-full-{self.suffix}"
+		baseline_order = self.make_order().insert(ignore_permissions=True)
 		frappe.get_doc(
 			{
 				"doctype": "Fueling Transaction",
 				"name": first_baseline,
 				"docstatus": 1,
 				"asset": self.asset.name,
+				"fuel_order": baseline_order.name,
 				"vehicle_odometer": 650,
 				"actual_fueling_datetime": first_baseline_time,
-				"full_tank_confirmed": 1,
+				"full_tank_confirmed": 0,
 			}
 		).db_insert()
 		approved = self._approve_green()
@@ -432,6 +583,17 @@ class TestFuelOrderSignal(IntegrationTestCase):
 			json.loads(approved_details)["signal_inputs"]["full_tank_baseline"]["name"],
 			first_baseline,
 		)
+		frozen_baseline = json.loads(approved_details)["signal_inputs"]["full_tank_baseline"]
+		self.assertEqual(frozen_baseline["fuel_order"], baseline_order.name)
+		self.assertEqual(frozen_baseline["quantity_authorization"], "Full")
+		selected_baseline = json.loads(approved_details)["signal_inputs"]["mileage_baseline"]
+		self.assertEqual(selected_baseline["source"], "full_authorized_fueling")
+		self.assertEqual(selected_baseline["fuel_order"], baseline_order.name)
+		frozen_check = json.loads(approved_details)["signal_inputs"]["full_tank_mileage_check"]
+		self.assertEqual(frozen_check["status"], "pass")
+		self.assertEqual(frozen_check["baseline"]["reference"], first_baseline)
+		self.assertEqual(frozen_check["estimated_consumed_litres"], 36)
+		self.assertEqual(frozen_check["expected_distance_km"], 360)
 		self.assertIn("signal_details_json", frappe.get_meta("Fuel Order").get_valid_fields())
 		self.assertTrue(frappe.db.has_column("Fuel Order", "signal_details_json"))
 		self.assertEqual(
@@ -445,15 +607,17 @@ class TestFuelOrderSignal(IntegrationTestCase):
 		approver = self._user(("Fleet Approver",), self.location.name)
 
 		self._save_settings(gauge_limit_percent=10)
+		newer_baseline_order = self.make_order().insert(ignore_permissions=True)
 		frappe.get_doc(
 			{
 				"doctype": "Fueling Transaction",
 				"name": f"AC09-new-full-{self.suffix}",
 				"docstatus": 1,
 				"asset": self.asset.name,
+				"fuel_order": newer_baseline_order.name,
 				"vehicle_odometer": 1100,
 				"actual_fueling_datetime": now_datetime() + timedelta(hours=1),
-				"full_tank_confirmed": 1,
+				"full_tank_confirmed": 0,
 			}
 		).db_insert()
 		new_valid_until = get_datetime(approved.valid_until) + timedelta(hours=1)

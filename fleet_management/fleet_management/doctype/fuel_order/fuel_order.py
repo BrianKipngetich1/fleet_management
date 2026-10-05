@@ -19,6 +19,15 @@ from fleet_management.fuel_signal import (
 	missing_signal_readings,
 	waiting_signal_result,
 )
+from fleet_management.history import (
+	capture_evidence_references,
+	capture_order_facts,
+	clear_cancel_reason,
+	latest_signal_history_event,
+	record_history_event,
+	record_signal_issue_state,
+	take_cancel_reason,
+)
 from fleet_management.notifications import notify_fuel_order
 from fleet_management.permissions import get_permitted_location_names
 
@@ -72,14 +81,87 @@ class FuelOrder(Document):
 		return "Awaiting Transaction"
 
 	def on_update(self):
+		record_signal_issue_state(self)
 		previous_state = self._previous_workflow_state()
 		event = {
 			("Draft", "Pending Approval"): "pending_approval",
 			("Pending Approval", "Approved"): "approved",
 			("Pending Approval", "Rejected"): "rejected",
 		}.get((previous_state, self.workflow_state))
+		action_event = self._record_workflow_history(previous_state)
+		if (
+			action_event
+			and self.workflow_state == "Approved"
+			and self.quantity_authorization == "Partial"
+		):
+			signal_event = latest_signal_history_event(self.name)
+			record_history_event(
+				self.name,
+				"Partial Authorization",
+				f"Partial authorization approved for {self.authorized_quantity_litres} L.",
+				reason=self.partial_authorization_reason,
+				source_facts={
+					"quantity_authorization": self.quantity_authorization,
+					"authorized_quantity_litres": self.authorized_quantity_litres,
+					"partial_authorization_reason": self.partial_authorization_reason,
+					"approval_event": action_event,
+				},
+				evidence_references=capture_evidence_references(self),
+				issue_key=signal_event.issue_key if signal_event else None,
+				related_event=action_event,
+			)
 		if event:
 			notify_fuel_order(self, event)
+
+	def _record_workflow_history(self, previous_state):
+		action = {
+			("Draft", "Pending Approval"): "Sent for Approval",
+			("Draft", "Approved"): "Approved",
+			("Draft", "Rejected"): "Rejected",
+			("Pending Approval", "Approved"): "Approved",
+			("Pending Approval", "Rejected"): (
+				"Withdrawn" if self.decision_action == "Withdraw" else "Rejected"
+			),
+		}.get((previous_state, self.workflow_state))
+		if not action:
+			return None
+		reason = self.send_up_explanation if action == "Sent for Approval" else self.decision_reason
+		signal_event = latest_signal_history_event(self.name)
+		return record_history_event(
+			self.name,
+			action,
+			f"Fuel Order {action.lower()}.",
+			reason=reason,
+			source_facts={
+				"workflow_state_before": previous_state,
+				"workflow_state_after": self.workflow_state,
+				"decision_action": self.decision_action,
+				"decision_reason_by": self.decision_reason_by,
+				"order": capture_order_facts(self),
+				"signal_history_event": signal_event.name if signal_event else None,
+			},
+			evidence_references=capture_evidence_references(self),
+			issue_key=signal_event.issue_key if signal_event else None,
+			related_event=signal_event.name if signal_event else None,
+		)
+
+	def before_cancel(self):
+		self.flags.fuel_order_history_cancel_reason = take_cancel_reason(self.doctype, self.name)
+
+	def on_cancel(self):
+		reason = self.flags.get("fuel_order_history_cancel_reason")
+		signal_event = latest_signal_history_event(self.name)
+		record_history_event(
+			self.name,
+			"Cancelled",
+			"Fuel Order cancelled.",
+			reason=reason,
+			source_facts=capture_order_facts(self),
+			evidence_references=capture_evidence_references(self),
+			issue_key=signal_event.issue_key if signal_event else None,
+			related_event=signal_event.name if signal_event else None,
+		)
+		clear_cancel_reason(self.doctype, self.name)
 
 	def before_validate(self):
 		self._set_request_datetime()
@@ -188,6 +270,7 @@ class FuelOrder(Document):
 		asset_type = self._asset_type()
 		is_vehicle = asset_type == "Vehicle"
 		baseline = get_latest_full_tank_baseline(self.asset) if is_vehicle else None
+		mileage_baseline = self._select_mileage_baseline(baseline) if is_vehicle else None
 		intervals = get_mileage_intervals(self.asset) if is_vehicle else []
 		average = (
 			get_average_km_per_litre(intervals, self.asset_target_km_per_litre_snapshot)
@@ -197,7 +280,7 @@ class FuelOrder(Document):
 		latest = frappe.get_all(
 			"Fueling Transaction",
 			filters={"asset": self.asset, "docstatus": 1},
-			fields=["full_tank_confirmed", "actual_fueling_datetime"],
+			fields=["name", "full_tank_confirmed", "actual_fueling_datetime"],
 			order_by="actual_fueling_datetime desc, creation desc",
 			limit=1,
 		)
@@ -214,12 +297,15 @@ class FuelOrder(Document):
 			"full_tank_baseline": (
 				{
 					"name": baseline.name,
+					"fuel_order": baseline.fuel_order,
+					"quantity_authorization": baseline.fuel_order_quantity_authorization,
 					"vehicle_odometer": baseline.vehicle_odometer,
 					"actual_fueling_datetime": str(baseline.actual_fueling_datetime),
 				}
 				if baseline
 				else None
 			),
+			"mileage_baseline": mileage_baseline,
 			"tank_capacity": self.asset_tank_capacity_snapshot,
 			"gauge_percent": self.request_gauge_percent,
 			"current_reading": self.request_meter_reading,
@@ -236,6 +322,15 @@ class FuelOrder(Document):
 			"last_fill_was_full": bool(latest.full_tank_confirmed) if latest else True,
 			"has_open_order": has_open_order(self.asset, exclude_order=None if self.is_new() else self.name),
 			"hours_since_last_fueling": hours_since_last_fueling,
+			"last_fueling": (
+				{
+					"name": latest.name,
+					"actual_fueling_datetime": str(latest.actual_fueling_datetime),
+					"full_tank_confirmed": bool(latest.full_tank_confirmed),
+				}
+				if latest
+				else None
+			),
 			"operational_location": self.operational_location,
 			"home_location": self.assigned_location_snapshot,
 			"driver": self.driver,
@@ -246,11 +341,34 @@ class FuelOrder(Document):
 		self.average_km_per_litre = average
 		self._set_estimated_litres()
 		result = evaluate_signal_result(facts, get_signal_limits(), self.workflow_state)
+		result["signal_inputs"]["last_fueling"] = facts["last_fueling"]
 		result["request_summary"] = {
 			"estimated_litres": self.estimated_litres,
 			"average_km_per_litre": self.average_km_per_litre,
 		}
 		return result
+
+	def _select_mileage_baseline(self, full_tank_baseline):
+		if full_tank_baseline:
+			return {
+				"source": "full_authorized_fueling",
+				"label": "Full-authorized fueling",
+				"reference": full_tank_baseline.name,
+				"fuel_order": full_tank_baseline.fuel_order,
+				"vehicle_odometer": full_tank_baseline.vehicle_odometer,
+				"timestamp": str(full_tank_baseline.actual_fueling_datetime),
+			}
+
+		if self.previous_entry_source == "none" or self.previous_meter_reading in (None, ""):
+			return None
+
+		return {
+			"source": "previous_entry_fallback",
+			"label": "Previous Entry fallback",
+			"reference": self.previous_entry_source,
+			"vehicle_odometer": self.previous_meter_reading,
+			"timestamp": str(self.previous_entry_date) if self.previous_entry_date else None,
+		}
 
 	def _asset_type(self):
 		return frappe.db.get_value("Fleet Asset", self.asset, "asset_type") if self.asset else None
@@ -542,6 +660,14 @@ class FuelOrder(Document):
 		self.validity_extension_history = json.dumps(history, separators=(",", ":"))
 		self.flags.validity_extension = True
 		self.save()
+		record_history_event(
+			self.name,
+			"Validity Extended",
+			"Fuel Order validity was extended.",
+			reason=reason,
+			source_facts=extension,
+			slip_revision=self.slip_revision,
+		)
 		notify_fuel_order(self, "extended")
 		self.flags.validity_extension = False
 		return {
@@ -651,8 +777,8 @@ class FuelOrder(Document):
 		# reprint. This gives transaction submission a current revision to check;
 		# stale physical slips cannot satisfy an extension by themselves.
 		slip_revision = int(self.slip_revision or 1)
+		printed_on = now_datetime()
 		if int(self.printed_slip_revision or 0) != slip_revision or self.reprint_required:
-			printed_on = now_datetime()
 			updates = {
 				"printed_slip_revision": slip_revision,
 				"last_slip_printed_on": printed_on,
@@ -660,11 +786,21 @@ class FuelOrder(Document):
 			}
 			frappe.db.set_value(self.doctype, self.name, updates, update_modified=False)
 			self.update(updates)
-			# Desk/printview is a GET request, so Frappe otherwise rolls back this
-			# intentional print-completion write at request end. Keep unit and
-			# integration tests inside their existing transaction boundary.
-			if getattr(frappe.local, "request", None):
-				frappe.db.commit()
+		record_history_event(
+			self.name,
+			"Slip Printed",
+			f"Approval slip printed (revision {slip_revision}).",
+			source_facts={
+				"slip_revision": slip_revision,
+				"valid_until": self.valid_until,
+				"printed_on": printed_on,
+			},
+			slip_revision=slip_revision,
+		)
+		# Desk/printview is a GET request, so Frappe otherwise rolls back the
+		# intentional print bookkeeping and event at request end.
+		if getattr(frappe.local, "request", None):
+			frappe.db.commit()
 
 
 def get_previous_entry(asset, exclude_order=None):
@@ -705,17 +841,29 @@ def get_previous_entry(asset, exclude_order=None):
 
 
 def get_latest_full_tank_baseline(asset):
-	"""Latest submitted vehicle fueling that confirmed a full tank."""
+	"""Latest submitted vehicle fueling linked to an order authorized as Full."""
 	if not asset or frappe.db.get_value("Fleet Asset", asset, "asset_type") != "Vehicle":
 		return None
 
-	rows = frappe.get_all(
+	rows = frappe.qb.get_query(
 		"Fueling Transaction",
-		filters={"asset": asset, "docstatus": 1, "full_tank_confirmed": 1},
-		fields=["name", "vehicle_odometer", "actual_fueling_datetime"],
+		fields=[
+			"name",
+			"fuel_order",
+			"fuel_order.quantity_authorization as fuel_order_quantity_authorization",
+			"vehicle_odometer",
+			"actual_fueling_datetime",
+		],
+		filters={
+			"asset": asset,
+			"docstatus": 1,
+			"fuel_order.quantity_authorization": "Full",
+			"vehicle_odometer": ["is", "set"],
+			"actual_fueling_datetime": ["is", "set"],
+		},
 		order_by="actual_fueling_datetime desc, creation desc",
 		limit=1,
-	)
+	).run(as_dict=True)
 	return rows[0] if rows else None
 
 

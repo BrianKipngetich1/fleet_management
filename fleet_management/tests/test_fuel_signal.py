@@ -31,6 +31,19 @@ class TestFuelSignal(UnitTestCase):
 		facts.update(overrides)
 		return facts
 
+	def _with_mileage_baseline(self, **overrides):
+		return self._vehicle(
+			mileage_baseline={
+				"source": "full_authorized_fueling",
+				"label": "Full-authorized fueling",
+				"reference": "FT-1",
+				"vehicle_odometer": 1000,
+				"timestamp": "2026-10-01 10:00:00",
+				"fuel_order": "FO-1",
+			},
+			**overrides,
+		)
+
 	def test_baseline_is_green(self):
 		reasons = evaluate_signal(self._vehicle())
 		self.assertEqual(reasons, [])
@@ -48,6 +61,107 @@ class TestFuelSignal(UnitTestCase):
 		reasons = evaluate_signal(self._vehicle(current_reading=1346))
 		self.assertEqual(len(reasons), 1)
 		self.assertTrue(reasons[0].startswith("Mileage does not add up"))
+
+	def test_full_tank_check_estimates_consumption_from_current_gauge(self):
+		result = evaluate_signal_result(self._with_mileage_baseline())
+		check = result["signal_inputs"]["full_tank_mileage_check"]
+
+		self.assertEqual(check["status"], "pass")
+		self.assertEqual(check["baseline"]["reference"], "FT-1")
+		self.assertEqual(check["distance_km"], 300)
+		self.assertEqual(check["estimated_remaining_litres"], 30)
+		self.assertEqual(check["estimated_consumed_litres"], 30)
+		self.assertEqual(check["expected_distance_km"], 300)
+
+	def test_full_tank_reason_explains_source_readings_economy_and_margin(self):
+		result = evaluate_signal_result(
+			self._with_mileage_baseline(current_reading=1350, average_source="recent_average"),
+			{"mileage_margin_percent": 15},
+		)
+		reason = next(
+			item
+			for item in result["reasons"]
+			if item["text"].startswith("Full-authorized fueling mileage does not add up")
+		)
+
+		self.assertIn("Baseline used: Full-authorized fueling (FT-1)", reason["details"])
+		self.assertIn("Distance since selected baseline: 350 km", reason["details"])
+		self.assertIn("Estimated fuel used: 30 L", reason["details"])
+		self.assertIn("Expected distance: 300.0 km", reason["details"])
+		self.assertIn(
+			"Observed full-to-full average: 10 km/L (0.100 L/km; 10.0 L/100 km)",
+			reason["details"],
+		)
+		self.assertIn("Allowed mileage margin: 15%", reason["details"])
+		self.assertTrue(reason["next_action"])
+
+	def test_full_tank_comparison_exact_margin_passes_and_beyond_margin_fails(self):
+		for current_reading in (1255, 1345):
+			with self.subTest(current_reading=current_reading):
+				result = evaluate_signal_result(
+					self._with_mileage_baseline(current_reading=current_reading),
+					{"mileage_margin_percent": 15},
+				)
+				self.assertEqual(result["signal_inputs"]["full_tank_mileage_check"]["status"], "pass")
+
+		for current_reading in (1254.97, 1345.03):
+			with self.subTest(current_reading=current_reading):
+				result = evaluate_signal_result(
+					self._with_mileage_baseline(current_reading=current_reading),
+					{"mileage_margin_percent": 15},
+				)
+				check = result["signal_inputs"]["full_tank_mileage_check"]
+				self.assertEqual(check["status"], "fail")
+				self.assertGreater(round(check["variance_percent"], 6), check["margin_percent"])
+
+	def test_old_mileage_check_stays_unchanged_when_full_tank_result_differs(self):
+		reasons = evaluate_signal(
+			self._with_mileage_baseline(previous_reading=1250, current_reading=1550)
+		)
+
+		self.assertFalse(any(reason.startswith("Mileage does not add up") for reason in reasons))
+		self.assertTrue(
+			any(reason.startswith("Full-authorized fueling mileage does not add up") for reason in reasons)
+		)
+
+	def test_full_tank_check_cannot_calculate_for_unusable_inputs_or_zero_use(self):
+		for overrides in (
+			{"tank_capacity": None},
+			{"tank_capacity": 0},
+			{"gauge_percent": 101},
+			{"average_km_per_litre": 0},
+			{"average_km_per_litre": None},
+			{"gauge_percent": 100},
+		):
+			with self.subTest(overrides=overrides):
+				result = evaluate_signal_result(self._with_mileage_baseline(**overrides))
+				check = result["signal_inputs"]["full_tank_mileage_check"]
+				self.assertEqual(check["status"], "cannot_calculate")
+				self.assertTrue(
+					any(
+						reason["text"].startswith("Mileage check cannot calculate")
+						for reason in result["reasons"]
+					)
+				)
+
+	def test_fallback_baseline_is_named_and_no_baseline_skips_new_check(self):
+		fallback = {
+			"source": "previous_entry_fallback",
+			"label": "Previous Entry fallback",
+			"reference": "Fueling FT-0",
+			"vehicle_odometer": 1000,
+			"timestamp": "2026-09-30 10:00:00",
+		}
+		result = evaluate_signal_result(self._vehicle(mileage_baseline=fallback))
+		self.assertEqual(
+			result["signal_inputs"]["full_tank_mileage_check"]["baseline"]["source"],
+			"previous_entry_fallback",
+		)
+
+		without_baseline = evaluate_signal_result(self._vehicle(mileage_baseline=None))
+		self.assertEqual(
+			without_baseline["signal_inputs"]["full_tank_mileage_check"]["status"], "skipped"
+		)
 
 	def test_signal_explanation_names_distance_estimate_economy_margin_and_action(self):
 		result = evaluate_signal_result(
@@ -254,6 +368,10 @@ class TestFuelSignal(UnitTestCase):
 			"hours_since_last_fueling": 1,
 			"operational_location": "Mombasa",
 			"home_location": "Nairobi",
+			"mileage_baseline": {
+				"source": "full_authorized_fueling",
+				"vehicle_odometer": 1000,
+			},
 		}
 		reasons = evaluate_signal(facts)
 		self.assertEqual(len(reasons), 3)

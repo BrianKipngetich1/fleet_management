@@ -12,6 +12,227 @@ function escape_panel_text(value) {
 	return frappe.utils.escape_html(value == null ? "" : String(value));
 }
 
+function summary_value(value, unit) {
+	if (value === null || value === undefined || value === "") return __("Not available");
+	const shown =
+		typeof value === "number" && Number.isFinite(value)
+			? value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+			: String(value);
+	return unit ? shown + " " + unit : shown;
+}
+
+function summary_row(label, value, unit) {
+	return (
+		'<div class="fuel-order-summary-row"><span class="text-muted">' +
+		escape_panel_text(label) +
+		'</span><strong>' +
+		escape_panel_text(summary_value(value, unit)) +
+		'</strong></div>'
+	);
+}
+
+function summary_card(title, rows) {
+	return (
+		'<div class="fuel-order-summary-card"><div class="fuel-order-summary-title">' +
+		escape_panel_text(title) +
+		'</div>' +
+		rows.map((row) => summary_row(row[0], row[1], row[2])).join("") +
+		'</div>'
+	);
+}
+
+function render_vehicle_summary(frm) {
+	const section = frm.layout?.sections_dict?.section_break_vehicle_order?.wrapper;
+	const page = frm.layout?.page;
+	if (!section || !page) return;
+
+	let summary = page.children(".fuel-order-summary-block");
+	if (!summary.length) {
+		summary = $('<div class="fuel-order-summary-block"></div>').insertAfter(section);
+	}
+	if (!frm.doc.asset) {
+		summary.html(
+			'<div class="text-muted">' +
+				escape_panel_text(
+					__("Select an asset to see its vehicle, assignment, previous-entry, and estimate summary.")
+				) +
+			'</div>'
+		);
+		return;
+	}
+
+	const vehicle = frm.doc.asset_type === "Vehicle";
+	const meter_unit = vehicle ? "km" : frm.doc.asset_type === "Generator" ? "h" : "";
+	const vehicle_rows = [
+		[__("Asset"), frm.doc.asset],
+		[__("Make and model"), frm.doc.vehicle_model],
+		[__("Asset type"), frm.doc.asset_type],
+		[__("Fuel type"), frm.doc.fuel_type],
+	];
+	if (vehicle) {
+		vehicle_rows.push(
+			[__("Tank size"), frm.doc.asset_tank_capacity_snapshot, "L"],
+			[__("Target economy"), frm.doc.asset_target_km_per_litre_snapshot, "km/L"]
+		);
+	}
+
+	const assignment_rows = [
+		[__("Selected driver"), frm.doc.driver],
+		[__("Assigned custodian"), frm.doc.custodian],
+		[__("Home location"), frm.doc.assigned_location_snapshot],
+	];
+	const previous_date = frm.doc.previous_entry_date
+		? frappe.datetime.str_to_user(frm.doc.previous_entry_date)
+		: null;
+	const history_rows = [
+		[__("Previous entry"), frm.doc.previous_entry_source || __("None recorded")],
+		[__("Previous reading"), frm.doc.previous_meter_reading, meter_unit],
+		[__("Recorded on"), previous_date],
+	];
+	if (vehicle) {
+		history_rows.push(
+			[__("Estimated litres to fill"), frm.doc.estimated_litres, "L"],
+			[__("Recent average"), frm.doc.average_km_per_litre, "km/L"]
+		);
+	}
+
+	const cards = [
+		[__("Vehicle"), vehicle_rows],
+		[__("Assignment"), assignment_rows],
+		[__("Previous Entry and Estimate"), history_rows],
+	];
+	summary.html(
+		'<div class="fuel-order-summary-heading">' +
+			escape_panel_text(__("Selected Asset Summary")) +
+		'</div><div class="row fuel-order-summary">' +
+			cards
+				.map(
+					(card) =>
+						'<div class="col-12 col-md-6 col-xl-4 mb-3">' +
+						summary_card(card[0], card[1]) +
+						'</div>'
+				)
+				.join("") +
+			'</div>'
+	);
+}
+
+function apply_fuel_order_layout(frm) {
+	if (frm.layout && frm.layout.page) {
+		frm.layout.page.addClass("fuel-order-workspace");
+	}
+}
+
+function render_order_history(frm, events, error) {
+	const field = frm.fields_dict.history_html;
+	if (!field) return;
+	if (error) {
+		field.set_value('<p class="text-muted">' + escape_panel_text(error) + '</p>');
+		return;
+	}
+	if (!events || !events.length) {
+		field.set_value('<p class="text-muted">' + __("No saved history events yet.") + '</p>');
+		return;
+	}
+	const events_by_name = new Map(events.map((event) => [event.name, event]));
+	const rows = events
+		.map((event) => {
+			const related_event = event.related_event ? events_by_name.get(event.related_event) : null;
+			let facts = event.source_facts_json || "";
+			let evidence = [];
+			try {
+				facts = JSON.stringify(JSON.parse(facts), null, 2);
+			} catch (error) {
+				// Older events can retain a plain source value.
+			}
+			try {
+				evidence = JSON.parse(event.evidence_references_json || "[]");
+			} catch (error) {
+				evidence = [];
+			}
+			const evidenceHtml = evidence
+				.map((reference) => {
+					const label = escape_panel_text(reference.file_name || reference.fieldname || reference.file);
+					const url = String(reference.file_url || "");
+					return url.startsWith("/private/files/")
+						? '<li><a href="' + escape_panel_text(url) + '">' + label + '</a></li>'
+						: '<li>' + label + '</li>';
+				})
+				.join("");
+			const capturedFacts = facts
+				? '<details><summary>' + __("Captured facts") + '</summary><pre>' + escape_panel_text(facts) + '</pre></details>'
+				: "";
+			const evidenceList = evidenceHtml
+				? '<p>' + __("Evidence") + '</p><ul>' + evidenceHtml + '</ul>'
+				: "";
+			const relatedEventHtml = related_event
+				? '<p class="text-muted">' +
+					__("Related to:") +
+					' ' +
+					escape_panel_text(related_event.event_type) +
+					' — ' +
+					escape_panel_text(related_event.summary) +
+					'</p>'
+				: "";
+			return (
+				'<li class="fuel-order-history-event"><strong>' +
+				escape_panel_text(event.event_type) +
+				':</strong> ' +
+				escape_panel_text(event.summary) +
+				'<p class="text-muted">' +
+				escape_panel_text(event.actor) +
+				' · ' +
+				escape_panel_text(event.event_datetime) +
+				'</p>' +
+				(event.reason
+					? '<p><strong>' + __("Reason or explanation:") + '</strong> ' + escape_panel_text(event.reason) + '</p>'
+					: "") +
+				(event.fueling_transaction
+					? '<p>' + __("Fueling Transaction:") + ' ' + escape_panel_text(event.fueling_transaction) + '</p>'
+					: "") +
+				relatedEventHtml +
+				capturedFacts +
+				evidenceList +
+				'</li>'
+			);
+		})
+		.join("");
+	field.set_value('<ol class="fuel-order-history">' + rows + '</ol>');
+}
+
+function load_order_history(frm) {
+	if (frm.is_new() || !frm.doc.name) {
+		render_order_history(frm, []);
+		return;
+	}
+	frappe.call({
+		method: "fleet_management.history.get_order_history",
+		args: { name: frm.doc.name },
+	})
+		.then(({ message }) => render_order_history(frm, message || []))
+		.catch((error) =>
+			render_order_history(frm, null, error.message || __("History could not be loaded."))
+		);
+}
+
+function prompt_cancel_reason(frm, doctype) {
+	frappe.dom.unfreeze();
+	return new Promise((resolve, reject) => {
+		frappe.prompt(
+			{ fieldname: "reason", fieldtype: "Small Text", label: __("Cancellation reason"), reqd: 1 },
+			({ reason }) =>
+				frappe
+					.call({
+						method: "fleet_management.history.stage_cancel_reason",
+						args: { doctype, name: frm.doc.name, reason },
+					})
+					.then(resolve, reject),
+			__("Cancel document"),
+			__("Continue")
+		);
+	});
+}
+
 function render_signal_panel(frm, result) {
 	const field = frm.fields_dict.signal_panel_html;
 	if (!field) return;
@@ -57,9 +278,48 @@ function render_signal_panel(frm, result) {
 	const summary = red
 		? `<strong>${__("Red signal — review needed")}</strong>`
 		: `<strong>${__("Green signal — every check passed")}</strong>`;
+	const baseline = result.signal_inputs && result.signal_inputs.mileage_baseline;
+	const baselineDetails = baseline
+		? [
+				`${escape_panel_text(baseline.label)} — ${escape_panel_text(baseline.reference)}`,
+				`${__("Odometer:")} ${escape_panel_text(baseline.vehicle_odometer)} km`,
+				baseline.timestamp ? escape_panel_text(baseline.timestamp) : "",
+				baseline.fuel_order ? `${__("Fuel Order:")} ${escape_panel_text(baseline.fuel_order)}` : "",
+			]
+				.filter(Boolean)
+				.join("; ")
+		: "";
+	const baselineSummary = baseline
+		? `<p><strong>${__("Mileage baseline used:")}</strong> ${baselineDetails}</p>`
+		: "";
+	const mileageCheck = result.signal_inputs && result.signal_inputs.full_tank_mileage_check;
+	let mileageSummary = "";
+	if (mileageCheck && mileageCheck.status === "pass") {
+		const observedAverage = mileageCheck.average_source === "recent_average";
+		const average = Number(mileageCheck.average_km_per_litre);
+		let economy = `${escape_panel_text(average)} km/L (${__("vehicle target")})`;
+		if (observedAverage) {
+			const equivalents = [
+				`${(1 / average).toFixed(3)} L/km`,
+				`${(100 / average).toFixed(1)} L/100 km`,
+				__("observed full-to-full average"),
+			].join("; ");
+			economy = `${escape_panel_text(average)} km/L (${equivalents})`;
+		}
+		const comparison = [
+			`${escape_panel_text(mileageCheck.distance_km)} km ${__("travelled")}`,
+			`${escape_panel_text(Number(mileageCheck.expected_distance_km).toFixed(1))} km ${__("expected")}`,
+			`${escape_panel_text(mileageCheck.estimated_consumed_litres)} L ${__("estimated use")}`,
+			`${__("at")} ${economy}`,
+			`${__("within the allowed margin of")} ±${escape_panel_text(mileageCheck.margin_percent)}%`,
+		].join("; ");
+		mileageSummary = `<p><strong>${__("Mileage comparison:")}</strong> ${comparison}.</p>`;
+	}
 	field.set_value(`
 		<div class="alert ${red ? "alert-danger" : "alert-success"}" role="status">
 			${summary}
+			${baselineSummary}
+			${mileageSummary}
 			${findings ? `<ul>${findings}</ul>` : ""}
 			<p><strong>${__("What happens next:")}</strong> ${escape_panel_text(result.next_action)}</p>
 			<p>${escape_panel_text(result.note)}</p>
@@ -107,7 +367,7 @@ function update_request_summary(frm, result) {
 	frm.set_value({
 		estimated_litres: summary.estimated_litres ?? null,
 		average_km_per_litre: summary.average_km_per_litre ?? null,
-	});
+	}).then(() => render_vehicle_summary(frm));
 }
 
 function queue_signal_preview(frm) {
@@ -199,6 +459,7 @@ frappe.ui.form.on("Fuel Order", {
 				gauge_photo: null,
 				request_gauge_percent: null,
 			});
+			render_vehicle_summary(frm);
 			set_meter_label(frm);
 			queue_signal_preview(frm);
 			return;
@@ -242,6 +503,7 @@ frappe.ui.form.on("Fuel Order", {
 			if (facts.asset_type === "Generator") {
 				await frm.set_value({ request_gauge_percent: null, gauge_photo: null, estimated_litres: null });
 			}
+			render_vehicle_summary(frm);
 			set_meter_label(frm);
 			queue_signal_preview(frm);
 		} catch (error) {
@@ -253,9 +515,15 @@ frappe.ui.form.on("Fuel Order", {
 	},
 	request_meter_reading: queue_signal_preview,
 	request_gauge_percent: queue_signal_preview,
-	driver: queue_signal_preview,
+	driver(frm) {
+		render_vehicle_summary(frm);
+		queue_signal_preview(frm);
+	},
 	quantity_authorization: queue_signal_preview,
 	authorized_quantity_litres: queue_signal_preview,
+	before_cancel(frm) {
+		return prompt_cancel_reason(frm, "Fuel Order");
+	},
 	before_workflow_action(frm) {
 		// The workflow reloads the order before it moves, so a reason typed into the form would be lost:
 		// ask for it here and record it on the server first (spec 002 D-10, D-11).
@@ -283,8 +551,11 @@ frappe.ui.form.on("Fuel Order", {
 		});
 	},
 	refresh(frm) {
+		apply_fuel_order_layout(frm);
+		render_vehicle_summary(frm);
 		set_meter_label(frm);
 		show_saved_signal_panel(frm);
+		load_order_history(frm);
 		if (frm.doc.docstatus !== 1 && frm.has_perm("write")) queue_signal_preview(frm);
 
 		if (
@@ -326,5 +597,12 @@ frappe.ui.form.on("Fuel Order", {
 			},
 			__("Actions")
 		);
+	},
+});
+
+
+frappe.ui.form.on("Fueling Transaction", {
+	before_cancel(frm) {
+		return prompt_cancel_reason(frm, "Fueling Transaction");
 	},
 });
