@@ -1,164 +1,108 @@
 <!--
-What the requester needs, in their own business words. Acceptance criteria use EARS form and
-are cited by tasks after the design is approved. Keep technical names and implementation details
-in design.md.
+Requirements for the Fueling Transaction only. The approved LPO is a read-only source of context.
 -->
 
-# Fuel Order authorization and fueling record: requirements
+# Fueling Transaction layout and fuel analysis: requirements
 
-Approved by: Brian Kipngetich (@BrianKipngetich1) · 06/10/2026 · revision 7a81474 (explained by agent)
+Approved by: pending
 
 | | |
 |---|---|
-| Tier | `Heavy` |
-| Branch | `feature/010-fuel-order-authorization-slip` |
+| Tier | Heavy |
+| Branch | feature/010-fuel-order-authorization-slip |
 
 ## Introduction
 
-Fleet staff need a controlled paper authorization that a station attendant can check before
-dispensing fuel and that the company can later match to the electronic fueling record. The
-current approved order slip does not bring the authorization, validity warning, actual fueling
-record, and both parties' confirmations together on one page.
+Fleet staff need a clear Fueling Transaction screen that brings the approved LPO details and
+actual fuel delivery together, so they can enter and review a transaction without switching
+between the order, the transaction, and a physical document. Reviewers also need enough
+transaction data to analyze fuel use, efficiency, litre overruns, and fuel-only spend.
 
-The new slip will use the approved order and its linked vehicle, driver, representative, and
-station. Staff will enter the actual fueling in the system's current transaction record, attach
-the signed slip, and retain the order-to-transaction audit trail.
+This change applies only to the existing Fueling Transaction and its analysis. The existing
+approved LPO can be selected and read for reference, but its fields, form, workflow, approval
+process, calculations, and printed slip must not be changed.
 
 ## Requirements
 
-### Requirement 1: Print only an approved authorization
+### Requirement 1: Enter and review a transaction with its approved order context
 
-**User Story:** As a permitted fleet staff member, I want to print an approved order as an
-authorization, so that the station receives a document backed by the current approval.
-
-#### Acceptance Criteria
-
-1. WHEN an order reaches Approved through the current approval process THE system SHALL make
-   the official print action available to users who already have permission to print it.
-2. IF an order is a draft, waiting for a decision, rejected, or cancelled THEN THE system SHALL
-   refuse to generate an official authorization slip for it.
-3. WHEN an approved order is printed THE system SHALL show its order number and approved status
-   and use the order's approved vehicle, fuel, representative, and station as the authorization
-   source.
-4. WHEN an approved order has expired THE system SHALL mark the opened order and any printed
-   copy “EXPIRED — DO NOT FUEL”; printing that copy SHALL NOT extend its validity.
-
-### Requirement 2: Configurable working-day validity
-
-**User Story:** As a fleet administrator, I want the fueling deadline to follow the company's
-working days, so that the order cannot be honored after its approval period.
+**User Story:** As fleet staff, I want the approved order details and actual fueling facts together
+on the transaction screen, so that I can record a fueling without looking up the order or paper.
 
 #### Acceptance Criteria
 
-1. WHEN a fleet administrator opens the validity setting THE system SHALL show a configurable
-   working-day grace period. New installations SHALL start at two days; the current site's saved
-   value of three SHALL be preserved until a fleet administrator changes it.
-2. WHEN an order is approved THE system SHALL calculate and save its last valid date and time
-   from the approval date and time, the configured grace period, and the company's working-day
-   calendar; Sundays and public holidays SHALL be excluded and Saturdays SHALL count as working
-   days.
-3. WHEN the validity setting changes THE system SHALL leave the saved deadline on every already
-   approved order unchanged.
-4. WHEN an approved order's actual fueling date and time is before approval or after its saved
-   deadline THE system SHALL refuse submission of the fueling record.
-5. WHEN an approved order's validity is extended under the current extension rules THE system
-   SHALL retain the extension reason and require the current slip revision to be printed before
-   a fueling record is submitted.
-6. WHEN the approval-validity setting changes THE system SHALL leave the separate post-fueling
-   transaction-entry deadline and late-entry controls unchanged.
-7. WHEN no usable Holiday List is installed THE system SHALL let permitted fleet administrators
-   maintain public holiday dates in Fleet Management Settings, and SHALL exclude those dates
-   from the approval-validity calculation.
+1. WHEN staff start a transaction by entering or selecting an approved LPO number THE system
+   SHALL show the asset identity, location, approved station and fuel, full-tank or partial
+   quantity authorization, validity deadline, driver, and company representative from that LPO.
+2. WHEN the LPO details appear on the transaction screen THE system SHALL treat them as
+   read-only reference information and SHALL NOT change any LPO field, form, workflow, approval,
+   calculation, or printed slip.
+3. WHEN staff enter or review a transaction THE system SHALL show the approved order context
+   beside the actual fueling facts, distinguish approved values from actual results, and keep
+   the information together so staff do not need to switch screens to compare them.
+4. WHEN the linked asset is a vehicle THE system SHALL show the vehicle odometer for entry and
+   SHALL NOT show a generator hour meter; WHEN it is a generator THE system SHALL show its hour
+   meter and SHALL NOT show a vehicle odometer.
+5. WHEN staff save a new transaction THE system SHALL require both actual litres and the pre-tax
+   fuel amount in KES, and SHALL refuse to save if either is missing. Staff SHALL be able to
+   enter the fueling date and time, invoice and CU numbers, applicable meter reading, full-tank
+   result, attendant, and signed invoice and order evidence; the station and fuel already
+   available from the LPO SHALL NOT need to be re-entered.
+6. WHEN a receipt has no printed fueling time THE system SHALL require staff to explain how the
+   known station fueling time was established.
+7. WHEN staff enter or change actual litres THE system SHALL compare them with the LPO's saved
+   estimated litres: green when actual litres are at or below the estimate, orange when they are
+   more than zero and up to 15% over, and red “Overrun” when they are more than 15% over. The
+   variance SHALL be measured against the LPO estimate, use litres only, and SHALL NOT use the
+   pre-tax amount. IF no usable LPO litre estimate exists THEN THE system SHALL show that no
+   comparison is available.
+8. WHEN staff submit or review a transaction THE system SHALL continue to enforce the existing
+   transaction, order-link, validity, station, evidence, role, and location checks.
 
-### Requirement 3: Show the authorization clearly
+### Requirement 2: Record fuel cost and analyze fuel transactions
 
-**User Story:** As a station attendant, I want to identify the company, order, vehicle, station,
-and deadline at a glance, so that I can check the authorization before dispensing fuel.
-
-#### Acceptance Criteria
-
-1. WHEN an approved order is printed THE system SHALL show the company name and logo when
-   available, the Fleet and Fuel Management heading, the title “FUEL ORDER AUTHORIZATION &
-   FUELING RECORD”, order number, and approval status.
-2. WHEN an approved order is printed THE system SHALL prominently show “APPROVED ON” and
-   “FUELING VALID UNTIL” with the saved date and time, and SHALL show “FUEL MUST NOT BE
-   DISPENSED AFTER” with that deadline.
-3. WHEN an approved order is printed THE system SHALL identify the authorized vehicle or
-   generator, its registration or asset name, its make and model when available, fuel type,
-   driver, and company representative from the order and linked records.
-4. WHEN an approved order is printed THE system SHALL show the station selected on the approved
-   order and its full saved address, and SHALL state “Fuel may only be dispensed at the
-   authorized station indicated on this order.”
-5. WHEN an approved order requests a full tank THE system SHALL show “FULL TANK” prominently;
-   WHEN it authorizes a partial quantity THE system SHALL show that approved quantity and SHALL
-   NOT describe it as a full tank.
-6. WHEN a printed order includes instructions for the attendant THE system SHALL retain the
-   current instruction that agrees with the system's station restriction.
-
-### Requirement 4: Record the actual fueling on paper
-
-**User Story:** As a company representative, I want clear spaces to record and confirm what the
-station actually supplied, so that the signed slip can support the later electronic record.
+**User Story:** As a fleet reviewer, I want fuel-only cost and usage measures available from
+Fueling Transactions, so that I can analyze fuel use, efficiency, litre overruns, and spend
+without looking up the physical document.
 
 #### Acceptance Criteria
 
-1. WHEN an approved order is printed THE system SHALL provide blank spaces for the actual
-   fueling date, fueling time, litres purchased, and the correct vehicle odometer or generator
-   hour-meter reading.
-2. WHEN fuel is recorded on the slip THE system SHALL provide separate “YES” and “NO” choices
-   for whether the full tank was achieved; the answer SHALL be a human confirmation and SHALL
-   NOT be inferred from litres purchased.
-3. WHEN the company representative completes the slip THE system SHALL show the representative's
-   known name and provide checks for vehicle identity, order match, full-tank result, litres, and
-   meter reading, plus space for signature and date.
-4. WHEN the attendant completes the slip THE system SHALL show the confirmation “I confirm that
-   the above vehicle was fueled against the stated Fuel Order.” and provide space for attendant
-   name, signature, date, and station stamp.
-5. WHEN the slip is printed THE system SHALL fit the authorization and completion areas on one
-   A5 portrait page, keep each signature block together, and render its essential values without
-   client-side JavaScript; each signature area SHALL be large enough for a handwritten signature.
-6. WHEN the slip is printed THE system SHALL NOT ask staff to write calculated fuel remaining,
-   tank capacity minus litres, or another system-calculated value.
-
-### Requirement 5: Keep the transaction and audit trail connected
-
-**User Story:** As a fleet reviewer, I want the completed paper slip and actual fueling record
-to point to the same approved order, so that I can trace what was authorized and what happened.
-
-#### Acceptance Criteria
-
-1. WHEN staff submit a fueling record THE system SHALL link it to the approved order and retain
-   the actual station, fuel type, fueling date and time, litres purchased, applicable meter
-   reading, full-tank confirmation, attendant name, and signed-slip evidence.
-2. WHEN staff record actual fueling THE system SHALL use the current fueling record and
-   SHALL NOT create a competing fueling record.
-3. WHEN a full-tank authorization is recorded as not achieved THE system SHALL preserve the
-   actual litres and meter reading and make that result visible for review.
-4. WHEN a full tank is confirmed and the system has a valid tank capacity and positive actual
-   litres no greater than that capacity THE system SHALL calculate tank capacity minus actual
-   litres as an estimate of fuel present before fueling, label it as an estimate, and keep it
-   off the paper slip.
-5. WHEN users inspect or submit the order, slip, or fueling record THE system SHALL continue to
-   enforce the current approval, evidence, location, and role permissions.
-
-### Requirement 6: Preserve the current fuel-order process
-
-**User Story:** As a fleet staff member, I want current order, extension, and fueling rules to
-keep working, so that the new paper record does not weaken existing controls.
-
-#### Acceptance Criteria
-
-1. WHEN staff create, approve, reject, extend, or fulfill an order THE system SHALL CONTINUE TO
-   use the current workflow, approval roles, location checks, extension history, and slip
-   revision controls.
-2. WHEN a user searches for an order's vehicle or station THE system SHALL use the records
-   already selected on that order and their existing identifying details; printing SHALL NOT
-   invite a user to substitute another vehicle or station.
+1. WHEN staff record a fuel-only receipt THE system SHALL let them enter the fuel amount before
+   tax in KES.
+2. WHEN staff save a new transaction THE system SHALL require both invoice litres and the
+   pre-tax fuel amount in KES, and SHALL refuse to save if either value is missing. New
+   submissions SHALL also require the existing required fueling facts and signed invoice
+   evidence.
+3. WHEN staff enter the pre-tax amount THE system SHALL calculate tax at 8% and show the final
+   invoice amount as pre-tax amount plus calculated tax.
+4. WHEN a transaction's pre-tax cost per litre is shown THE system SHALL calculate it from the
+   pre-tax fuel amount divided by actual litres; IF either value is missing or invalid THEN the
+   result SHALL be unavailable.
+5. WHEN staff review fuel analysis THE system SHALL allow filtering by date range, asset,
+   location, fuel type, and station, and SHALL show the order number, approved authorization,
+   LPO estimated litres, actual date and time, station, fuel, actual litres, litre variance
+   status, applicable meter reading, full-tank result, total pre-tax fuel spend, pre-tax cost per
+   litre, valid vehicle efficiency, and full-tank exceptions.
+6. WHEN a vehicle has valid qualifying full-tank readings THE system SHALL show its existing
+   valid distance-per-litre efficiency; WHEN a generator has two confirmed full-tank readings
+   with increasing hour-meter values THE system SHALL show litres used per operating hour between
+   those readings, including fuel purchased after the earlier full tank through the later full
+   tank.
+7. WHILE a generator lacks two confirmed full-tank readings or increasing hour-meter values THE
+   system SHALL leave its litres-per-operating-hour result unavailable.
+8. WHEN analysis combines multiple transactions THE system SHALL calculate combined pre-tax cost
+   per litre from total pre-tax fuel spend divided by total litres.
+9. WHEN an existing transaction has no recorded fuel amount THE system SHALL show “Not recorded”
+   and SHALL NOT invent or estimate an amount.
+10. WHEN a user reviews or exports fuel analysis THE system SHALL continue to enforce existing
+    role, location, and export permissions, and SHALL allow permitted users to download the
+    filtered results for further analysis.
 
 ## Out of scope
 
-- Replacing partial-quantity authorizations with full-tank-only orders.
-- A new fueling transaction DocType or duplicate copies of values already linked to the order.
-- A public verification page, public QR token, or QR code that exposes order details without
-  the existing access checks. The printed order number remains the lookup key.
-- Changing who may create, approve, extend, or submit fuel records.
+- Any changes to the LPO, including its fields, form, workflow, approvals, validity, calculations,
+  or printed slip. The transaction may display existing LPO values as read-only context.
+- A new Fueling Transaction DocType or a duplicate transaction record.
+- Recording costs for non-fuel items or allocating mixed purchases to fuel.
+- Changing current transaction roles, location access, or approval permissions.
+- Backfilling or estimating historical fuel costs.
