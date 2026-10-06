@@ -8,7 +8,7 @@ without modifying the LPO or looking up a physical document.
 - [x] 1.1 Show the approved LPO details needed for transaction entry as a read-only context panel
   on the existing Fueling Transaction.
   - _Requirements: 1.1, 1.2, 1.3_
-- [ ] 1.2 Reorganize the existing transaction fields into a clear entry sequence, fill station
+- [x] 1.2 Reorganize the existing transaction fields into a clear entry sequence, fill station
   and fuel from the selected LPO, show only the correct meter for the linked asset, and retain
   the existing time, evidence, and transaction validations.
   - _Requirements: 1.3, 1.4, 1.5, 1.6, 1.8_
@@ -45,5 +45,9 @@ One line per finished task or phase, newest last.
 - `06/10/2026`: Added a permission-checked, read-only LPO context panel to Fueling Transaction;
   the focused MariaDB integration test and main-site migration passed. The first main migration
   removed the empty orphan `Fueling Discrepancy` DocType, three orphan standard reports, and the
-  legacy `Fleet Oversight` workspace before failing on missing report-module metadata. Next:
-  decide whether those legacy report/workspace records should remain retired, then task 1.2.
+  legacy `Fleet Oversight` workspace before failing on missing report-module metadata. Whether to
+  restore those legacy records remains an unrelated follow-up.
+- `06/10/2026`: Reorganized the transaction entry fields, populated station and fuel from the
+  selected LPO, and showed only the linked asset's meter. Main-site migration and JSON, Python,
+  JavaScript, and spec checks passed. Ruff/pre-commit were unavailable; no tests were run. Next:
+  task 1.3.

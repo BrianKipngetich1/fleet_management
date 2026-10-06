@@ -4,6 +4,7 @@
  "engine": "InnoDB",
  "field_order": [
   "naming_series",
+  "section_break_order_context",
   "fuel_order",
   "approved_order_context",
   "fuel_order_slip_revision",
@@ -17,20 +18,24 @@
   "asset_tank_capacity_snapshot",
   "asset_target_km_per_litre_snapshot",
   "asset_tolerance_percent_snapshot",
-  "actual_station",
-  "fuel_type",
   "approved_station",
   "approved_fuel_type",
   "approved_on",
   "valid_until",
-  "invoice_number",
-  "cu_number",
+  "section_break_actual_fueling",
+  "actual_station",
+  "fuel_type",
   "actual_fueling_datetime",
   "fueling_time_source",
+  "column_break_actual_receipt",
+  "invoice_number",
+  "cu_number",
   "fueling_time_explanation",
+  "section_break_measured_fueling",
   "vehicle_odometer",
   "hour_meter",
   "invoice_litres",
+  "column_break_measurement_result",
   "full_tank_confirmed",
   "attendant_name",
   "normalized_invoice_number",
@@ -59,6 +64,11 @@
    "label": "Naming Series",
    "options": "FT-.YYYY.-",
    "reqd": 1
+  },
+  {
+   "fieldname": "section_break_order_context",
+   "fieldtype": "Section Break",
+   "label": "Approved Fuel Order"
   },
   {
    "fieldname": "fuel_order",
@@ -168,22 +178,6 @@
    "read_only": 1
   },
   {
-   "fieldname": "actual_station",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Actual Station",
-   "no_copy": 1,
-   "options": "Fuel Station"
-  },
-  {
-   "fieldname": "fuel_type",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Fuel Type",
-   "no_copy": 1,
-   "options": "Fuel Type"
-  },
-  {
    "fieldname": "approved_station",
    "fieldtype": "Link",
    "hidden": 1,
@@ -218,16 +212,25 @@
    "read_only": 1
   },
   {
-   "fieldname": "invoice_number",
-   "fieldtype": "Data",
-   "label": "Invoice Number",
-   "no_copy": 1
+   "fieldname": "section_break_actual_fueling",
+   "fieldtype": "Section Break",
+   "label": "Actual Fueling"
   },
   {
-   "fieldname": "cu_number",
-   "fieldtype": "Data",
-   "label": "CU Number",
-   "no_copy": 1
+   "fieldname": "actual_station",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Actual Station",
+   "no_copy": 1,
+   "options": "Fuel Station"
+  },
+  {
+   "fieldname": "fuel_type",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Fuel Type",
+   "no_copy": 1,
+   "options": "Fuel Type"
   },
   {
    "fieldname": "actual_fueling_datetime",
@@ -246,6 +249,22 @@
    "description": "Choose whether the invoice prints the fueling time. When it does not, record the known station time and explain how it was established."
   },
   {
+   "fieldname": "column_break_actual_receipt",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "invoice_number",
+   "fieldtype": "Data",
+   "label": "Invoice Number",
+   "no_copy": 1
+  },
+  {
+   "fieldname": "cu_number",
+   "fieldtype": "Data",
+   "label": "CU Number",
+   "no_copy": 1
+  },
+  {
    "depends_on": "eval:doc.fueling_time_source == 'Not printed on invoice'",
    "fieldname": "fueling_time_explanation",
    "fieldtype": "Small Text",
@@ -253,6 +272,11 @@
    "mandatory_depends_on": "eval:doc.fueling_time_source == 'Not printed on invoice'",
    "no_copy": 1,
    "description": "Required when the invoice does not print a time. Explain how the known station fueling time was established."
+  },
+  {
+   "fieldname": "section_break_measured_fueling",
+   "fieldtype": "Section Break",
+   "label": "Fueling Measurements"
   },
   {
    "fieldname": "vehicle_odometer",
@@ -274,6 +298,10 @@
    "label": "Invoice Litres",
    "no_copy": 1,
    "description": "Litres recorded on the fueling invoice."
+  },
+  {
+   "fieldname": "column_break_measurement_result",
+   "fieldtype": "Column Break"
   },
   {
    "default": "0",

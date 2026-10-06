@@ -41,9 +41,10 @@ function renderFuelOrderContext(context) {
 	return `<div class="frappe-card"><div class="row">${rows}</div></div>`;
 }
 
-async function loadFuelOrderContext(frm) {
+async function loadFuelOrderContext(frm, { forceDefaults = false } = {}) {
 	const field = frm.get_field("approved_order_context");
 	if (!field) return;
+	toggleAssetMeter(frm);
 
 	const orderName = frm.doc.fuel_order;
 	if (!orderName) {
@@ -62,7 +63,19 @@ async function loadFuelOrderContext(frm) {
 			field.$wrapper.empty();
 			return;
 		}
-		field.$wrapper.html(renderFuelOrderContext(response.message));
+		const context = response.message;
+		toggleAssetMeter(frm, context.asset_type);
+		if (frm.doc.docstatus === 0) {
+			const values = {};
+			if (context.station_link && (forceDefaults || !frm.doc.actual_station)) {
+				values.actual_station = context.station_link;
+			}
+			if (context.fuel_type_link && (forceDefaults || !frm.doc.fuel_type)) {
+				values.fuel_type = context.fuel_type_link;
+			}
+			if (Object.keys(values).length) await frm.set_value(values);
+		}
+		field.$wrapper.html(renderFuelOrderContext(context));
 	} catch {
 		if (frm.doc.fuel_order !== orderName) return;
 		field.$wrapper.html(
@@ -71,11 +84,19 @@ async function loadFuelOrderContext(frm) {
 	}
 }
 
+function toggleAssetMeter(frm, assetType) {
+	frm.toggle_display("vehicle_odometer", assetType === "Vehicle");
+	frm.toggle_display("hour_meter", assetType === "Generator");
+}
+
 frappe.ui.form.on("Fueling Transaction", {
 	refresh(frm) {
 		loadFuelOrderContext(frm);
 	},
 	fuel_order(frm) {
-		loadFuelOrderContext(frm);
+		if (!frm.doc.fuel_order && frm.doc.docstatus === 0) {
+			frm.set_value({ actual_station: null, fuel_type: null });
+		}
+		loadFuelOrderContext(frm, { forceDefaults: Boolean(frm.doc.fuel_order) });
 	},
 });
