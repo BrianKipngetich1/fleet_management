@@ -4,7 +4,7 @@ Design for the approved transaction-only scope. The linked Fuel Order remains re
 
 # Fueling Transaction layout and fuel analysis: design
 
-Approved by: pending
+Approved by: Brian Kipngetich (@BrianKipngetich1) · 06/10/2026 · revision 1acee32 (explained by agent)
 
 ## Current state
 
