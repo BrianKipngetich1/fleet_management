@@ -15,7 +15,7 @@ without modifying the LPO or looking up a physical document.
 - [x] 1.3 Show a live litre variance status against the vehicle's LPO estimated litres or the
   generator's approved LPO litres, and include the same status in transaction review.
   - _Requirements: 1.7_
-- [ ] 1.4 Verify the transaction reads LPO context without writing to or changing any LPO data,
+- [x] 1.4 Verify the transaction reads LPO context without writing to or changing any LPO data,
   and preserves existing role, location, order-link, validity, station, and evidence checks.
   - _Requirements: 1.2, 1.8_
 
@@ -59,3 +59,8 @@ One line per finished task or phase, newest last.
 - `06/10/2026`: Added a live litre status beside invoice litres. Vehicles compare with estimated
   LPO litres; generators compare with approved LPO litres. The threshold cases, JSON, JavaScript
   syntax, spec check, and disposable test-site migration passed. Next: task 1.4 verification.
+- `06/10/2026`: The Fueling Transaction suite passed 31 MariaDB integration tests and 2 unit
+  tests; the opt-in concurrency test was skipped. The read-only context test confirmed the LPO
+  stayed unchanged and other-location orders remained inaccessible. Existing approval, validity,
+  station, and evidence checks passed. The Desk walkthrough needs the missing local test credentials.
+  Next: resolve the earlier legacy-record cleanup decision before Phase 2.
