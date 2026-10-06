@@ -14,7 +14,7 @@ function applyFuelingTransactionLayout(frm) {
 			.form-section.fueling-transaction-layout > .section-body {
 				display: grid !important;
 				grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-				column-gap: 14px;
+				column-gap: 24px;
 			}
 			.form-section.fueling-transaction-layout > .section-body > .form-column {
 				width: auto !important;
@@ -28,6 +28,10 @@ function applyFuelingTransactionLayout(frm) {
 				grid-template-columns: repeat(6, minmax(0, 1fr));
 				column-gap: 10px;
 				align-items: start;
+			}
+			.form-section.fueling-transaction-layout .fueling-invoice-column {
+				border-left: 1px solid var(--border-color);
+				padding-left: 16px !important;
 			}
 			.form-section.fueling-transaction-layout .fueling-invoice-column .frappe-control {
 				grid-column: span 3;
@@ -109,6 +113,10 @@ function applyFuelingTransactionLayout(frm) {
 				.form-section.fueling-transaction-layout > .section-body {
 					grid-template-columns: minmax(0, 1fr);
 					row-gap: 12px;
+				}
+				.form-section.fueling-transaction-layout .fueling-invoice-column {
+					border-left: 0;
+					padding-left: 0 !important;
 				}
 				.form-section.fueling-transaction-layout .fuel-order-context-grid {
 					grid-template-columns: repeat(2, minmax(0, 1fr));
