@@ -4,7 +4,7 @@ Design for the approved transaction-only scope. The linked Fuel Order remains re
 
 # Fueling Transaction layout and fuel analysis: design
 
-Approved by: Brian Kipngetich (@BrianKipngetich1) · 06/10/2026 · revision 1acee32 (explained by agent)
+Approved by: pending
 
 ## Current state
 
@@ -31,7 +31,7 @@ Approved by: Brian Kipngetich (@BrianKipngetich1) · 06/10/2026 · revision 1ace
 |---|---|
 | LPO / approved order | The existing Fuel Order linked in `Fueling Transaction.fuel_order`. |
 | Asset identity | The linked Fleet Asset and its existing asset identifier and asset type. |
-| Estimated litres | `Fuel Order.estimated_litres`, when it is available; this is a request estimate, not actual fuel. |
+| LPO litre baseline | `Fuel Order.estimated_litres` for vehicles and the approved litre quantity for generators, when available. |
 | Actual litres | `Fueling Transaction.invoice_litres`, as recorded from the fuel invoice. |
 | Full tank | The explicit `Fueling Transaction.full_tank_confirmed` confirmation. |
 | Fuel-only cost | The invoice's pre-tax fuel amount in KES, excluding other goods and tax. |
@@ -47,9 +47,10 @@ Approved by: Brian Kipngetich (@BrianKipngetich1) · 06/10/2026 · revision 1ace
 - `D-3`: A vehicle transaction uses the vehicle odometer; a generator transaction uses the hour
   meter. The form shows the applicable meter only, while the existing server validation remains
   authoritative.
-- `D-4`: Compare litres only. At or below the saved LPO estimate is within estimate; above
-  estimate through 15% over is a warning; more than 15% over is an overrun. Without a positive
-  estimate and positive actual litres, show no comparison.
+- `D-4`: Compare litres only. Use saved LPO estimated litres for vehicles and the approved LPO
+  litres for generators. At or below the applicable baseline is within estimate; above baseline
+  through 15% over is a warning; more than 15% over is an overrun. Without a usable baseline and
+  positive actual litres, show no comparison.
 - `D-5`: Store fuel-only pre-tax cost in KES. Calculate tax at 8% and the invoice total on the
   server. Analysis and cost per litre use pre-tax cost. Leave all historical cost values blank
   and display them as “Not recorded.”
@@ -62,8 +63,8 @@ Approved by: Brian Kipngetich (@BrianKipngetich1) · 06/10/2026 · revision 1ace
 
 When staff select an LPO, show a read-only context panel on the existing Fueling Transaction.
 It presents the order number and approval state, asset and location, authorized station and
-fuel, full or partial authorization and estimated litres where available, approval deadline,
-driver, and company representative. A server method reads the linked order only after checking
+fuel, full or partial authorization, the applicable litre baseline where available, approval
+deadline, driver, and company representative. A server method reads the linked order only after checking
 the current user's Fuel Order read permission. The client renders returned values as escaped
 text. Selecting or clearing the link refreshes or clears the panel; it does not save changes to
 the order.
@@ -72,15 +73,16 @@ Organize the transaction form into approved order context, actual fueling detail
 and review sections. Keep existing data fields and submission behavior. Default the transaction's
 station and fuel from its linked order so staff do not re-enter them; the server continues to
 set and validate these values on submission. Show the odometer for vehicles and hour meter for
-generators. Present a live variance status beside entered litres, calculated only from the linked
-order's saved estimate and actual litres.
+generators. Present a live variance status beside entered litres, calculated from the linked
+order's saved estimated litres for vehicles or approved litres for generators and the actual
+litres.
 
 Add pre-tax fuel amount, calculated tax, and invoice total to the existing transaction. The
 server calculates tax as 8% of the pre-tax amount and total as their sum on save; calculated
 fields are read-only. Do not populate costs on existing transactions. Add a Fueling Transaction
 Script Report with date range, asset, location, fuel, and station filters, existing permission
 scoping, and spreadsheet export under existing report/export permissions. It shows actual and
-estimated litres, variance, pre-tax spend, pre-tax cost per litre, applicable meter, full-tank
+baseline litres, variance, pre-tax spend, pre-tax cost per litre, applicable meter, full-tank
 result and exceptions, valid vehicle efficiency, and generator litres per operating hour when
 two confirmed full-tank readings with increasing hour-meter values are available. Combined cost
 per litre is total pre-tax spend divided by total litres.
@@ -107,7 +109,7 @@ submission.
 | Linked order context | Existing Link field, read-only transaction fields, and an HTML form field | A permission-checked method and form script are needed to present multiple linked records together without storing duplicate display fields. |
 | Actual transaction facts | Existing submittable Fueling Transaction and its controller | Small controller changes fill approved station/fuel defaults and calculate costs while preserving established validation. |
 | Fuel cost and totals | Currency fields and document validation | Tax and total need server-side calculation so API and Desk saves agree. |
-| Variance feedback | Existing estimate and actual litre values | A small form script shows the requested live threshold state; submission checks remain server-side. |
+| Variance feedback | Applicable LPO baseline and actual litre values | A small form script shows the requested live threshold state; submission checks remain server-side. |
 | Fuel analysis and export | Frappe Script Report, report permissions, and native report export | Calculated variance, aggregate cost, and generator efficiency require report logic. Queries must respect the app's location permission hooks. |
 
 ## Data and migration plan
@@ -134,8 +136,9 @@ no linked order facts.
 ### Property 2: Actual entry uses the correct asset meter and litre comparison
 
 For every transaction, a vehicle displays its odometer and no generator hour meter; a generator
-displays its hour meter and no vehicle odometer. Variance uses only positive estimated and
-actual litres and applies the three approved thresholds; missing inputs produce no comparison.
+displays its hour meter and no vehicle odometer. Variance uses only positive vehicle estimated
+litres or generator approved litres and positive actual litres, and applies the three approved
+thresholds; missing inputs produce no comparison.
 
 **Validates: Requirements 1.4, 1.7**
 
@@ -168,8 +171,9 @@ location checks continue to run.
 - If the selected order cannot be read, the panel shows that its details are unavailable and
   returns no order values. Submission still follows the existing permission checks.
 - If no order is selected, the panel is empty and the existing required-link validation applies.
-- A missing or invalid estimate displays “No comparison available”; it does not block entry by
-  itself. Existing submission checks continue to decide whether the transaction is valid.
+- A missing or invalid applicable LPO litre baseline displays “No comparison available”; it does
+  not block entry by itself. Existing submission checks continue to decide whether the
+  transaction is valid.
 - Missing pre-tax cost or litres blocks saving a new transaction. Historical transactions with
   no cost remain readable and show “Not recorded.”
 - The report and export use existing role and location permissions. Fleet User access is not

@@ -12,8 +12,8 @@ without modifying the LPO or looking up a physical document.
   and fuel from the selected LPO, show only the correct meter for the linked asset, and retain
   the existing time, evidence, and transaction validations.
   - _Requirements: 1.3, 1.4, 1.5, 1.6, 1.8_
-- [ ] 1.3 Show a live litre variance status against the LPO's existing estimated litres and
-  include the same status in transaction review.
+- [ ] 1.3 Show a live litre variance status against the vehicle's LPO estimated litres or the
+  generator's approved LPO litres, and include the same status in transaction review.
   - _Requirements: 1.7_
 - [ ] 1.4 Verify the transaction reads LPO context without writing to or changing any LPO data,
   and preserves existing role, location, order-link, validity, station, and evidence checks.
@@ -28,13 +28,13 @@ spend from permission-filtered transaction records.
   before saving a new transaction, calculate tax at 8% and the invoice total, and leave
   historical amounts unfilled.
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.8, 2.9_
-- [ ] 2.2 Provide filtered analysis of actual and LPO-estimated litres, variance status, pre-tax
-  spend, cost per litre, vehicle efficiency, generator litres per operating hour, and full-tank
+- [ ] 2.2 Provide filtered analysis of actual and applicable LPO baseline litres, variance status,
+  pre-tax spend, cost per litre, vehicle efficiency, generator litres per operating hour, and full-tank
   exceptions, with export under existing permissions.
   - _Requirements: 1.7, 2.4, 2.5, 2.6, 2.7, 2.8, 2.10_
 - [ ] 2.3 Verify save is blocked when either litres or pre-tax amount is missing; check tax and
   total calculations, cost analysis, vehicle and generator
-  efficiency, litre variance thresholds, missing LPO estimates, report filters, historical
+  efficiency, litre variance thresholds, missing LPO baselines, report filters, historical
   records without costs, export permissions, and existing transaction controls.
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 2.10_
 

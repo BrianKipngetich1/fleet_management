@@ -4,7 +4,7 @@ Requirements for the Fueling Transaction only. The approved LPO is a read-only s
 
 # Fueling Transaction layout and fuel analysis: requirements
 
-Approved by: Brian Kipngetich (@BrianKipngetich1) · 06/10/2026 · revision 1acee32 (explained by agent)
+Approved by: pending
 
 | | |
 |---|---|
@@ -50,12 +50,12 @@ on the transaction screen, so that I can record a fueling without looking up the
    available from the LPO SHALL NOT need to be re-entered.
 6. WHEN a receipt has no printed fueling time THE system SHALL require staff to explain how the
    known station fueling time was established.
-7. WHEN staff enter or change actual litres THE system SHALL compare them with the LPO's saved
-   estimated litres: green when actual litres are at or below the estimate, orange when they are
-   more than zero and up to 15% over, and red “Overrun” when they are more than 15% over. The
-   variance SHALL be measured against the LPO estimate, use litres only, and SHALL NOT use the
-   pre-tax amount. IF no usable LPO litre estimate exists THEN THE system SHALL show that no
-   comparison is available.
+7. WHEN staff enter or change actual litres THE system SHALL compare them with the applicable
+   LPO litre baseline: the saved estimated litres for a vehicle and the approved litres for a
+   generator. It SHALL show green when actual litres are at or below the baseline, orange when
+   they are more than zero and up to 15% over, and red “Overrun” when they are more than 15%
+   over. The variance SHALL use litres only and SHALL NOT use the pre-tax amount. IF no usable
+   baseline exists THEN THE system SHALL show that no comparison is available.
 8. WHEN staff submit or review a transaction THE system SHALL continue to enforce the existing
    transaction, order-link, validity, station, evidence, role, and location checks.
 
@@ -80,9 +80,9 @@ without looking up the physical document.
    result SHALL be unavailable.
 5. WHEN staff review fuel analysis THE system SHALL allow filtering by date range, asset,
    location, fuel type, and station, and SHALL show the order number, approved authorization,
-   LPO estimated litres, actual date and time, station, fuel, actual litres, litre variance
-   status, applicable meter reading, full-tank result, total pre-tax fuel spend, pre-tax cost per
-   litre, valid vehicle efficiency, and full-tank exceptions.
+   applicable LPO litre baseline, actual date and time, station, fuel, actual litres, litre
+   variance status, applicable meter reading, full-tank result, total pre-tax fuel spend, pre-tax
+   cost per litre, valid vehicle efficiency, and full-tank exceptions.
 6. WHEN a vehicle has valid qualifying full-tank readings THE system SHALL show its existing
    valid distance-per-litre efficiency; WHEN a generator has two confirmed full-tank readings
    with increasing hour-meter values THE system SHALL show litres used per operating hour between
