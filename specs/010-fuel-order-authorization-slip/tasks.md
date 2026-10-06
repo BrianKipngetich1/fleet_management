@@ -31,7 +31,7 @@ spend from permission-filtered transaction records.
   before saving a new transaction, calculate tax at 8% and the invoice total, and leave
   historical amounts unfilled.
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.8, 2.9_
-- [ ] 2.2 Provide filtered analysis of actual and applicable LPO baseline litres, variance status,
+- [x] 2.2 Provide filtered analysis of actual and applicable LPO baseline litres, variance status,
   pre-tax spend, cost per litre, vehicle efficiency, generator litres per operating hour, and full-tank
   exceptions, with export under existing permissions.
   - _Requirements: 1.7, 2.4, 2.5, 2.6, 2.7, 2.8, 2.10_
@@ -78,3 +78,7 @@ One line per finished task or phase, newest last.
   in a new tab; the Fuel Order and slip are unchanged. The focused suite passed 33 integration
   tests and 2 unit tests (one opt-in concurrency test skipped). JavaScript syntax and rendering
   smoke checks, spec check, and whitespace check passed. Ruff is unavailable. No migration ran.
+- `06/10/2026`: Added the filtered Fueling Transaction Analysis Script Report with LPO baselines,
+  litre status, pre-tax cost coverage, vehicle efficiency, generator litres per hour, and full-tank
+  exceptions. The disposable MariaDB test-site migration and native Frappe report-runner checks
+  passed; the main site was not migrated. Next: task 2.3 verification.

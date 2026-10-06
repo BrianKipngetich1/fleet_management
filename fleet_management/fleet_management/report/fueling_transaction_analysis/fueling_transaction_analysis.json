@@ -1,0 +1,14 @@
+{
+ "add_total_row": 0,
+ "doctype": "Report",
+ "is_standard": "Yes",
+ "module": "Fleet Management",
+ "name": "Fueling Transaction Analysis",
+ "ref_doctype": "Fueling Transaction",
+ "report_name": "Fueling Transaction Analysis",
+ "report_type": "Script Report",
+ "roles": [
+  {"role": "Fleet Admin"},
+  {"role": "Fleet Approver"}
+ ]
+}
