@@ -48,6 +48,11 @@ One line per finished task or phase, newest last.
   legacy `Fleet Oversight` workspace before failing on missing report-module metadata. Whether to
   restore those legacy records remains an unrelated follow-up.
 - `06/10/2026`: Reorganized the transaction entry fields, populated station and fuel from the
-  selected LPO, and showed only the linked asset's meter. Main-site migration and JSON, Python,
-  JavaScript, and spec checks passed. Ruff/pre-commit were unavailable; no tests were run. Next:
-  task 1.3.
+  selected LPO, and showed only the linked asset's meter. The Fueling Transaction module passed
+  31 MariaDB integration tests and 2 unit tests (1 opt-in concurrency test skipped); the Desk
+  walkthrough passed for a vehicle and generator order. JSON, JavaScript syntax, spec, and
+  whitespace checks passed. Ruff is not installed. A fresh test-site rebuild was blocked because
+  the local ignored `specs/001-fleet-fuel-management/verification/CREDENTIALS.md` is missing; a
+  test-site-only migration loaded the layout, and its orphan cleanup affected only the disposable
+  test site. No task 1.2 migration ran on the main site; wait for the user's decision on the
+  retired legacy reports/workspace before migrating it.
