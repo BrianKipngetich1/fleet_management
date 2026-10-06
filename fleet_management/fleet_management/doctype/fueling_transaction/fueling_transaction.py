@@ -121,6 +121,27 @@ def get_fuel_order_context(fuel_order):
 	}
 
 
+@frappe.whitelist(methods=["GET"])
+def get_generator_efficiency(transaction_name: str):
+	"""Return this readable transaction's valid generator efficiency, if available."""
+	if not frappe.has_permission("Fueling Transaction", "read", transaction_name):
+		frappe.throw(
+			frappe._("You do not have access to this Fueling Transaction."), frappe.PermissionError
+		)
+
+	transaction = frappe.get_doc("Fueling Transaction", transaction_name)
+	if transaction.docstatus != 1 or not transaction.asset:
+		return None
+	if frappe.db.get_value("Fleet Asset", transaction.asset, "asset_type") != "Generator":
+		return None
+
+	from fleet_management.fleet_management.report.fueling_transaction_analysis.fueling_transaction_analysis import (
+		_generator_intervals,
+	)
+
+	return _generator_intervals({transaction.asset}).get(transaction.name, {}).get("litres_per_hour")
+
+
 def resolve_attached_file(doc, fieldname, label, missing_message=None):
 	"""Return the File attached to a document's field, or refuse."""
 	value = doc.get(fieldname)

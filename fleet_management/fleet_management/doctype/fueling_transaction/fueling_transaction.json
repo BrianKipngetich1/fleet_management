@@ -22,36 +22,30 @@
   "approved_fuel_type",
   "approved_on",
   "valid_until",
-  "section_break_actual_fueling",
+  "column_break_actual_receipt",
   "actual_station",
   "fuel_type",
   "actual_fueling_datetime",
   "fueling_time_source",
-  "column_break_actual_receipt",
   "invoice_number",
   "cu_number",
   "fueling_time_explanation",
-  "section_break_measured_fueling",
   "vehicle_odometer",
   "hour_meter",
   "invoice_litres",
-  "litre_variance_status",
-  "column_break_measurement_result",
   "full_tank_confirmed",
   "attendant_name",
+  "pre_tax_amount",
+  "tax_amount",
+  "invoice_total",
+  "signed_invoice",
+  "signed_order",
   "normalized_invoice_number",
   "normalized_invoice_station_key",
   "normalized_cu_number",
   "active_fuel_order",
-  "section_break_invoice_amounts",
-  "pre_tax_amount",
-  "column_break_calculated_amounts",
-  "tax_amount",
-  "invoice_total",
-  "section_break_evidence",
-  "signed_invoice",
-  "signed_order",
-  "section_break_efficiency",
+  "section_break_measured_fueling",
+  "litre_variance_status",
   "is_efficiency_baseline",
   "previous_full_fill",
   "closing_full_fill",
@@ -74,7 +68,7 @@
   {
    "fieldname": "section_break_order_context",
    "fieldtype": "Section Break",
-   "label": "Approved Fuel Order"
+   "label": "LPO and Invoice Details"
   },
   {
    "fieldname": "fuel_order",
@@ -218,11 +212,6 @@
    "read_only": 1
   },
   {
-   "fieldname": "section_break_actual_fueling",
-   "fieldtype": "Section Break",
-   "label": "Actual Fueling"
-  },
-  {
    "fieldname": "actual_station",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -256,7 +245,8 @@
   },
   {
    "fieldname": "column_break_actual_receipt",
-   "fieldtype": "Column Break"
+   "fieldtype": "Column Break",
+   "label": "Invoice Transaction"
   },
   {
    "fieldname": "invoice_number",
@@ -282,7 +272,7 @@
   {
    "fieldname": "section_break_measured_fueling",
    "fieldtype": "Section Break",
-   "label": "Fueling Measurements"
+   "label": "Transaction Summary"
   },
   {
    "fieldname": "vehicle_odometer",
@@ -310,10 +300,6 @@
    "fieldname": "litre_variance_status",
    "fieldtype": "HTML",
    "label": "Litre Variance"
-  },
-  {
-   "fieldname": "column_break_measurement_result",
-   "fieldtype": "Column Break"
   },
   {
    "default": "0",
@@ -364,11 +350,6 @@
    "read_only": 1
   },
   {
-   "fieldname": "section_break_invoice_amounts",
-   "fieldtype": "Section Break",
-   "label": "Fuel Invoice Amounts"
-  },
-  {
    "fieldname": "pre_tax_amount",
    "fieldtype": "Currency",
    "label": "Pre-Tax Fuel Amount (KES)",
@@ -376,10 +357,6 @@
    "no_copy": 1,
    "precision": 2,
    "description": "Enter the fuel amount before tax, in KES."
-  },
-  {
-   "fieldname": "column_break_calculated_amounts",
-   "fieldtype": "Column Break"
   },
   {
    "fieldname": "tax_amount",
@@ -398,11 +375,6 @@
    "read_only": 1
   },
   {
-   "fieldname": "section_break_evidence",
-   "fieldtype": "Section Break",
-   "label": "Signed Evidence"
-  },
-  {
    "fieldname": "signed_invoice",
    "fieldtype": "Attach",
    "label": "Signed Invoice",
@@ -417,17 +389,13 @@
    "description": "Required when the transaction is submitted. Must be a private PDF, JPG, or PNG."
   },
   {
-   "fieldname": "section_break_efficiency",
-   "fieldtype": "Section Break",
-   "label": "Vehicle Efficiency"
-  },
-  {
    "default": "0",
    "fieldname": "is_efficiency_baseline",
    "fieldtype": "Check",
    "label": "Efficiency Baseline",
    "no_copy": 1,
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "previous_full_fill",
@@ -435,7 +403,8 @@
    "label": "Previous Full Fill",
    "no_copy": 1,
    "options": "Fueling Transaction",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "closing_full_fill",
@@ -443,28 +412,32 @@
    "label": "Closing Full Fill",
    "no_copy": 1,
    "options": "Fueling Transaction",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "distance_km",
    "fieldtype": "Float",
    "label": "Distance (km)",
    "no_copy": 1,
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "qualifying_litres",
    "fieldtype": "Float",
    "label": "Qualifying Litres",
    "no_copy": 1,
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "km_per_litre",
    "fieldtype": "Float",
    "label": "Efficiency (km/L)",
    "no_copy": 1,
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "section_break_submission_audit",

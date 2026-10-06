@@ -13,6 +13,7 @@ from PIL import Image
 from fleet_management.fleet_management.doctype.fuel_order.fuel_order import get_previous_entry
 from fleet_management.fleet_management.doctype.fueling_transaction.fueling_transaction import (
 	calculate_vehicle_interval,
+	get_generator_efficiency,
 	get_fuel_order_context,
 )
 from fleet_management.fleet_management.report.fueling_transaction_analysis.fueling_transaction_analysis import (
@@ -339,7 +340,9 @@ class TestFuelingTransaction(IntegrationTestCase):
 		return transaction
 
 	def test_010_fuel_order_context_is_read_only_and_location_scoped(self):
-		"""010-fuel-order-authorization-slip: Requirements 1.1, 1.2; Property 1."""
+		"""010-fuel-order-authorization-slip: Requirements 1.1, 1.2; Property 1.
+		011-fueling-transaction-horizontal-layout: Requirement 1.5; Property 1.
+		"""
 		order_before = frappe.db.get_value(
 			"Fuel Order",
 			self.order.name,
@@ -380,6 +383,20 @@ class TestFuelingTransaction(IntegrationTestCase):
 		)
 		with self.set_user(self.user), self.assertRaises(frappe.PermissionError):
 			get_fuel_order_context(other_order.name)
+
+	def test_011_transaction_form_places_lpo_invoice_and_summary_in_order(self):
+		"""011-fueling-transaction-horizontal-layout: Requirements 1.1, 1.2, 1.4; Properties 1, 3."""
+		fieldnames = [field.fieldname for field in frappe.get_meta("Fueling Transaction").fields]
+		self.assertLess(
+			fieldnames.index("approved_order_context"),
+			fieldnames.index("column_break_actual_receipt"),
+		)
+		self.assertLess(fieldnames.index("column_break_actual_receipt"), fieldnames.index("actual_station"))
+		self.assertLess(fieldnames.index("signed_order"), fieldnames.index("section_break_measured_fueling"))
+		self.assertLess(
+			fieldnames.index("section_break_measured_fueling"), fieldnames.index("litre_variance_status")
+		)
+		self.assertEqual(frappe.get_meta("Fueling Transaction").get_field("litre_variance_status").fieldtype, "HTML")
 
 	def test_new_transaction_requires_litres_and_pre_tax_amount_before_save(self):
 		"""010-fuel-order-authorization-slip: Requirements 2.1, 2.2; Property 3."""
@@ -483,7 +500,9 @@ class TestFuelingTransaction(IntegrationTestCase):
 		self.assertEqual(summary_values["Litres with Recorded Cost"], 0)
 
 	def test_analysis_report_shows_generator_litres_per_hour_and_order_baseline(self):
-		"""010-fuel-order-authorization-slip: Requirements 2.5, 2.6, 2.7; Property 4."""
+		"""010-fuel-order-authorization-slip: Requirements 2.5, 2.6, 2.7; Property 4.
+		011-fueling-transaction-horizontal-layout: Requirement 1.3; Property 2.
+		"""
 		first_time = get_datetime(now_datetime()) + timedelta(minutes=5)
 		first_order = self._make_approved_order(
 			self.location, self.station, self.user, self.approver, asset=self.generator
@@ -531,6 +550,9 @@ class TestFuelingTransaction(IntegrationTestCase):
 		self.assertEqual(row["variance_status"], "Within baseline")
 		self.assertEqual(row["generator_litres_per_hour"], 2.5)
 		self.assertIsNone(row["full_tank_exception"])
+		with self.set_user(self.user):
+			self.assertEqual(get_generator_efficiency(closing.name), 2.5)
+			self.assertIsNone(get_generator_efficiency(first.name))
 		first_row = next(item for item in data if item["transaction"] == first.name)
 		self.assertIsNone(first_row["generator_litres_per_hour"])
 		self.assertEqual(first_row["variance_status"], "No comparison available")
@@ -707,6 +729,8 @@ class TestFuelingTransaction(IntegrationTestCase):
 			self.assertFalse(frappe.has_permission("Fueling Transaction", "submit", south_transaction))
 			with self.assertRaises(frappe.PermissionError):
 				south_transaction.check_permission("read")
+			with self.assertRaises(frappe.PermissionError):
+				get_generator_efficiency(south_transaction.name)
 			with self.assertRaises(frappe.PermissionError):
 				south_transaction.submit()
 				with self.assertRaises(frappe.PermissionError):

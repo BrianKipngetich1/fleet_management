@@ -34,7 +34,7 @@ function renderFuelOrderContext(context) {
 	const rows = fields
 		.map(
 			([label, value]) =>
-				`<div class="col-sm-6 col-md-4 mb-3"><div class="text-muted small">${orderContextValue(label)}</div><div>${orderContextValue(value)}</div></div>`
+				`<div class="col-12 col-lg-6 mb-3"><div class="text-muted small">${orderContextValue(label)}</div><div>${orderContextValue(value)}</div></div>`
 		)
 		.join("");
 	const slipLink = context.can_print_slip
@@ -48,48 +48,113 @@ function renderFuelOrderContext(context) {
 	return `<div class="frappe-card"><div class="row">${rows}${slipLink}</div></div>`;
 }
 
-function renderLitreVariance(context, actualValue) {
-	if (!(["Vehicle", "Generator"].includes(context.asset_type))) {
-		return `<span class="indicator-pill gray">${orderContextValue(__("No comparison available"))}</span>`;
-	}
-
-	const isVehicle = context.asset_type === "Vehicle";
+function renderTransactionSummary(context, doc, invoiceLitres, generatorEfficiency) {
+	const assetType = context?.asset_type;
+	const isVehicle = assetType === "Vehicle";
 	const baselineLabel = isVehicle ? __("Estimated litres") : __("Approved litres");
-	const baseline = Number(isVehicle ? context.estimated_litres : context.authorized_quantity_litres);
-	if (!Number.isFinite(baseline) || baseline <= 0) {
-		return `<span class="indicator-pill gray">${orderContextValue(__("No comparison available"))}</span>`;
+	const baseline = Number(isVehicle ? context?.estimated_litres : context?.authorized_quantity_litres);
+	const actual = Number(invoiceLitres);
+	const hasBaseline = Number.isFinite(baseline) && baseline > 0;
+	const hasActual = Number.isFinite(actual) && actual > 0;
+	let color = "gray";
+	let status = assetType ? __("Enter invoice litres to compare") : __("No comparison available");
+
+	if (hasBaseline && hasActual) {
+		color = "green";
+		status = __("Within baseline");
+		const variancePercent = ((actual - baseline) / baseline) * 100;
+		if (variancePercent > 0 && variancePercent <= 15) {
+			color = "orange";
+			status = __("Within 15% tolerance");
+		} else if (variancePercent > 15) {
+			color = "red";
+			status = __("Overrun");
+		}
+	} else if (assetType && !hasBaseline) {
+		status = __("No comparison available");
 	}
 
-	const actual = Number(actualValue);
-	if (!Number.isFinite(actual) || actual <= 0) {
-		return `<span class="indicator-pill gray">${orderContextValue(__("Enter invoice litres to compare"))}</span>`;
+	let efficiency = __("Efficiency is not yet available.");
+	if (isVehicle && doc.docstatus === 1 && doc.full_tank_confirmed && !doc.is_efficiency_baseline) {
+		const kmPerLitre = Number(doc.km_per_litre);
+		if (Number.isFinite(kmPerLitre) && kmPerLitre > 0) {
+			efficiency = `${kmPerLitre.toFixed(2)} km/L`;
+		}
+	} else if (
+		assetType === "Generator" &&
+		Number.isFinite(Number(generatorEfficiency)) &&
+		Number(generatorEfficiency) > 0
+	) {
+		efficiency = `${Number(generatorEfficiency).toFixed(2)} L/hour`;
 	}
 
-	let color = "green";
-	let label = __("Within baseline");
-	const variancePercent = ((actual - baseline) / baseline) * 100;
-	if (actual > baseline) {
-		color = variancePercent <= 15 ? "orange" : "red";
-		label = color === "orange" ? __("Within 15% tolerance") : __("Overrun");
-	}
-	const details = `${__("Actual")}: ${actual.toFixed(2)} L · ${baselineLabel}: ${baseline.toFixed(2)} L${
-		variancePercent > 0 ? ` · ${variancePercent.toFixed(1)}% ${__("over")}` : ""
-	}`;
-	return `<span class="indicator-pill ${color}">${orderContextValue(label)}</span><div class="text-muted small mt-1">${orderContextValue(details)}</div>`;
+	const value = (number, available) => (available ? `${number.toFixed(2)} L` : __("Not entered"));
+	return `<div class="frappe-card p-3"><div class="row">
+		<div class="col-sm-4 mb-3"><div class="text-muted small">${orderContextValue(baselineLabel)}</div><div>${orderContextValue(value(baseline, hasBaseline))}</div></div>
+		<div class="col-sm-4 mb-3"><div class="text-muted small">${orderContextValue(__("Invoice litres"))}</div><div>${orderContextValue(value(actual, hasActual))}</div></div>
+		<div class="col-sm-4 mb-3"><div class="text-muted small">${orderContextValue(__("Litre status"))}</div><div><span class="indicator-pill ${color}">${orderContextValue(status)}</span></div></div>
+		<div class="col-12"><div class="text-muted small">${orderContextValue(__("Efficiency"))}</div><div>${orderContextValue(efficiency)}</div></div>
+	</div></div>`;
 }
 
-function updateLitreVariance(frm) {
+function updateTransactionSummary(frm, invoiceLitres = frm.doc.invoice_litres) {
 	const field = frm.get_field("litre_variance_status");
-	if (!field) return;
-	field.$wrapper.html(
-		frm._fuel_order_context
-			? renderLitreVariance(frm._fuel_order_context, frm.doc.invoice_litres)
-			: ""
-	);
+	if (field) {
+		field.$wrapper.html(
+			renderTransactionSummary(
+				frm._fuel_order_context,
+				frm.doc,
+				invoiceLitres,
+				frm._generator_efficiency
+			)
+		);
+	}
 }
 
-function updateInvoiceAmounts(frm) {
-	const preTaxAmount = flt(frm.doc.pre_tax_amount, 2);
+function bindLiveInvoiceInputs(frm) {
+	const litresField = frm.fields_dict.invoice_litres;
+	litresField?.$input
+		.off(".fuelTransactionSummary")
+		.on("input.fuelTransactionSummary", () => {
+			updateTransactionSummary(frm, litresField.get_value());
+		});
+
+	const amountField = frm.fields_dict.pre_tax_amount;
+	amountField?.$input
+		.off(".fuelInvoiceAmounts")
+		.on("input.fuelInvoiceAmounts", () => updateInvoiceAmounts(frm, amountField.get_value()));
+}
+
+function loadGeneratorEfficiency(frm) {
+	const context = frm._fuel_order_context;
+	frm._efficiency_request_id = (frm._efficiency_request_id || 0) + 1;
+	if (!context || context.asset_type !== "Generator" || frm.doc.docstatus !== 1) {
+		frm._generator_efficiency = null;
+		updateTransactionSummary(frm);
+		return;
+	}
+
+	const transactionName = frm.doc.name;
+	const requestId = frm._efficiency_request_id;
+	frm._generator_efficiency = null;
+	updateTransactionSummary(frm);
+	frappe.call({
+		method: "fleet_management.fleet_management.doctype.fueling_transaction.fueling_transaction.get_generator_efficiency",
+		args: { transaction_name: transactionName },
+		type: "GET",
+	}).then((response) => {
+		if (frm.doc.name !== transactionName || frm._efficiency_request_id !== requestId) return;
+		frm._generator_efficiency = response.message;
+		updateTransactionSummary(frm);
+	}).catch(() => {
+		if (frm.doc.name !== transactionName || frm._efficiency_request_id !== requestId) return;
+		frm._generator_efficiency = null;
+		updateTransactionSummary(frm);
+	});
+}
+
+function updateInvoiceAmounts(frm, enteredAmount = frm.doc.pre_tax_amount) {
+	const preTaxAmount = flt(enteredAmount, 2);
 	const taxAmount = flt(preTaxAmount * 0.08, 2);
 	frm.set_value({ tax_amount: taxAmount, invoice_total: flt(preTaxAmount + taxAmount, 2) });
 }
@@ -102,8 +167,9 @@ async function loadFuelOrderContext(frm, { forceDefaults = false } = {}) {
 	const orderName = frm.doc.fuel_order;
 	if (!orderName) {
 		frm._fuel_order_context = null;
+		frm._generator_efficiency = null;
 		field.$wrapper.empty();
-		updateLitreVariance(frm);
+		updateTransactionSummary(frm);
 		return;
 	}
 
@@ -117,7 +183,7 @@ async function loadFuelOrderContext(frm, { forceDefaults = false } = {}) {
 		if (!response.message) {
 			frm._fuel_order_context = null;
 			field.$wrapper.empty();
-			updateLitreVariance(frm);
+			updateTransactionSummary(frm);
 			return;
 		}
 		const context = response.message;
@@ -134,14 +200,14 @@ async function loadFuelOrderContext(frm, { forceDefaults = false } = {}) {
 			if (Object.keys(values).length) await frm.set_value(values);
 		}
 		field.$wrapper.html(renderFuelOrderContext(context));
-		updateLitreVariance(frm);
+		loadGeneratorEfficiency(frm);
 	} catch {
 		if (frm.doc.fuel_order !== orderName) return;
 		field.$wrapper.html(
 			`<div class="text-muted">${orderContextValue(__("Fuel Order details are unavailable."))}</div>`
 		);
 		frm._fuel_order_context = null;
-		updateLitreVariance(frm);
+		updateTransactionSummary(frm);
 	}
 }
 
@@ -152,18 +218,20 @@ function toggleAssetMeter(frm, assetType) {
 
 frappe.ui.form.on("Fueling Transaction", {
 	refresh(frm) {
+		bindLiveInvoiceInputs(frm);
 		loadFuelOrderContext(frm);
 	},
 	fuel_order(frm) {
 		frm._fuel_order_context = null;
-		updateLitreVariance(frm);
+		frm._generator_efficiency = null;
+		updateTransactionSummary(frm);
 		if (!frm.doc.fuel_order && frm.doc.docstatus === 0) {
 			frm.set_value({ actual_station: null, fuel_type: null });
 		}
 		loadFuelOrderContext(frm, { forceDefaults: Boolean(frm.doc.fuel_order) });
 	},
 	invoice_litres(frm) {
-		updateLitreVariance(frm);
+		updateTransactionSummary(frm);
 	},
 	pre_tax_amount(frm) {
 		updateInvoiceAmounts(frm);
