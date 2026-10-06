@@ -41,6 +41,46 @@ function renderFuelOrderContext(context) {
 	return `<div class="frappe-card"><div class="row">${rows}</div></div>`;
 }
 
+function renderLitreVariance(context, actualValue) {
+	if (!(["Vehicle", "Generator"].includes(context.asset_type))) {
+		return `<span class="indicator-pill gray">${orderContextValue(__("No comparison available"))}</span>`;
+	}
+
+	const isVehicle = context.asset_type === "Vehicle";
+	const baselineLabel = isVehicle ? __("Estimated litres") : __("Approved litres");
+	const baseline = Number(isVehicle ? context.estimated_litres : context.authorized_quantity_litres);
+	if (!Number.isFinite(baseline) || baseline <= 0) {
+		return `<span class="indicator-pill gray">${orderContextValue(__("No comparison available"))}</span>`;
+	}
+
+	const actual = Number(actualValue);
+	if (!Number.isFinite(actual) || actual <= 0) {
+		return `<span class="indicator-pill gray">${orderContextValue(__("Enter invoice litres to compare"))}</span>`;
+	}
+
+	let color = "green";
+	let label = __("Within baseline");
+	const variancePercent = ((actual - baseline) / baseline) * 100;
+	if (actual > baseline) {
+		color = variancePercent <= 15 ? "orange" : "red";
+		label = color === "orange" ? __("Within 15% tolerance") : __("Overrun");
+	}
+	const details = `${__("Actual")}: ${actual.toFixed(2)} L · ${baselineLabel}: ${baseline.toFixed(2)} L${
+		variancePercent > 0 ? ` · ${variancePercent.toFixed(1)}% ${__("over")}` : ""
+	}`;
+	return `<span class="indicator-pill ${color}">${orderContextValue(label)}</span><div class="text-muted small mt-1">${orderContextValue(details)}</div>`;
+}
+
+function updateLitreVariance(frm) {
+	const field = frm.get_field("litre_variance_status");
+	if (!field) return;
+	field.$wrapper.html(
+		frm._fuel_order_context
+			? renderLitreVariance(frm._fuel_order_context, frm.doc.invoice_litres)
+			: ""
+	);
+}
+
 async function loadFuelOrderContext(frm, { forceDefaults = false } = {}) {
 	const field = frm.get_field("approved_order_context");
 	if (!field) return;
@@ -48,7 +88,9 @@ async function loadFuelOrderContext(frm, { forceDefaults = false } = {}) {
 
 	const orderName = frm.doc.fuel_order;
 	if (!orderName) {
+		frm._fuel_order_context = null;
 		field.$wrapper.empty();
+		updateLitreVariance(frm);
 		return;
 	}
 
@@ -60,10 +102,13 @@ async function loadFuelOrderContext(frm, { forceDefaults = false } = {}) {
 		});
 		if (frm.doc.fuel_order !== orderName) return;
 		if (!response.message) {
+			frm._fuel_order_context = null;
 			field.$wrapper.empty();
+			updateLitreVariance(frm);
 			return;
 		}
 		const context = response.message;
+		frm._fuel_order_context = context;
 		toggleAssetMeter(frm, context.asset_type);
 		if (frm.doc.docstatus === 0) {
 			const values = {};
@@ -76,11 +121,14 @@ async function loadFuelOrderContext(frm, { forceDefaults = false } = {}) {
 			if (Object.keys(values).length) await frm.set_value(values);
 		}
 		field.$wrapper.html(renderFuelOrderContext(context));
+		updateLitreVariance(frm);
 	} catch {
 		if (frm.doc.fuel_order !== orderName) return;
 		field.$wrapper.html(
 			`<div class="text-muted">${orderContextValue(__("Fuel Order details are unavailable."))}</div>`
 		);
+		frm._fuel_order_context = null;
+		updateLitreVariance(frm);
 	}
 }
 
@@ -94,9 +142,14 @@ frappe.ui.form.on("Fueling Transaction", {
 		loadFuelOrderContext(frm);
 	},
 	fuel_order(frm) {
+		frm._fuel_order_context = null;
+		updateLitreVariance(frm);
 		if (!frm.doc.fuel_order && frm.doc.docstatus === 0) {
 			frm.set_value({ actual_station: null, fuel_type: null });
 		}
 		loadFuelOrderContext(frm, { forceDefaults: Boolean(frm.doc.fuel_order) });
+	},
+	invoice_litres(frm) {
+		updateLitreVariance(frm);
 	},
 });

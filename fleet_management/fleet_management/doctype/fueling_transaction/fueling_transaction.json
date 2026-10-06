@@ -35,6 +35,7 @@
   "vehicle_odometer",
   "hour_meter",
   "invoice_litres",
+  "litre_variance_status",
   "column_break_measurement_result",
   "full_tank_confirmed",
   "attendant_name",
@@ -298,6 +299,11 @@
    "label": "Invoice Litres",
    "no_copy": 1,
    "description": "Litres recorded on the fueling invoice."
+  },
+  {
+   "fieldname": "litre_variance_status",
+   "fieldtype": "HTML",
+   "label": "Litre Variance"
   },
   {
    "fieldname": "column_break_measurement_result",

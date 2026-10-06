@@ -12,7 +12,7 @@ without modifying the LPO or looking up a physical document.
   and fuel from the selected LPO, show only the correct meter for the linked asset, and retain
   the existing time, evidence, and transaction validations.
   - _Requirements: 1.3, 1.4, 1.5, 1.6, 1.8_
-- [ ] 1.3 Show a live litre variance status against the vehicle's LPO estimated litres or the
+- [x] 1.3 Show a live litre variance status against the vehicle's LPO estimated litres or the
   generator's approved LPO litres, and include the same status in transaction review.
   - _Requirements: 1.7_
 - [ ] 1.4 Verify the transaction reads LPO context without writing to or changing any LPO data,
@@ -56,3 +56,6 @@ One line per finished task or phase, newest last.
   test-site-only migration loaded the layout, and its orphan cleanup affected only the disposable
   test site. No task 1.2 migration ran on the main site; wait for the user's decision on the
   retired legacy reports/workspace before migrating it.
+- `06/10/2026`: Added a live litre status beside invoice litres. Vehicles compare with estimated
+  LPO litres; generators compare with approved LPO litres. The threshold cases, JSON, JavaScript
+  syntax, spec check, and disposable test-site migration passed. Next: task 1.4 verification.
