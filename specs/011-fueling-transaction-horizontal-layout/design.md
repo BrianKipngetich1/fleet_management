@@ -2,7 +2,7 @@
 
 # Fueling Transaction side-by-side layout and summary: design
 
-Approved by: pending
+Approved by: Margaret Maina (@BrianKipngetich1) · 06/10/2026 · revision f341970 (explained by agent)
 
 ## Current state
 
