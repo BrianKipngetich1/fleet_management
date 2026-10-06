@@ -8,6 +8,17 @@
 	min-width: 0;
 }
 
+.form-page.fuel-order-workspace > .form-section {
+	padding-bottom: var(--padding-md);
+	border: 1px solid var(--dark-border-color, var(--border-color));
+	border-radius: 8px;
+}
+
+.form-page.fuel-order-workspace .frappe-control .form-control,
+.form-page.fuel-order-workspace .frappe-control .like-disabled-input {
+	border: 1px solid var(--dark-border-color, var(--border-color));
+}
+
 .fuel-order-workspace .fuel-order-summary-block {
 	margin: 0.5rem 0 1rem;
 }

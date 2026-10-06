@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Specification | [`../requirements.md`](../requirements.md) @ working tree |
-| Status | Built and database-verified; updated Fleet User and Fleet Approver views walked at wide, medium, and phone widths |
+| Status | Built and database-verified; previous role/width walkthrough completed; final border/default-collapse visual recheck pending |
 | Started / Closed | 2026-10-02 / — |
 | Author | Codex |
 | Reviewed by | — |
@@ -13,7 +13,7 @@
 
 ## What this phase makes true
 
-Fuel Order has the four named primary sections in order. Asset, Driver, and Actual Requester share the first row when space permits; both required participant fields default to the selected asset's effective-assignment Custodian and remain independently editable. Changing Asset replaces both suggestions; no effective custodian leaves both blank. Custodian itself is read-only. A read-only responsive summary follows Vehicle and Order and groups vehicle facts, assignment, Previous Entry, and supported estimates. Three-column entry groups become two columns at medium widths and one column on narrow screens. Meter readings pair with their evidence; the generator hides the vehicle-only gauge column. Approval notes use two columns. Meter wording changes to Odometer or Hour Meter. Partial litres and their separate reason appear only for Partial authorization; the server requires the amount and a specific reason before a Partial order leaves Draft. Quantity authorization, signal, approval, and issue/action history are grouped before System Details. At wide widths System Details occupies the far-right fourth column as a read-only review sidebar; at medium and narrow widths it follows the four primary sections.
+Fuel Order has the four named primary sections in order. Asset, Driver, and Actual Requester share the first row when space permits; both required participant fields default to the selected asset's effective-assignment Custodian and remain independently editable. Changing Asset replaces both suggestions; no effective custodian leaves both blank. Custodian itself is read-only. A read-only responsive summary follows Vehicle and Order and groups vehicle facts, assignment, Previous Entry, and supported estimates. Three-column entry groups become two columns at medium widths and one column on narrow screens. Meter readings pair with their evidence; the generator hides the vehicle-only gauge column. Approval notes use two columns. Meter wording changes to Odometer or Hour Meter. Partial litres and their separate reason appear only for Partial authorization; the server requires the amount and a specific reason before a Partial order leaves Draft. Quantity authorization, signal, approval, and issue/action history are grouped before System Details. At wide widths System Details occupies the far-right fourth column, aligned with the top of the form, as a read-only review sidebar; at medium and narrow widths it follows the four primary sections. Frappe collapses the collapsible System Details section on form refresh. Section containers and field controls have visible theme-aware borders.
 
 ## The rule, as observed
 
@@ -42,6 +42,8 @@ stateDiagram-v2
 | Full hides Partial controls; Partial shows them and requires a reason before leaving Draft | Conditional DocField metadata and `test_partial_authorization_requires_reason_before_leaving_draft` | Verified by automated test |
 | Request photo uses Frappe's native preview | The installed Attach Image control implements its existing hover preview; the order field remains Attach Image | Opened existing meter and gauge attachments from the form; each rendered as an image in a separate tab |
 | System Details stay read-only and outside the main entry path | DocType metadata confirms the extra System Details section; CSS places it in column four at wide widths and after the primary sections below the wide breakpoint | At 1600 px it occupied the far-right sidebar; at 900 and 390 px it followed History. User and Approver views had no horizontal overflow. With no Previous Entry, the default zero meter and blank date fields were hidden while the summary showed “No previous entry.” |
+| System Details starts at the top of the far-right column and is collapsed by default | CSS assigns it to grid column 4 and row 1 at wide widths; its DocField is collapsible and Frappe's form layout collapses collapsible sections on refresh | Confirmed from the 009 CSS, DocType metadata, and installed Frappe layout implementation. The screenshot supplied for this follow-up shows the section expanded but cropped before the other columns. |
+| Each section and field control has a visible border | Scoped CSS outlines section containers, editable `.form-control` inputs, and read-only `.like-disabled-input` values using the theme border token | CSS declarations are present; visual contrast on the rendered form remains pending because the isolated Desk page did not render during the follow-up check. |
 | Driver and Actual Requester default from the selected asset's effective Custodian and stay independently editable | Asset facts supply the effective-assignment Custodian; focused tests cover required/editable participants and the absent-custodian case | On Asset selection, both values were Grace Wanjiku while logged in as Philip; changing Driver to John left Actual Requester unchanged, and changing Actual Requester to Daniel left Driver unchanged. Changing Asset refreshed both suggestions. Custodian remained read-only. The missing-custodian response leaves both defaults blank in focused coverage. |
 
 ## Frappe-first / native-first
@@ -67,15 +69,18 @@ The updated page was observed at 1600, 900, and 390 px for Fleet User and Fleet 
 
 The earlier observation that Actual Requester stayed blank was from before this follow-up change and is superseded by the effective-Custodian default above.
 
+On 06/10/2026, the follow-up added section and field borders. Source review confirms that the wide layout starts System Details in grid row 1, column 4; Frappe's layout code collapses the section during refresh. A named browser session opened the disposable test-site route, but Desk returned an empty page with no form sections, so the new borders and initial collapsed state were not visually rechecked. No test-site record was changed. No functional tests or migrations ran on the main site.
+
 An earlier full migration attempt ended during Frappe orphan cleanup (`Module None not found`) and a prior main-site migration placed Fueling Summary and Asset Performance in Frappe's recovery bin. Neither was restored or changed in this task. No functional/database tests or migrations ran against the main site during this verification.
 
 ## What we learned that the plan did not predict
 
-This Frappe version supports collapsible sections and remembers a user's collapsed state, but has no DocField setting to start a section collapsed. System Details therefore remains a separate collapsible section. The installed Attach Image control supports a hover preview, so a custom image viewer is unnecessary. A pre-existing Partial approval-slip test needed a specific reason after this rule became server-enforced.
+Frappe's form layout collapses collapsible sections during refresh; System Details contains no required fields that force it open. The installed Attach Image control supports a hover preview, so a custom image viewer is unnecessary. A pre-existing Partial approval-slip test needed a specific reason after this rule became server-enforced.
 
 ## Known limitations — accepted, not fixed
 
 - In wide layouts the System Details sidebar starts alongside the primary sections and may continue below them; at medium and narrow widths it follows the primary sections.
+- The section and field borders are implemented, but their visual contrast and the default collapsed state need a rendered Desk recheck; the isolated test-site page returned blank during the latest check.
 
 ## Review
 
@@ -84,4 +89,4 @@ This Frappe version supports collapsible sections and remembers a user's collaps
 
 **Closure:** Not reviewed.
 
-**Next:** Independent review remains; no Phase 1 walkthrough is pending.
+**Next:** Complete the 1.11 visual recheck in Desk on the disposable site; independent review remains.

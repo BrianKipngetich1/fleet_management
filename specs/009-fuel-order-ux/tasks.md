@@ -22,6 +22,10 @@
   - _Requirements: 1.2, 1.3, 1.8_
 - [x] 1.9 Walk through the updated form as Fleet User and Fleet Approver at wide, medium, and phone widths.
   - _Requirements: 1.2, 1.3, 1.8_
+- [x] 1.10 Keep System Details top-aligned in the far-right wide-screen column and collapsed by default; add visible borders around form sections and field controls.
+  - _Requirements: 1.3, 1.8, 1.9_
+- [ ] 1.11 Visually confirm the collapsed System Details panel and section/field borders in Desk at wide, medium, and phone widths.
+  - _Requirements: 1.3, 1.8, 1.9_
 
 ## Phase 2: Signal panel
 
@@ -87,3 +91,4 @@
 - 2026-10-05 — 1.8: added coverage for custodian-based defaults and asset changes, required/editable independent participants, the missing-custodian case, and responsive System Details placement. Focused `test_fuel_order` passed 31/31 on the disposable MariaDB site; the earlier six-module run was 146 passed with one existing environment-guarded concurrency skip. No full suite was run.
 - 2026-10-05 — 1.9: Fleet User and Fleet Approver views were walked at 1600, 900, and 390 px. Wide layout used three entry columns plus the far-right System Details column; medium and phone layouts reflowed details after the primary sections; document/body widths matched the viewport. Participant defaults, independent edits, and Approver read-only view were observed. Screenshots are recorded in Phase 1 and Phase 4 verification files.
 - 2026-10-05 — Phase 4 event history was visually exercised on a new disposable Draft: Fleet User saved a Red issue and later a Green resolution; Fleet Approver saw both read-only at wide, medium, and phone widths. Task 4.4 remains unchecked because cancellation, extension/reprint, and completed-fueling event displays were not exercised.
+- 2026-10-06 — 1.10: confirmed from the form layout and DocType metadata that System Details starts in the top row of the far-right wide-screen column and remains collapsible; Frappe collapses collapsible sections on refresh. Added theme-aware outlines to Fuel Order sections, editable controls, and read-only controls. The isolated test-site Desk page rendered blank, so the visual recheck is tracked in 1.11; no main-site tests or migrations ran.
