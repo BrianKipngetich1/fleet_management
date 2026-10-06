@@ -1,60 +1,42 @@
-<!--
-Build each phase as a thin vertical slice. Every criterion is cited by at least one task. Add a
-progress line only when a task is complete and committed.
--->
+# Fueling Transaction layout and fuel analysis: tasks
 
-# Fuel Order authorization and fueling record: tasks
+## Phase 1: Transaction entry and read-only order context
 
-## Phase 1: Working-day validity and expiry enforcement
+**Tracer:** Staff can enter and review one Fueling Transaction with its approved LPO context,
+without modifying the LPO or looking up a physical document.
 
-**Tracer:** A new approved order gets a saved deadline based on the configured working-day count,
-displays its live expired state, and cannot be submitted as fueled outside that saved window.
+- [ ] 1.1 Show the approved LPO details needed for transaction entry as a read-only context panel
+  on the existing Fueling Transaction.
+  - _Requirements: 1.1, 1.2, 1.3_
+- [ ] 1.2 Reorganize the existing transaction fields into a clear entry sequence, fill station
+  and fuel from the selected LPO, show only the correct meter for the linked asset, and retain
+  the existing time, evidence, and transaction validations.
+  - _Requirements: 1.3, 1.4, 1.5, 1.6, 1.8_
+- [ ] 1.3 Show a live litre variance status against the LPO's existing estimated litres and
+  include the same status in transaction review.
+  - _Requirements: 1.7_
+- [ ] 1.4 Verify the transaction reads LPO context without writing to or changing any LPO data,
+  and preserves existing role, location, order-link, validity, station, and evidence checks.
+  - _Requirements: 1.2, 1.8_
 
-- [ ] 1.1 Reuse the current validity setting, set the new-install default to two working days,
-  apply the agreed company calendar, preserve the live site's saved three-day value, and keep
-  approved deadlines and the separate transaction-entry rule unchanged.
-  - _Requirements: 2.1, 2.2, 2.3, 2.6, 2.7_
-- [ ] 1.2 Keep current audited extensions and enforce the saved validity boundary on transaction
-  submission; show “EXPIRED — DO NOT FUEL” on the order after expiry.
-  - _Requirements: 1.4, 2.4, 2.5, 6.1_
-- [ ] 1.3 Test approval timestamps, working-day and holiday boundaries, expiry, extension,
-  out-of-window submission, and preserved order deadlines.
-  - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7_
+## Phase 2: Fuel cost and analysis
 
-## Phase 2: Approved A5 authorization slip
+**Tracer:** Reviewers can analyze fuel usage, litre variances, efficiency, and pre-tax fuel
+spend from permission-filtered transaction records.
 
-**Tracer:** A permitted staff member prints an approved order as a one-page A5 authorization
-that an attendant can verify without changing its vehicle or station.
-
-- [ ] 2.1 Add the approved-only “Print Fuel Order” form action while preserving server-side
-  approval, role, and slip-revision checks.
-  - _Requirements: 1.1, 1.2, 1.3, 6.1_
-- [ ] 2.2 Rebuild the print format with company identity, order and approval facts, vehicle,
-  driver, representative, station name, operational location and full address, requested fuel,
-  and prominent validity warning.
-  - _Requirements: 1.3, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 6.2_
-- [ ] 2.3 Add the actual fueling blanks, full-tank yes/no boxes, representative checks and
-  signature, attendant confirmation, and revision footer; remove calculated fuel figures.
-  - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.6_
-- [ ] 2.4 Verify the print view and generated PDF on one A5 portrait page, including expired
-  warning, address, generator meter wording, grayscale legibility, and unbroken signatures.
-  - _Requirements: 1.4, 3.2, 4.5, 6.2_
-
-## Phase 3: Transaction evidence and review values
-
-**Tracer:** The signed slip and actual station values resolve to one Fueling Transaction linked
-to the approved order; full-tank exceptions and qualified estimates are visible to reviewers.
-
-- [ ] 3.1 Map the handwritten date/time, litres, correct meter, full-tank result, attendant, and
-  representative confirmation to the existing order/transaction and signed-slip evidence.
-  - _Requirements: 5.1, 5.2, 5.5, 6.1_
-- [ ] 3.2 Show a not-full result for full-tank orders as a review exception, and derive the
-  labelled before-fueling estimate only from valid confirmed-full transaction facts.
-  - _Requirements: 5.3, 5.4_
-- [ ] 3.3 Verify vehicle and generator records, full and partial authorizations, Yes and No
-  outcomes, permission boundaries, order matching, and signed evidence on the disposable test
-  site.
-  - _Requirements: 1.1, 1.2, 2.4, 3.3, 3.5, 4.1, 4.2, 5.1, 5.2, 5.3, 5.4, 5.5, 6.1, 6.2_
+- [ ] 2.1 Record the fuel-only pre-tax amount in KES, require both litres and pre-tax amount
+  before saving a new transaction, calculate tax at 8% and the invoice total, and leave
+  historical amounts unfilled.
+  - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.8, 2.9_
+- [ ] 2.2 Provide filtered analysis of actual and LPO-estimated litres, variance status, pre-tax
+  spend, cost per litre, vehicle efficiency, generator litres per operating hour, and full-tank
+  exceptions, with export under existing permissions.
+  - _Requirements: 1.7, 2.4, 2.5, 2.6, 2.7, 2.8, 2.10_
+- [ ] 2.3 Verify save is blocked when either litres or pre-tax amount is missing; check tax and
+  total calculations, cost analysis, vehicle and generator
+  efficiency, litre variance thresholds, missing LPO estimates, report filters, historical
+  records without costs, export permissions, and existing transaction controls.
+  - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 2.10_
 
 ## Progress log
 

@@ -1,235 +1,176 @@
 <!--
-How the requirements will be met. Implementation files may be named here; keep requirement text
-in business language. Approval is pending until the requester explicitly approves it.
+Design for the approved transaction-only scope. The linked Fuel Order remains read-only.
 -->
 
-# Fuel Order authorization and fueling record: design
+# Fueling Transaction layout and fuel analysis: design
 
 Approved by: pending
 
 ## Current state
 
-- The Fuel Order approval workflow records the approver and approval time. The existing
-  `default_validity_days` setting controls approval validity; its code default and the live site's
-  saved value are both three calendar days. On approval, the order saves its own `valid_until`
-  timestamp. Per the requester, retain the live saved value of three; after the change, new
-  approvals on this site use three working days until an administrator sets it to two. Set the
-  new-install default and code fallback to two.
-- A separate `transaction_entry_sla_hours` setting is 48 hours for entering a Fueling Transaction
-  after fueling. The existing project requirements say that its late-entry deadline excludes
-  Sundays and public holidays but counts Saturdays. It is not the order authorization period.
-- The order reports itself as expired after that saved timestamp. The Fueling Transaction
-  controller refuses a submitted fueling whose actual time is before approval or after the
-  order's saved deadline.
-- The order's `fulfillment_status` is already a derived property that returns “Expired”; use it
-  to show the form warning rather than adding another stored status field.
-- Fleet Management Settings has a `holiday_list` Link field, but this bench has only Frappe and
-  Fleet Management installed. It has no Holiday List DocType or working-day calculation using
-  that field.
-- The approved order already links the vehicle, driver, company representative, fuel type, and
-  planned station. Fleet Asset identifies a vehicle by its registration/name and links its make
-  and model. A station's postal address is kept in Frappe Address records linked to that station.
-- The current “Fuel Order Approval Slip” is a Chrome-generated A5 print format. It uses the site
-  Letter Head and current station address, but it shows request-time details and an estimated
-  quantity, and does not provide a structured actual-fueling record.
-- The current Fueling Transaction already stores actual fueling date/time, invoice litres,
-  vehicle odometer or generator hour meter, full-tank confirmation, attendant name, approved
-  station, approved fuel, order number, slip revision, and signed-order evidence. Its approved
-  order link supplies the company representative.
-- The controller derives vehicle efficiency from qualifying full-tank transactions, but the app
-  has no existing transaction report with an estimated fuel-before value. This design adds the
-  estimate as a calculated report column, not as another stored transaction field.
-- The order controller's `before_print` blocks printing unless the order is submitted, approved,
-  and the user has an existing print role. It records the printed slip revision and clears the
-  existing reprint-required flag. The form does not currently provide a distinct “Print Fuel
-  Order” action.
-- Fleet Asset's configured link search uses its vehicle model. Fuel Station has no configured
-  search fields. The slip will use the selected order links and saved related records; it will
-  not re-run a search or select new records while rendering.
+- The app has one submittable Fueling Transaction linked to a Fuel Order. Its controller copies
+  the order's asset, location, approval facts, and asset snapshots when the transaction is
+  validated or submitted. Submission already enforces order approval and validity, station and
+  fuel matching, measured values, signed evidence, role checks, and location permissions.
+- The transaction form stores the order link, approved station/fuel/date/deadline, actual station
+  and fuel, actual fueling date/time, invoice and CU numbers, litres, vehicle odometer or
+  generator hour meter, full-tank confirmation, attendant, signed invoice/order, and existing
+  vehicle-efficiency facts. The approved context fields are mostly hidden, and the form does not
+  show the selected order's driver, representative, request estimate, or quantity authorization
+  together with the actual transaction facts.
+- The app has no fuel-only cost fields or Fueling Transaction analysis report. Vehicle efficiency
+  for existing qualifying full fills is calculated by the transaction controller. Generator
+  litres per operating hour and cost analysis are not currently reported.
+- `Fueling Transaction` permissions allow Fleet Users to create, read, write, and submit; Fleet
+  Approvers to read, print, and report; and Fleet Admins to manage, report, export, and submit.
+  Existing hooks additionally scope transactions to permitted locations.
 
 ## Words in this request
 
 | Requester's word | Means in this app |
 |---|---|
-| Vehicle / asset | The Fleet Asset already linked to the approved Fuel Order; its document name is the asset identifier. |
-| Company representative | The Fleet Person linked to the approved Fuel Order; print the person's saved display name. |
-| Fueling record | The existing Fueling Transaction linked to one approved Fuel Order. |
-| Working day | A company operating day. Exclude Sundays and public holidays; count Saturdays. This is the same calendar rule already documented for transaction entry. |
-| Instance search | The existing identifying details and link-search configuration for the vehicle and station. The printout uses the chosen order links and does not allow replacement. |
-
-## Existing field map
-
-| Printed or recorded value | Existing source |
-|---|---|
-| Fuel Order number, approval date, expiry | `Fuel Order.name`, `approved_on`, `valid_until`; form warning uses derived `fulfillment_status` |
-| Authorized vehicle / generator | `Fuel Order.asset` → `Fleet Asset.asset_identifier`; `Fuel Order.asset_type`; read-only `Fuel Order.vehicle_model` for make/model when available |
-| Driver and company representative | `Fuel Order.driver`, `company_representative` → `Fleet Person.person_name` |
-| Fuel and quantity authorization | `Fuel Order.fuel_type`, `quantity_authorization`, `authorized_quantity_litres` |
-| Authorized station | `Fuel Order.planned_station` → `Fuel Station.station_name`; `Fuel Station.operational_location` → `Fleet Location.location_name`; full address from the station's linked Frappe `Address` record |
-| Actual fueling record | `Fueling Transaction.fuel_order`, `actual_station`, `fuel_type`, `actual_fueling_datetime`, `invoice_litres`, `vehicle_odometer` or `hour_meter`, `full_tank_confirmed`, `attendant_name`, and `signed_order` |
-| Estimated fuel before fueling | Calculated in the transaction report from `asset_tank_capacity_snapshot - invoice_litres`, only for a confirmed full tank with valid source values; never stored or printed on the slip |
+| LPO / approved order | The existing Fuel Order linked in `Fueling Transaction.fuel_order`. |
+| Asset identity | The linked Fleet Asset and its existing asset identifier and asset type. |
+| Estimated litres | `Fuel Order.estimated_litres`, when it is available; this is a request estimate, not actual fuel. |
+| Actual litres | `Fueling Transaction.invoice_litres`, as recorded from the fuel invoice. |
+| Full tank | The explicit `Fueling Transaction.full_tank_confirmed` confirmation. |
+| Fuel-only cost | The invoice's pre-tax fuel amount in KES, excluding other goods and tax. |
+| Fuel analysis | A permission-filtered report over Fueling Transaction records, with export controlled by existing roles. |
 
 ## Decisions (locked)
 
-- `D-1`: Reuse the current Fuel Order, its approved links, the existing print tracking, and the
-  existing Fueling Transaction. Do not create duplicate order, vehicle, station, or fueling data.
-- `D-2`: Reuse `default_validity_days` for approval validity and interpret its configured count in
-  working days. New-install default and code fallback are two. Per the requester, preserve the
-  current site's saved value of three for now; new approvals there will therefore use three
-  working days until a fleet administrator changes the setting to two. Keep already approved
-  orders' saved deadlines unchanged.
-- `D-3`: Existing approved orders keep their saved deadline. Changing the setting affects only
-  approvals made after the change; approved extensions continue through the current audited
-  extension action and require the current slip revision to be printed.
-- `D-4`: Preserve the current approval-time clock value when adding working days. The deadline
-  is the same local clock time on the configured number of working days after approval.
-- `D-5`: Preserve partial authorization. A full authorization prints “FULL TANK”; a partial
-  authorization prints the approved litre limit and is not described as a full tank.
-- `D-6`: Print the known representative name from the order and leave only confirmation,
-  signature, and date for handwriting. The signed paper is attached through the transaction's
-  existing signed-order evidence field.
-- `D-7`: Keep calculated fuel remaining off the paper and out of stored transaction data. Add a
-  calculated transaction-report column from tank capacity minus actual litres only when a full
-  tank was confirmed and the source values are valid; label the result “Estimated fuel before
-  fueling.”
-- `D-8`: Do not add QR verification in this change. The app has no secure verification route; the
-  printed order number is the lookup key under existing permissions.
-- `D-9`: An expired approved order may be reprinted as an expired historical copy, but it cannot
-  authorize fueling after its saved deadline. Transaction submission continues to validate the
-  actual fueling timestamp, so a delayed electronic entry may record a fueling that occurred
-  within the authorized window.
-
-## Holiday calendar integration
-
-The application has a `holiday_list` settings link but this bench has no installed Holiday List
-DocType or calculation using that link. Reuse that configured list wherever the DocType is
-available. Where it is unavailable, add a small Fleet Management Settings child table for
-company-maintained public-holiday dates. This is a fallback under the existing settings, not a
-second calendar DocType.
+- `D-1`: Reuse the current Fueling Transaction and linked Fuel Order. Show approved order details
+  as read-only context and do not write back to, extend, or otherwise change the LPO.
+- `D-2`: Keep approved and actual facts visibly distinct. The order context is loaded from the
+  saved order; the transaction continues to store actual fueling details and its existing order
+  snapshots.
+- `D-3`: A vehicle transaction uses the vehicle odometer; a generator transaction uses the hour
+  meter. The form shows the applicable meter only, while the existing server validation remains
+  authoritative.
+- `D-4`: Compare litres only. At or below the saved LPO estimate is within estimate; above
+  estimate through 15% over is a warning; more than 15% over is an overrun. Without a positive
+  estimate and positive actual litres, show no comparison.
+- `D-5`: Store fuel-only pre-tax cost in KES. Calculate tax at 8% and the invoice total on the
+  server. Analysis and cost per litre use pre-tax cost. Leave all historical cost values blank
+  and display them as “Not recorded.”
+- `D-6`: Use existing transaction and location permissions for the report and export. Fleet
+  Users do not gain report or export access from this change.
+- `D-7`: Keep existing order, validity, station, evidence, duplicate, and location checks in the
+  transaction controller. New form feedback is advisory and cannot replace server validation.
 
 ## Design
 
-Update the existing “Fuel Order Approval Slip” print format rather than creating a competing
-format. Add a “Print Fuel Order” form action for submitted, approved orders and the roles already
-allowed to print; the existing server-side `before_print` remains the authoritative guard and
-continues tracking the printed slip revision. Expired orders may still produce a historical copy,
-but both the opened order and print show “EXPIRED — DO NOT FUEL.”
+When staff select an LPO, show a read-only context panel on the existing Fueling Transaction.
+It presents the order number and approval state, asset and location, authorized station and
+fuel, full or partial authorization and estimated litres where available, approval deadline,
+driver, and company representative. A server method reads the linked order only after checking
+the current user's Fuel Order read permission. The client renders returned values as escaped
+text. Selecting or clearing the link refreshes or clears the panel; it does not save changes to
+the order.
+
+Organize the transaction form into approved order context, actual fueling details, evidence,
+and review sections. Keep existing data fields and submission behavior. Default the transaction's
+station and fuel from its linked order so staff do not re-enter them; the server continues to
+set and validate these values on submission. Show the odometer for vehicles and hour meter for
+generators. Present a live variance status beside entered litres, calculated only from the linked
+order's saved estimate and actual litres.
+
+Add pre-tax fuel amount, calculated tax, and invoice total to the existing transaction. The
+server calculates tax as 8% of the pre-tax amount and total as their sum on save; calculated
+fields are read-only. Do not populate costs on existing transactions. Add a Fueling Transaction
+Script Report with date range, asset, location, fuel, and station filters, existing permission
+scoping, and spreadsheet export under existing report/export permissions. It shows actual and
+estimated litres, variance, pre-tax spend, pre-tax cost per litre, applicable meter, full-tank
+result and exceptions, valid vehicle efficiency, and generator litres per operating hour when
+two confirmed full-tank readings with increasing hour-meter values are available. Combined cost
+per litre is total pre-tax spend divided by total litres.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Draft
-    Draft --> PendingApproval: current workflow
-    Draft --> Approved: current workflow permits approval
-    PendingApproval --> Approved: current workflow
-    Draft --> Rejected: current workflow
-    PendingApproval --> Rejected: current workflow
-    Approved --> CurrentSlip: approved and within saved validity
-    Approved --> Expired: saved deadline passed
-    CurrentSlip --> FuelingTransaction: actual fueling time is within approval window
-    Expired --> ExpiredSlip: print historical copy with warning
-    Approved --> ExtendedApproval: permitted audited extension
-    ExtendedApproval --> CurrentSlip: current slip revision printed
+    [*] --> NewTransaction
+    NewTransaction --> OrderContext: select LPO and load permitted read-only facts
+    OrderContext --> EnterActuals: enter fueling facts and evidence
+    EnterActuals --> SavedTransaction: save draft
+    EnterActuals --> SubmittedTransaction: server validates and submit
+    SavedTransaction --> SubmittedTransaction: server validates and submit
+    SubmittedTransaction --> FuelAnalysis: permitted report and export
 ```
 
-**This diagram is the design, not the build.** Approval continues to come from the current
-workflow. The saved deadline determines whether the order can authorize the actual fueling time.
-The slip shows the approved values and provides handwritten completion space; the linked
-transaction remains the electronic record.
-
-## Print layout
-
-1. Company Letter Head, document title, order number, and approval status.
-2. High-contrast approval date and valid-until date/time with the “DO NOT FUEL AFTER” warning.
-3. Authorized vehicle, fuel, driver, representative, and station with its operational location
-   and saved postal address.
-4. Full-tank request or the exact approved partial limit, plus the station-only instruction.
-5. Blank actual fueling date/time, litres, meter reading, and full-tank yes/no boxes.
-6. Representative checks, printed representative name, signature, and date.
-7. Attendant confirmation, name, signature, date, and stamp.
-8. Footer with the order number and current slip revision for matching the paper copy to the
-   transaction.
-
-Use the existing A5 portrait Chrome print format. Keep expiry warning and signature sections
-together, use black text and borders that remain legible without color, and render all essential
-values from server-side document data.
+**This diagram is the design, not the build.** The order context is read-only; actual fueling
+facts are stored on the existing transaction. Server validation remains the authority for
+submission.
 
 ## Frappe-first
 
-| What we need | Native Frappe/ERPNext mechanism | Custom code, and why it is unavoidable |
+| What we need | Native Frappe mechanism | Custom code, and why it is unavoidable |
 |---|---|---|
-| Official printable order | Existing Workflow, permission checks, `before_print`, and Print Format | A small approved-only form action improves discoverability; the existing server check remains authoritative. |
-| Company identity and address | Existing Letter Head and linked Address records | The print format must lay out the saved order values and full address on one A5 page. |
-| Working-day deadline | Existing Fleet Management Settings value; no usable Holiday List engine is installed | A date calculation must skip the agreed non-working days and keep an immutable saved deadline. |
-| Actual fueling and signed paper | Existing Fueling Transaction fields and signed-order attachment | No new transaction model or stored estimate field is needed; add a Script Report for Fleet Admin and Fleet Approver using `frappe.get_list` permission-filtered record access, with the calculated estimate and full-tank exception. |
-| Paper layout and PDF | Existing Chrome PDF generator and A5 print CSS | Jinja/HTML and print CSS are needed for the structured fields and page-break safety. |
+| Linked order context | Existing Link field, read-only transaction fields, and an HTML form field | A permission-checked method and form script are needed to present multiple linked records together without storing duplicate display fields. |
+| Actual transaction facts | Existing submittable Fueling Transaction and its controller | Small controller changes fill approved station/fuel defaults and calculate costs while preserving established validation. |
+| Fuel cost and totals | Currency fields and document validation | Tax and total need server-side calculation so API and Desk saves agree. |
+| Variance feedback | Existing estimate and actual litre values | A small form script shows the requested live threshold state; submission checks remain server-side. |
+| Fuel analysis and export | Frappe Script Report, report permissions, and native report export | Calculated variance, aggregate cost, and generator efficiency require report logic. Queries must respect the app's location permission hooks. |
 
 ## Data and migration plan
 
-- Reuse `default_validity_days`; do not add another validity number. Change its label and
-  description to working-day grace period and set its code default and fallback to two. Preserve
-  the current site's saved value of three per the requester's direction; future approvals use
-  three working days there until an administrator changes it to two. Leave every already
-  approved Fuel Order's `valid_until` unchanged.
-- Reuse the Fuel Order's selected vehicle, driver, representative, fuel, and station. Render the
-  station's linked Address record; do not add copies of those details to the order.
-- Reuse the Fueling Transaction's actual date/time, invoice litres, meter, full-tank result,
-  attendant, order link, and signed-order attachment. Do not store the inferred fuel-before value;
-  derive and label it in a new Fueling Transaction Script Report available to the existing
-  report-permitted roles, Fleet Admin and Fleet Approver. Use `frappe.get_list` so the current
-  location and read-permission filters remain effective.
-- Exclude Sundays and dates from the configured public-holiday calendar; count Saturdays. Reuse
-  `holiday_list` where it resolves to an installed calendar, and use the smallest settings-based
-  holiday-date source only where that DocType is unavailable. Leave the separate 48-hour
-  transaction-entry deadline and its late-entry controls unchanged.
+- Add a pre-tax KES fuel amount plus read-only calculated tax and invoice-total fields to the
+  existing Fueling Transaction. New transactions require the pre-tax amount and litres; existing
+  transactions remain unchanged and show “Not recorded” where cost is absent.
+- Add a read-only order-context display only; do not add copied driver, representative,
+  estimate, or order-display fields to the Fuel Order or persist duplicate context on the
+  transaction.
+- Add the report and form script. No new DocType is required. No existing Fuel Order or
+  Fueling Transaction is rewritten by migration, and historical costs are not backfilled.
 
 ## Correctness properties
 
-### Property 1: Approval and validity are server-enforced
+### Property 1: Linked order remains unchanged
 
-For every Fuel Order, only the current approved state can produce an official slip. Every
-submitted Fueling Transaction must have an actual fueling timestamp at or after approval and at
-or before the saved deadline. A settings change cannot change an already saved deadline.
+For any user who can read a linked order, loading and viewing transaction context returns facts
+from that order without saving or changing any order field. A user without read permission gets
+no linked order facts.
 
-**Validates: Requirements 1.1, 1.2, 1.4, 2.2, 2.3, 2.4**
+**Validates: Requirements 1.1, 1.2, 1.3**
 
-### Property 2: Printed authorization comes from the approved order
+### Property 2: Actual entry uses the correct asset meter and litre comparison
 
-For every printed slip, order number, approval facts, asset, fuel, driver, representative, and
-station match the approved order and its linked records. A partial limit remains a partial limit.
+For every transaction, a vehicle displays its odometer and no generator hour meter; a generator
+displays its hour meter and no vehicle odometer. Variance uses only positive estimated and
+actual litres and applies the three approved thresholds; missing inputs produce no comparison.
 
-**Validates: Requirements 1.3, 3.1, 3.3, 3.4, 3.5, 6.2**
+**Validates: Requirements 1.4, 1.7**
 
-### Property 3: Physical completion does not invent transaction facts
+### Property 3: Fuel costs are calculated from new actual values only
 
-For every printed slip, actual litres and meter values are blank, the full-tank result is a
-human yes/no choice, and no calculated remaining-fuel value appears. The completed signed slip
-can be attached to its linked transaction.
+For every new transaction, actual litres and a pre-tax KES amount are required. Tax is 8% of
+pre-tax amount, total is pre-tax amount plus tax, and cost per litre is pre-tax amount divided
+by positive litres. Historical costs remain empty and are never inferred.
 
-**Validates: Requirements 4.1, 4.2, 4.6, 5.1, 5.2**
+**Validates: Requirements 1.5, 2.1, 2.2, 2.3, 2.4, 2.8, 2.9**
 
-### Property 4: Fuel estimates remain estimates
+### Property 4: Analysis follows transaction and location permissions
 
-For every full-tank-confirmed transaction with valid capacity and positive litres no greater
-than capacity, the report shows capacity minus litres as an estimate. A transaction without a
-confirmed full tank or with invalid source values has no such estimate. A non-full result remains
-available for review with the actual litres and meter reading.
+Every report row and exported row is limited by existing transaction read, report, export, and
+location permissions. The report shows no vehicle or generator efficiency where the required
+qualifying readings are absent or invalid.
 
-**Validates: Requirements 5.3, 5.4**
+**Validates: Requirements 2.5, 2.6, 2.7, 2.10**
 
-### Property 5: Existing access and audit controls remain in force
+### Property 5: Existing submission controls remain authoritative
 
-For every role and location, print, extension, fueling submission, and linked evidence continue
-to use current permission checks, workflow rules, location checks, and slip revision controls.
+For every transaction submission, existing order approval, validity, station and fuel matching,
+fueling-time source and explanation, evidence, duplicate prevention, measured-value, role, and
+location checks continue to run.
 
-**Validates: Requirements 1.1, 1.2, 2.5, 5.5, 6.1**
+**Validates: Requirements 1.6, 1.8**
 
 ## Errors and permissions
 
-- A draft, pending, rejected, cancelled, or otherwise unapproved order is refused by the server
-  when a user tries to render the official slip.
-- An expired approved order is clearly labelled and may be printed as a historical copy; a
-  transaction with a fueling time after its saved deadline is refused.
-- Only the roles already permitted to print may use the print action. Existing transaction,
-  attachment, location, and extension permissions are unchanged.
-- A missing station address is shown as unavailable rather than replaced with a different
-  station or an address typed on the slip.
+- If the selected order cannot be read, the panel shows that its details are unavailable and
+  returns no order values. Submission still follows the existing permission checks.
+- If no order is selected, the panel is empty and the existing required-link validation applies.
+- A missing or invalid estimate displays “No comparison available”; it does not block entry by
+  itself. Existing submission checks continue to decide whether the transaction is valid.
+- Missing pre-tax cost or litres blocks saving a new transaction. Historical transactions with
+  no cost remain readable and show “Not recorded.”
+- The report and export use existing role and location permissions. Fleet User access is not
+  expanded; Fleet Admin and Fleet Approver retain only their existing rights.
