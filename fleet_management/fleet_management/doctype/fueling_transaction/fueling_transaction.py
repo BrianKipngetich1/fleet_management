@@ -71,6 +71,51 @@ def calculate_vehicle_interval(previous_odometer, current_odometer, qualifying_l
 	}
 
 
+@frappe.whitelist()
+def get_fuel_order_context(fuel_order):
+	"""Return the linked order facts for the read-only transaction form panel."""
+	if not fuel_order:
+		return None
+
+	if not frappe.has_permission("Fuel Order", "read", fuel_order):
+		frappe.throw(
+			frappe._("You do not have access to the linked Fuel Order."), frappe.PermissionError
+		)
+	order = frappe.get_doc("Fuel Order", fuel_order)
+
+	asset = frappe.get_doc("Fleet Asset", order.asset)
+	station = frappe.db.get_value("Fuel Station", order.planned_station, "station_name")
+	location = frappe.db.get_value("Fleet Location", order.operational_location, "location_name")
+	fuel = frappe.db.get_value("Fuel Type", order.fuel_type, "fuel_type_name")
+	driver = frappe.db.get_value("Fleet Person", order.driver, "person_name")
+	representative = frappe.db.get_value(
+		"Fleet Person", order.company_representative, "person_name"
+	)
+	vehicle_model = (
+		frappe.db.get_value("Vehicle Model", asset.vehicle_model, "model")
+		if asset.vehicle_model
+		else None
+	)
+
+	return {
+		"order_number": order.name,
+		"workflow_state": order.workflow_state,
+		"asset_identifier": asset.asset_identifier,
+		"asset_type": asset.asset_type,
+		"vehicle_model": vehicle_model,
+		"location": location or order.operational_location,
+		"station": station or order.planned_station,
+		"fuel_type": fuel or order.fuel_type,
+		"quantity_authorization": order.quantity_authorization,
+		"authorized_quantity_litres": order.authorized_quantity_litres,
+		"estimated_litres": order.estimated_litres,
+		"approved_on": order.approved_on,
+		"valid_until": order.valid_until,
+		"driver": driver or order.driver,
+		"company_representative": representative or order.company_representative,
+	}
+
+
 def resolve_attached_file(doc, fieldname, label, missing_message=None):
 	"""Return the File attached to a document's field, or refuse."""
 	value = doc.get(fieldname)

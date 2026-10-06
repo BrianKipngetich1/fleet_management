@@ -12,6 +12,7 @@ from PIL import Image
 from fleet_management.fleet_management.doctype.fuel_order.fuel_order import get_previous_entry
 from fleet_management.fleet_management.doctype.fueling_transaction.fueling_transaction import (
 	calculate_vehicle_interval,
+	get_fuel_order_context,
 )
 from fleet_management.tests.concurrency_proof import (
 	EXPECTED_UNIQUE_INDEXES,
@@ -294,6 +295,46 @@ class TestFuelingTransaction(IntegrationTestCase):
 			transaction.save()
 		self._attach_files(transaction)
 		return transaction
+
+	def test_010_fuel_order_context_is_read_only_and_location_scoped(self):
+		"""010-fuel-order-authorization-slip: Requirements 1.1, 1.2; Property 1."""
+		order_before = frappe.db.get_value(
+			"Fuel Order",
+			self.order.name,
+			["modified", "workflow_state", "valid_until", "planned_station", "asset"],
+			as_dict=True,
+		)
+		with self.set_user(self.user):
+			context = get_fuel_order_context(self.order.name)
+		order_after = frappe.db.get_value(
+			"Fuel Order",
+			self.order.name,
+			["modified", "workflow_state", "valid_until", "planned_station", "asset"],
+			as_dict=True,
+		)
+
+		self.assertEqual(context["order_number"], self.order.name)
+		self.assertEqual(context["asset_identifier"], self.asset.asset_identifier)
+		self.assertEqual(context["location"], self.location.location_name)
+		self.assertEqual(context["station"], self.station.station_name)
+		self.assertEqual(context["fuel_type"], self.fuel_type.fuel_type_name)
+		self.assertEqual(context["driver"], self.person.person_name)
+		self.assertEqual(context["company_representative"], self.person.person_name)
+		self.assertEqual(context["quantity_authorization"], self.order.quantity_authorization)
+		self.assertEqual(context["estimated_litres"], self.order.estimated_litres)
+		self.assertEqual(context["approved_on"], self.order.approved_on)
+		self.assertEqual(context["valid_until"], self.order.valid_until)
+		self.assertEqual(order_after, order_before)
+
+		other_order = self._make_approved_order(
+			self.other_location,
+			self.other_station,
+			self.other_user,
+			self.other_approver,
+			asset=self.other_asset,
+		)
+		with self.set_user(self.user), self.assertRaises(frappe.PermissionError):
+			get_fuel_order_context(other_order.name)
 
 	def test_missing_invoice_attachment_is_rejected(self):
 		transaction = self._prepare_transaction(invoice_litres=20, vehicle_odometer=1000)

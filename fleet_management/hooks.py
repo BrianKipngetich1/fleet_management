@@ -180,6 +180,7 @@ after_request = ["fleet_management.request.strip_api_tracebacks"]
 
 doctype_js = {
 	"Fuel Order": "public/js/fuel_order.js",
+	"Fueling Transaction": "public/js/fueling_transaction.js",
 }
 
 scheduler_events = {

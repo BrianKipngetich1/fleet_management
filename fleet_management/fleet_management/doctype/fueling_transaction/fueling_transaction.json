@@ -5,6 +5,7 @@
  "field_order": [
   "naming_series",
   "fuel_order",
+  "approved_order_context",
   "fuel_order_slip_revision",
   "operational_location",
   "asset",
@@ -66,6 +67,11 @@
    "label": "Fuel Order",
    "options": "Fuel Order",
    "reqd": 1
+  },
+  {
+   "fieldname": "approved_order_context",
+   "fieldtype": "HTML",
+   "label": "Approved Fuel Order Context"
   },
   {
    "fieldname": "fuel_order_slip_revision",

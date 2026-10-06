@@ -5,7 +5,7 @@
 **Tracer:** Staff can enter and review one Fueling Transaction with its approved LPO context,
 without modifying the LPO or looking up a physical document.
 
-- [ ] 1.1 Show the approved LPO details needed for transaction entry as a read-only context panel
+- [x] 1.1 Show the approved LPO details needed for transaction entry as a read-only context panel
   on the existing Fueling Transaction.
   - _Requirements: 1.1, 1.2, 1.3_
 - [ ] 1.2 Reorganize the existing transaction fields into a clear entry sequence, fill station
@@ -41,3 +41,9 @@ spend from permission-filtered transaction records.
 ## Progress log
 
 One line per finished task or phase, newest last.
+
+- `06/10/2026`: Added a permission-checked, read-only LPO context panel to Fueling Transaction;
+  the focused MariaDB integration test and main-site migration passed. The first main migration
+  removed the empty orphan `Fueling Discrepancy` DocType, three orphan standard reports, and the
+  legacy `Fleet Oversight` workspace before failing on missing report-module metadata. Next:
+  decide whether those legacy report/workspace records should remain retired, then task 1.2.
