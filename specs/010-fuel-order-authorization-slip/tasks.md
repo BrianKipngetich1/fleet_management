@@ -35,7 +35,7 @@ spend from permission-filtered transaction records.
   pre-tax spend, cost per litre, vehicle efficiency, generator litres per operating hour, and full-tank
   exceptions, with export under existing permissions.
   - _Requirements: 1.7, 2.4, 2.5, 2.6, 2.7, 2.8, 2.10_
-- [ ] 2.3 Verify save is blocked when either litres or pre-tax amount is missing; check tax and
+- [x] 2.3 Verify save is blocked when either litres or pre-tax amount is missing; check tax and
   total calculations, cost analysis, vehicle and generator
   efficiency, litre variance thresholds, missing LPO baselines, report filters, historical
   records without costs, export permissions, and existing transaction controls.
@@ -82,3 +82,7 @@ One line per finished task or phase, newest last.
   litre status, pre-tax cost coverage, vehicle efficiency, generator litres per hour, and full-tank
   exceptions. The disposable MariaDB test-site migration and native Frappe report-runner checks
   passed; the main site was not migrated. Next: task 2.3 verification.
+- `06/10/2026`: Verified required litres and pre-tax amount, 8% tax and invoice total, report
+  filters and calculations, historical “Not recorded” costs, role/export access, and existing
+  transaction controls. The focused MariaDB suite passed 5 unit tests and 37 integration tests;
+  the opt-in concurrency proof was skipped. Ruff is unavailable. The main site was untouched.

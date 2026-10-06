@@ -5,6 +5,7 @@ from itertools import count
 from unittest.mock import patch
 
 import frappe
+from frappe.desk.query_report import run as run_query_report
 from frappe.tests import IntegrationTestCase, UnitTestCase
 from frappe.utils import get_datetime, now_datetime
 from PIL import Image
@@ -13,6 +14,11 @@ from fleet_management.fleet_management.doctype.fuel_order.fuel_order import get_
 from fleet_management.fleet_management.doctype.fueling_transaction.fueling_transaction import (
 	calculate_vehicle_interval,
 	get_fuel_order_context,
+)
+from fleet_management.fleet_management.report.fueling_transaction_analysis.fueling_transaction_analysis import (
+	calculate_generator_intervals,
+	calculate_litre_variance,
+	execute as run_fuel_analysis,
 )
 from fleet_management.tests.concurrency_proof import (
 	EXPECTED_UNIQUE_INDEXES,
@@ -59,6 +65,35 @@ class TestVehicleIntervalCalculation(UnitTestCase):
 			calculate_vehicle_interval(10500, 10000, 50)
 		with self.assertRaises(ValueError):
 			calculate_vehicle_interval(10000, 10500, 0)
+
+
+class TestFuelAnalysisCalculations(UnitTestCase):
+	def test_litre_variance_uses_the_approved_thresholds(self):
+		self.assertEqual(calculate_litre_variance(100, 100), (0.0, 0.0, "Within baseline"))
+		self.assertEqual(calculate_litre_variance(115, 100), (15.0, 15.0, "Above baseline (0–15%)"))
+		self.assertEqual(calculate_litre_variance(116, 100), (16.0, 16.0, "Overrun (>15%)"))
+		self.assertEqual(calculate_litre_variance(20, None), (None, None, "No comparison available"))
+
+	def test_generator_interval_includes_intermediate_and_closing_fuel(self):
+		rows = [
+			frappe._dict(name="first", actual_fueling_datetime="2026-10-01 08:00:00", invoice_litres=45, hour_meter=100, full_tank_confirmed=1),
+			frappe._dict(name="partial", actual_fueling_datetime="2026-10-02 08:00:00", invoice_litres=20, hour_meter=110, full_tank_confirmed=0),
+			frappe._dict(name="closing", actual_fueling_datetime="2026-10-03 08:00:00", invoice_litres=30, hour_meter=120, full_tank_confirmed=1),
+		]
+		intervals = calculate_generator_intervals(rows)
+
+		self.assertEqual(intervals["first"]["exception"], "No previous confirmed full tank")
+		self.assertEqual(intervals["closing"]["litres_per_hour"], 2.5)
+
+	def test_generator_interval_requires_an_increasing_hour_meter(self):
+		rows = [
+			frappe._dict(name="first", actual_fueling_datetime="2026-10-01 08:00:00", invoice_litres=45, hour_meter=100, full_tank_confirmed=1),
+			frappe._dict(name="closing", actual_fueling_datetime="2026-10-02 08:00:00", invoice_litres=30, hour_meter=100, full_tank_confirmed=1),
+		]
+		self.assertEqual(
+			calculate_generator_intervals(rows)["closing"]["exception"],
+			"Hour meter did not increase between full tanks",
+		)
 
 
 class TestFuelingTransaction(IntegrationTestCase):
@@ -198,11 +233,13 @@ class TestFuelingTransaction(IntegrationTestCase):
 			values["request_gauge_percent"] = 40
 		return frappe.get_doc(values)
 
-	def _make_approved_order(self, location, station, requester, approver, asset=None):
+	def _make_approved_order(self, location, station, requester, approver, asset=None, **order_values):
 		# The order follows its colour: a green one is approved by its requester straight from
 		# Draft, a red one is sent up and approved by the approver.
 		with self.set_user(requester):
-			order = attach_request_photos(self._make_order(location, station, asset=asset).insert())
+			order_doc = self._make_order(location, station, asset=asset)
+			order_doc.update(order_values)
+			order = attach_request_photos(order_doc.insert())
 			order.reload()
 			green = order.signal == "Green"
 			if not green:
@@ -366,6 +403,146 @@ class TestFuelingTransaction(IntegrationTestCase):
 
 		self.assertEqual(transaction.tax_amount, 10.04)
 		self.assertEqual(transaction.invoice_total, 135.59)
+
+	def test_analysis_report_filters_and_shows_vehicle_cost_and_efficiency(self):
+		"""010-fuel-order-authorization-slip: Requirements 2.4, 2.5, 2.6, 2.8; Property 4."""
+		first_time = get_datetime(now_datetime()) + timedelta(minutes=5)
+		first_order = self._make_approved_order(
+			self.location, self.station, self.user, self.approver
+		)
+		closing_order = self._make_approved_order(
+			self.location, self.station, self.user, self.approver
+		)
+		first = self._submit_measured_transaction(
+			first_order,
+			actual_fueling_datetime=first_time,
+			vehicle_odometer=10000,
+			invoice_litres=40,
+			pre_tax_amount=400,
+			full_tank_confirmed=1,
+		)
+		closing = self._submit_measured_transaction(
+			closing_order,
+			actual_fueling_datetime=first_time + timedelta(minutes=10),
+			vehicle_odometer=10230,
+			invoice_litres=23,
+			pre_tax_amount=230,
+			full_tank_confirmed=1,
+		)
+		filters = {
+			"from_date": first_time.date().isoformat(),
+			"to_date": first_time.date().isoformat(),
+			"asset": self.asset.name,
+			"location": self.location.name,
+			"fuel_type": self.fuel_type.name,
+			"station": self.station.name,
+		}
+		with self.set_user(self.approver):
+			report = run_query_report("Fueling Transaction Analysis", filters=filters)
+			data = report["result"]
+			summary = report["report_summary"]
+			for mismatch in (
+				{"asset": self.other_asset.name},
+				{"location": self.other_location.name},
+				{"fuel_type": self.other_fuel_type.name},
+				{"station": self.other_station.name},
+				{"from_date": (first_time.date() + timedelta(days=1)).isoformat()},
+				{"to_date": (first_time.date() - timedelta(days=1)).isoformat()},
+			):
+				self.assertEqual(run_fuel_analysis(mismatch)[1], [])
+
+		closing_row = next(row for row in data if row["transaction"] == closing.name)
+		self.assertEqual(len(data), 2)
+		self.assertEqual(closing_row["lpo_baseline_litres"], closing_order.estimated_litres)
+		self.assertEqual(closing_row["variance_status"], "Within baseline")
+		self.assertEqual(closing_row["pre_tax_amount"], 230)
+		self.assertEqual(closing_row["pre_tax_cost_per_litre"], 10)
+		self.assertEqual(closing_row["vehicle_km_per_litre"], 10)
+		summary_values = {item["label"]: item["value"] for item in summary}
+		self.assertEqual(summary_values["Recorded Pre-Tax Spend (KES)"], 630)
+		self.assertEqual(summary_values["Pre-Tax Cost per Litre (recorded-cost rows)"], 10)
+
+	def test_analysis_report_shows_legacy_cost_as_not_recorded(self):
+		"""010-fuel-order-authorization-slip: Requirements 2.4, 2.9; Property 3."""
+		transaction = self._submit_valid_transaction(self.order, invoice_litres=20)
+		frappe.db.set_value(
+			"Fueling Transaction",
+			transaction.name,
+			{"pre_tax_amount": 0, "tax_amount": 0, "invoice_total": 0},
+			update_modified=False,
+		)
+		with self.set_user(self.approver):
+			_, data, _, _, summary, _ = run_fuel_analysis({"asset": self.asset.name})
+
+		row = next(item for item in data if item["transaction"] == transaction.name)
+		self.assertEqual(row["cost_status"], "Not recorded")
+		self.assertIsNone(row["pre_tax_amount"])
+		self.assertIsNone(row["pre_tax_cost_per_litre"])
+		summary_values = {item["label"]: item["value"] for item in summary}
+		self.assertEqual(summary_values["Recorded Pre-Tax Spend (KES)"], 0)
+		self.assertEqual(summary_values["Litres with Recorded Cost"], 0)
+
+	def test_analysis_report_shows_generator_litres_per_hour_and_order_baseline(self):
+		"""010-fuel-order-authorization-slip: Requirements 2.5, 2.6, 2.7; Property 4."""
+		first_time = get_datetime(now_datetime()) + timedelta(minutes=5)
+		first_order = self._make_approved_order(
+			self.location, self.station, self.user, self.approver, asset=self.generator
+		)
+		partial_order = self._make_approved_order(
+			self.location, self.station, self.user, self.approver, asset=self.generator
+		)
+		closing_order = self._make_approved_order(
+			self.location,
+			self.station,
+			self.user,
+			self.approver,
+			asset=self.generator,
+			quantity_authorization="Partial",
+			authorized_quantity_litres=50,
+		)
+		first = self._submit_measured_transaction(
+			first_order,
+			actual_fueling_datetime=first_time,
+			hour_meter=100,
+			invoice_litres=45,
+			full_tank_confirmed=1,
+		)
+		self._submit_measured_transaction(
+			partial_order,
+			actual_fueling_datetime=first_time + timedelta(minutes=5),
+			hour_meter=110,
+			invoice_litres=20,
+			full_tank_confirmed=0,
+		)
+		closing = self._submit_measured_transaction(
+			closing_order,
+			actual_fueling_datetime=first_time + timedelta(minutes=10),
+			hour_meter=120,
+			invoice_litres=30,
+			full_tank_confirmed=1,
+		)
+		with self.set_user(self.approver):
+			_, data, _, _, _, _ = run_fuel_analysis(
+				{"asset": self.generator.name, "from_date": first_time.date().isoformat(), "to_date": first_time.date().isoformat()}
+			)
+
+		row = next(item for item in data if item["transaction"] == closing.name)
+		self.assertEqual(row["lpo_baseline_litres"], 50)
+		self.assertEqual(row["variance_status"], "Within baseline")
+		self.assertEqual(row["generator_litres_per_hour"], 2.5)
+		self.assertIsNone(row["full_tank_exception"])
+		first_row = next(item for item in data if item["transaction"] == first.name)
+		self.assertIsNone(first_row["generator_litres_per_hour"])
+		self.assertEqual(first_row["variance_status"], "No comparison available")
+
+	def test_analysis_report_and_export_keep_existing_roles(self):
+		"""010-fuel-order-authorization-slip: Requirement 2.10; Property 4."""
+		admin = self._user(("Fleet Admin",), self.location.name)
+		self.assertFalse(frappe.has_permission("Fueling Transaction", "report", user=self.user))
+		self.assertFalse(frappe.has_permission("Fueling Transaction", "export", user=self.approver))
+		self.assertTrue(frappe.has_permission("Fueling Transaction", "export", user=admin))
+		with self.set_user(self.user), self.assertRaises(frappe.PermissionError):
+			run_fuel_analysis({})
 
 	def test_missing_invoice_attachment_is_rejected(self):
 		transaction = self._prepare_transaction(invoice_litres=20, vehicle_odometer=1000)
