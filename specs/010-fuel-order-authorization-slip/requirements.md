@@ -6,7 +6,7 @@ in design.md.
 
 # Fuel Order authorization and fueling record: requirements
 
-Approved by: pending
+Approved by: Brian Kipngetich (@BrianKipngetich1) · 06/10/2026 · revision 7a81474 (explained by agent)
 
 | | |
 |---|---|
