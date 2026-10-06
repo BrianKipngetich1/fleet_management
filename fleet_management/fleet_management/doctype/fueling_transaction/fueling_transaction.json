@@ -38,8 +38,8 @@
   "pre_tax_amount",
   "tax_amount",
   "invoice_total",
-  "signed_invoice",
   "signed_order",
+  "signed_invoice",
   "normalized_invoice_number",
   "normalized_invoice_station_key",
   "normalized_cu_number",
@@ -365,16 +365,16 @@
    "read_only": 1
   },
   {
-   "fieldname": "signed_invoice",
+   "fieldname": "signed_order",
    "fieldtype": "Attach",
-   "label": "Signed Invoice",
+   "label": "Signed Fuel Order",
    "no_copy": 1,
    "description": "Private PDF, JPG, or PNG; required to submit."
   },
   {
-   "fieldname": "signed_order",
+   "fieldname": "signed_invoice",
    "fieldtype": "Attach",
-   "label": "Signed Fuel Order",
+   "label": "Signed Invoice",
    "no_copy": 1,
    "description": "Private PDF, JPG, or PNG; required to submit."
   },

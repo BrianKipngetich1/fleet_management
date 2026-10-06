@@ -13,8 +13,8 @@ function applyFuelingTransactionLayout(frm) {
 		style.textContent = `
 			.form-section.fueling-transaction-layout > .section-body {
 				display: grid !important;
-				grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-				column-gap: 24px;
+				grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+				column-gap: 16px;
 			}
 			.form-section.fueling-transaction-layout > .section-body > .form-column {
 				width: auto !important;
@@ -31,7 +31,7 @@ function applyFuelingTransactionLayout(frm) {
 			}
 			.form-section.fueling-transaction-layout .fueling-invoice-column {
 				border-left: 1px solid var(--border-color);
-				padding-left: 16px !important;
+				padding-left: 10px !important;
 			}
 			.form-section.fueling-transaction-layout .fueling-invoice-column .frappe-control {
 				grid-column: span 3;
@@ -56,8 +56,6 @@ function applyFuelingTransactionLayout(frm) {
 				font-size: 12px;
 				line-height: 1.25;
 			}
-			.form-section.fueling-transaction-layout .fueling-invoice-column [data-fieldname="actual_fueling_datetime"],
-			.form-section.fueling-transaction-layout .fueling-invoice-column [data-fieldname="fueling_time_source"],
 			.form-section.fueling-transaction-layout .fueling-invoice-column [data-fieldname="fueling_time_explanation"] {
 				grid-column: 1 / -1;
 			}
@@ -68,12 +66,29 @@ function applyFuelingTransactionLayout(frm) {
 			}
 			.form-section.fueling-transaction-layout .fuel-order-context-grid {
 				display: grid;
+				grid-template-columns: minmax(0, 1fr);
+				gap: 0;
+			}
+			.form-section.fueling-transaction-layout .fuel-order-context-row {
+				display: grid;
 				grid-template-columns: repeat(2, minmax(0, 1fr));
-				gap: 4px 8px;
+				column-gap: 10px;
+				border-bottom: 1px solid var(--border-color);
 			}
 			.form-section.fueling-transaction-layout .fuel-order-context-fact {
 				min-width: 0;
 				padding: 2px 0;
+			}
+			.form-section.fueling-transaction-layout .fuel-order-context-fact-full {
+				grid-column: 1 / -1;
+			}
+			.form-section.fueling-transaction-layout .fuel-order-context-identifier {
+				display: grid;
+				grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+				gap: 8px;
+				align-items: center;
+				margin-bottom: 4px;
+				padding: 4px 0;
 				border-bottom: 1px solid var(--border-color);
 			}
 			.form-section.fueling-transaction-layout .fuel-order-context-label {
@@ -85,6 +100,10 @@ function applyFuelingTransactionLayout(frm) {
 				font-size: 12px;
 				line-height: 1.25;
 				overflow-wrap: anywhere;
+			}
+			.form-section.fueling-transaction-layout .fuel-order-context-identifier .fuel-order-context-value {
+				font-size: 14px;
+				font-weight: 600;
 			}
 			.form-section.fueling-transaction-layout .fuel-order-slip-link {
 				display: block;
@@ -119,7 +138,7 @@ function applyFuelingTransactionLayout(frm) {
 					padding-left: 0 !important;
 				}
 				.form-section.fueling-transaction-layout .fuel-order-context-grid {
-					grid-template-columns: repeat(2, minmax(0, 1fr));
+					grid-template-columns: minmax(0, 1fr);
 				}
 				.form-section.fueling-transaction-layout .fueling-invoice-column > form {
 					grid-template-columns: minmax(0, 1fr);
@@ -127,8 +146,6 @@ function applyFuelingTransactionLayout(frm) {
 				.form-section.fueling-transaction-layout .fueling-invoice-column .frappe-control {
 					grid-column: auto;
 				}
-				.form-section.fueling-transaction-layout .fueling-invoice-column [data-fieldname="actual_fueling_datetime"],
-				.form-section.fueling-transaction-layout .fueling-invoice-column [data-fieldname="fueling_time_source"],
 				.form-section.fueling-transaction-layout .fueling-invoice-column [data-fieldname="fueling_time_explanation"] {
 					grid-column: auto;
 				}
@@ -193,9 +210,11 @@ function applyFuelingTransactionLayout(frm) {
 }
 
 function renderFuelOrderContext(context) {
-	const asset = [context.asset_identifier, context.asset_type, context.vehicle_model]
+	const assetDetails = [context.asset_type, context.vehicle_model]
 		.filter(Boolean)
 		.join(" · ");
+	const identifierLabel =
+		context.asset_type === "Vehicle" ? __("Registration Number") : __("Asset Number");
 	const authorization =
 		context.quantity_authorization === "Full"
 			? __("Full tank")
@@ -203,26 +222,35 @@ function renderFuelOrderContext(context) {
 				? __("Partial authorization")
 				: context.quantity_authorization;
 	const fields = [
-		[__("Fuel Order"), context.order_number],
-		[__("Approval status"), context.workflow_state],
-		[__("Asset"), asset],
-		[__("Location"), context.location],
-		[__("Authorized station"), context.station],
-		[__("Fuel type"), context.fuel_type],
-		[__("Quantity authorization"), authorization],
-		[__("Authorized litres"), context.authorized_quantity_litres],
-		[__("Estimated litres"), context.estimated_litres],
-		[__("Approved on"), orderContextDate(context.approved_on)],
-		[__("Valid until"), orderContextDate(context.valid_until)],
-		[__("Driver"), context.driver],
-		[__("Company representative"), context.company_representative],
+		[[__("Fuel Order"), context.order_number], [__("Approval status"), context.workflow_state]],
+		[[__("Asset type / model"), assetDetails]],
+		[[__("Location"), context.location], [__("Authorized station"), context.station]],
+		[[__("Fuel type"), context.fuel_type], [__("Quantity authorization"), authorization]],
+		[
+			[__("Authorized litres"), context.authorized_quantity_litres],
+			[__("Estimated litres"), context.estimated_litres],
+		],
+		[
+			[__("Approved on"), orderContextDate(context.approved_on)],
+			[__("Valid until"), orderContextDate(context.valid_until)],
+		],
+		[[__("Driver"), context.driver], [__("Company representative"), context.company_representative]],
 	];
 	const rows = fields
-		.map(
-			([label, value]) =>
-				`<div class="fuel-order-context-fact"><div class="fuel-order-context-label">${orderContextValue(label)}</div><div class="fuel-order-context-value">${orderContextValue(value)}</div></div>`
-		)
+		.map((row) => {
+			const facts = row
+				.map(
+					([label, value]) =>
+						`<div class="fuel-order-context-fact${row.length === 1 ? " fuel-order-context-fact-full" : ""}"><div class="fuel-order-context-label">${orderContextValue(label)}</div><div class="fuel-order-context-value">${orderContextValue(value)}</div></div>`
+				)
+				.join("");
+			return `<div class="fuel-order-context-row">${facts}</div>`;
+		})
 		.join("");
+	const identifier = `<div class="fuel-order-context-identifier">
+		<div class="fuel-order-context-label">${orderContextValue(identifierLabel)}</div>
+		<div class="fuel-order-context-value">${orderContextValue(context.asset_identifier)}</div>
+	</div>`;
 	const slipLink = context.can_print_slip
 		? `<a class="fuel-order-slip-link" href="${orderContextValue(
 				frappe.urllib.get_full_url(
@@ -231,7 +259,7 @@ function renderFuelOrderContext(context) {
 			)}" target="_blank" rel="noopener noreferrer">${orderContextValue(__("Open authorization slip"))}</a>`
 		: "";
 
-	return `<div class="frappe-card p-2"><div class="fuel-order-context-grid">${rows}</div>${slipLink}</div>`;
+	return `<div class="frappe-card p-2">${identifier}<div class="fuel-order-context-grid">${rows}</div>${slipLink}</div>`;
 }
 
 function renderTransactionSummary(context, doc, invoiceLitres, generatorEfficiency) {
@@ -405,6 +433,7 @@ function toggleAssetMeter(frm, assetType) {
 frappe.ui.form.on("Fueling Transaction", {
 	refresh(frm) {
 		applyFuelingTransactionLayout(frm);
+		frm.toggle_display("fueling_time_source", !frm.doc.docstatus);
 		bindLiveInvoiceInputs(frm);
 		loadFuelOrderContext(frm);
 	},
