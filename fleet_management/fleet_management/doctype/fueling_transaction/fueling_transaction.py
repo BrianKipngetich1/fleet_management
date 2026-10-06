@@ -33,6 +33,8 @@ KPI_FIELDS = (
 	"qualifying_litres",
 	"km_per_litre",
 )
+FUEL_TAX_RATE = 0.08
+CURRENCY_PRECISION = 2
 
 
 def normalize_identifier(value):
@@ -193,6 +195,31 @@ class FuelingTransaction(Document):
 
 	def validate(self):
 		self._validate_submitted_immutability()
+		self._validate_new_invoice_amounts()
+		self._calculate_invoice_amounts()
+
+	def _validate_new_invoice_amounts(self):
+		if not self.is_new():
+			return
+
+		if flt(self.invoice_litres) <= 0:
+			frappe.throw(frappe._("Enter positive invoice litres before saving."), frappe.ValidationError)
+		if flt(self.pre_tax_amount) <= 0:
+			frappe.throw(
+				frappe._("Enter a positive pre-tax fuel amount in KES before saving."),
+				frappe.ValidationError,
+			)
+
+	def _calculate_invoice_amounts(self):
+		pre_tax_amount = flt(self.pre_tax_amount, CURRENCY_PRECISION)
+		if pre_tax_amount < 0:
+			frappe.throw(
+				frappe._("Pre-tax fuel amount cannot be negative."), frappe.ValidationError
+			)
+
+		self.pre_tax_amount = pre_tax_amount
+		self.tax_amount = flt(pre_tax_amount * FUEL_TAX_RATE, CURRENCY_PRECISION)
+		self.invoice_total = flt(pre_tax_amount + self.tax_amount, CURRENCY_PRECISION)
 
 	def before_submit(self):
 		if not {"Fleet User", "Fleet Admin"}.intersection(frappe.get_roles()):

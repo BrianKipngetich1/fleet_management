@@ -24,7 +24,7 @@ without modifying the LPO or looking up a physical document.
 **Tracer:** Reviewers can analyze fuel usage, litre variances, efficiency, and pre-tax fuel
 spend from permission-filtered transaction records.
 
-- [ ] 2.1 Record the fuel-only pre-tax amount in KES, require both litres and pre-tax amount
+- [x] 2.1 Record the fuel-only pre-tax amount in KES, require both litres and pre-tax amount
   before saving a new transaction, calculate tax at 8% and the invoice total, and leave
   historical amounts unfilled.
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.8, 2.9_
@@ -64,3 +64,9 @@ One line per finished task or phase, newest last.
   stayed unchanged and other-location orders remained inaccessible. Existing approval, validity,
   station, and evidence checks passed. The Desk walkthrough needs the missing local test credentials.
   Next: resolve the earlier legacy-record cleanup decision before Phase 2.
+- `06/10/2026`: Added a required pre-tax fuel amount in KES, live 8% tax and invoice total, and
+  server-side checks requiring positive litres and amount on new transactions. Existing records
+  received no estimated costs. On the test site, 33 transaction integration tests, 2 unit tests,
+  26 Fuel Order tests, and 5 notification tests passed; one opt-in concurrency test was skipped.
+  Migration, JSON, JavaScript, Python compilation, live calculation, and spec checks passed. Ruff
+  is unavailable; Desk login still needs the missing local credentials file. Next: task 2.2.

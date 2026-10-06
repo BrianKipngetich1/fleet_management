@@ -653,7 +653,14 @@ def _completed_cycle(asset, days_ago, meter, gauge, litres, full, station, seque
 	entered_by, _approver = _actors(order.operational_location)
 
 	frappe.set_user(entered_by)
-	transaction = frappe.get_doc({"doctype": "Fueling Transaction", "fuel_order": order.name}).insert()
+	transaction = frappe.get_doc(
+		{
+			"doctype": "Fueling Transaction",
+			"fuel_order": order.name,
+			"invoice_litres": litres,
+			"pre_tax_amount": round(litres * 150, 2),
+		}
+	).insert()
 	invoice_number = f"{INVOICE_PREFIX[station]}-{sequence:06d}"
 	transaction.update(
 		{

@@ -81,6 +81,12 @@ function updateLitreVariance(frm) {
 	);
 }
 
+function updateInvoiceAmounts(frm) {
+	const preTaxAmount = flt(frm.doc.pre_tax_amount, 2);
+	const taxAmount = flt(preTaxAmount * 0.08, 2);
+	frm.set_value({ tax_amount: taxAmount, invoice_total: flt(preTaxAmount + taxAmount, 2) });
+}
+
 async function loadFuelOrderContext(frm, { forceDefaults = false } = {}) {
 	const field = frm.get_field("approved_order_context");
 	if (!field) return;
@@ -151,5 +157,8 @@ frappe.ui.form.on("Fueling Transaction", {
 	},
 	invoice_litres(frm) {
 		updateLitreVariance(frm);
+	},
+	pre_tax_amount(frm) {
+		updateInvoiceAmounts(frm);
 	},
 });

@@ -218,7 +218,12 @@ class TestFuelingTransaction(IntegrationTestCase):
 		user = user or self.user
 		with self.set_user(user):
 			return frappe.get_doc(
-				{"doctype": "Fueling Transaction", "fuel_order": (order or self.order).name}
+				{
+					"doctype": "Fueling Transaction",
+					"fuel_order": (order or self.order).name,
+					"invoice_litres": 20,
+					"pre_tax_amount": 100,
+				}
 			).insert()
 
 	def _make_file(self, extension, private=True):
@@ -337,6 +342,29 @@ class TestFuelingTransaction(IntegrationTestCase):
 		)
 		with self.set_user(self.user), self.assertRaises(frappe.PermissionError):
 			get_fuel_order_context(other_order.name)
+
+	def test_new_transaction_requires_litres_and_pre_tax_amount_before_save(self):
+		"""010-fuel-order-authorization-slip: Requirements 2.1, 2.2; Property 3."""
+		for fieldname in ("invoice_litres", "pre_tax_amount"):
+			with self.subTest(fieldname=fieldname):
+				values = {"invoice_litres": 20, "pre_tax_amount": 100}
+				values[fieldname] = None
+				transaction = frappe.get_doc(
+					{"doctype": "Fueling Transaction", "fuel_order": self.order.name, **values}
+				)
+				with self.set_user(self.user), self.assertRaises(frappe.ValidationError):
+					transaction.insert()
+
+	def test_pre_tax_amount_calculates_tax_and_invoice_total_on_save(self):
+		"""010-fuel-order-authorization-slip: Requirements 2.1, 2.3; Property 3."""
+		transaction = self._make_transaction()
+		transaction.update({"pre_tax_amount": 125.55, "tax_amount": 999, "invoice_total": 1000})
+
+		with self.set_user(self.user):
+			transaction.save()
+
+		self.assertEqual(transaction.tax_amount, 10.04)
+		self.assertEqual(transaction.invoice_total, 135.59)
 
 	def test_missing_invoice_attachment_is_rejected(self):
 		transaction = self._prepare_transaction(invoice_litres=20, vehicle_odometer=1000)

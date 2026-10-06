@@ -222,7 +222,12 @@ class TestFuelOrderNotifications(IntegrationTestCase):
 		frappe.db.set_value(
 			"Fuel Order", completed.name, "valid_until", now_datetime() - timedelta(minutes=1)
 		)
-		transaction = self._insert("Fueling Transaction", fuel_order=completed.name)
+		transaction = self._insert(
+			"Fueling Transaction",
+			fuel_order=completed.name,
+			invoice_litres=20,
+			pre_tax_amount=100,
+		)
 		frappe.db.set_value("Fueling Transaction", transaction.name, "docstatus", 1)
 
 		inactive = self._make_approved_order()

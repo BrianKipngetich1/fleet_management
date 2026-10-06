@@ -43,6 +43,11 @@
   "normalized_invoice_station_key",
   "normalized_cu_number",
   "active_fuel_order",
+  "section_break_invoice_amounts",
+  "pre_tax_amount",
+  "column_break_calculated_amounts",
+  "tax_amount",
+  "invoice_total",
   "section_break_evidence",
   "signed_invoice",
   "signed_order",
@@ -298,6 +303,7 @@
    "fieldtype": "Float",
    "label": "Invoice Litres",
    "no_copy": 1,
+   "mandatory_depends_on": "eval:doc.__islocal",
    "description": "Litres recorded on the fueling invoice."
   },
   {
@@ -355,6 +361,40 @@
    "hidden": 1,
    "label": "Active Fuel Order",
    "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_invoice_amounts",
+   "fieldtype": "Section Break",
+   "label": "Fuel Invoice Amounts"
+  },
+  {
+   "fieldname": "pre_tax_amount",
+   "fieldtype": "Currency",
+   "label": "Pre-Tax Fuel Amount (KES)",
+   "mandatory_depends_on": "eval:doc.__islocal",
+   "no_copy": 1,
+   "precision": 2,
+   "description": "Enter the fuel amount before tax, in KES."
+  },
+  {
+   "fieldname": "column_break_calculated_amounts",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tax_amount",
+   "fieldtype": "Currency",
+   "label": "Tax at 8% (KES)",
+   "no_copy": 1,
+   "precision": 2,
+   "read_only": 1
+  },
+  {
+   "fieldname": "invoice_total",
+   "fieldtype": "Currency",
+   "label": "Invoice Total (KES)",
+   "no_copy": 1,
+   "precision": 2,
    "read_only": 1
   },
   {
