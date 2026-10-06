@@ -233,7 +233,7 @@
    "in_list_view": 1,
    "label": "Actual Fueling Datetime",
    "no_copy": 1,
-   "description": "Record when fuel was dispensed. This event time determines Fuel Order validity and KPI ordering. If the invoice has no time, enter the known station time and explain it; never use entry or submission time as a substitute."
+   "description": "Use the station fueling time, not the entry or submission time."
   },
   {
    "fieldname": "fueling_time_source",
@@ -241,7 +241,7 @@
    "label": "Fueling Time Source",
    "no_copy": 1,
    "options": "\nPrinted on invoice\nNot printed on invoice",
-   "description": "Choose whether the invoice prints the fueling time. When it does not, record the known station time and explain how it was established."
+   "description": "Choose whether the invoice prints the fueling time."
   },
   {
    "fieldname": "column_break_actual_receipt",
@@ -267,26 +267,21 @@
    "label": "Station Time Explanation",
    "mandatory_depends_on": "eval:doc.fueling_time_source == 'Not printed on invoice'",
    "no_copy": 1,
-   "description": "Required when the invoice does not print a time. Explain how the known station fueling time was established."
-  },
-  {
-   "fieldname": "section_break_measured_fueling",
-   "fieldtype": "Section Break",
-   "label": "Transaction Summary"
+   "description": "Explain how you confirmed the fueling time."
   },
   {
    "fieldname": "vehicle_odometer",
    "fieldtype": "Float",
    "label": "Vehicle Odometer",
    "no_copy": 1,
-   "description": "Authoritative odometer reading at fueling."
+   "description": "Odometer reading at fueling."
   },
   {
    "fieldname": "hour_meter",
    "fieldtype": "Float",
    "label": "Hour Meter",
    "no_copy": 1,
-   "description": "Authoritative generator hour-meter reading at fueling."
+   "description": "Hour meter reading at fueling."
   },
   {
    "fieldname": "invoice_litres",
@@ -294,12 +289,7 @@
    "label": "Invoice Litres",
    "no_copy": 1,
    "mandatory_depends_on": "eval:doc.__islocal",
-   "description": "Litres recorded on the fueling invoice."
-  },
-  {
-   "fieldname": "litre_variance_status",
-   "fieldtype": "HTML",
-   "label": "Litre Variance"
+   "description": "Litres shown on the invoice."
   },
   {
    "default": "0",
@@ -307,10 +297,10 @@
    "fieldtype": "Check",
    "label": "Full Tank Confirmed",
    "no_copy": 1,
-   "description": "Marks a vehicle transaction as a qualifying full fill."
+   "description": "Marks a confirmed full tank."
   },
   {
-   "description": "External fuel station attendant who confirmed the fill, as named on the signed invoice. Required at submission.",
+   "description": "Name shown on the signed invoice; required to submit.",
    "fieldname": "attendant_name",
    "fieldtype": "Data",
    "label": "Fuel Attendant Name",
@@ -356,7 +346,7 @@
    "mandatory_depends_on": "eval:doc.__islocal",
    "no_copy": 1,
    "precision": 2,
-   "description": "Enter the fuel amount before tax, in KES."
+   "description": "Fuel amount before tax, in KES."
   },
   {
    "fieldname": "tax_amount",
@@ -379,14 +369,24 @@
    "fieldtype": "Attach",
    "label": "Signed Invoice",
    "no_copy": 1,
-   "description": "Required when the transaction is submitted. Must be a private PDF, JPG, or PNG."
+   "description": "Private PDF, JPG, or PNG; required to submit."
   },
   {
    "fieldname": "signed_order",
    "fieldtype": "Attach",
    "label": "Signed Fuel Order",
    "no_copy": 1,
-   "description": "Required when the transaction is submitted. Must be a private PDF, JPG, or PNG."
+   "description": "Private PDF, JPG, or PNG; required to submit."
+  },
+  {
+   "fieldname": "section_break_transaction_summary",
+   "fieldtype": "Section Break",
+   "label": "Baseline & Efficiency"
+  },
+  {
+   "fieldname": "litre_variance_status",
+   "fieldtype": "HTML",
+   "label": "Litre Variance"
   },
   {
    "default": "0",
