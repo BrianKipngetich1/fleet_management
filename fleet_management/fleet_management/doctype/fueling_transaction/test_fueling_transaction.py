@@ -311,6 +311,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 		)
 		with self.set_user(self.user):
 			context = get_fuel_order_context(self.order.name)
+			self.assertTrue(context["can_print_slip"])
 		order_after = frappe.db.get_value(
 			"Fuel Order",
 			self.order.name,

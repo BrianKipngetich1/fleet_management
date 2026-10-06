@@ -37,8 +37,15 @@ function renderFuelOrderContext(context) {
 				`<div class="col-sm-6 col-md-4 mb-3"><div class="text-muted small">${orderContextValue(label)}</div><div>${orderContextValue(value)}</div></div>`
 		)
 		.join("");
+	const slipLink = context.can_print_slip
+		? `<div class="col-12"><a href="${orderContextValue(
+				frappe.urllib.get_full_url(
+					`/printview?doctype=Fuel%20Order&name=${encodeURIComponent(context.order_number)}&format=Fuel%20Order%20Approval%20Slip&no_letterhead=1`
+				)
+			)}" target="_blank" rel="noopener noreferrer">${orderContextValue(__("Open authorization slip"))}</a></div>`
+		: "";
 
-	return `<div class="frappe-card"><div class="row">${rows}</div></div>`;
+	return `<div class="frappe-card"><div class="row">${rows}${slipLink}</div></div>`;
 }
 
 function renderLitreVariance(context, actualValue) {

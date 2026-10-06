@@ -101,6 +101,7 @@ def get_fuel_order_context(fuel_order):
 
 	return {
 		"order_number": order.name,
+		"can_print_slip": frappe.has_permission("Fuel Order", "print", order),
 		"workflow_state": order.workflow_state,
 		"asset_identifier": asset.asset_identifier,
 		"asset_type": asset.asset_type,

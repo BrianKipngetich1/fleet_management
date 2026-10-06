@@ -18,6 +18,9 @@ without modifying the LPO or looking up a physical document.
 - [x] 1.4 Verify the transaction reads LPO context without writing to or changing any LPO data,
   and preserves existing role, location, order-link, validity, station, and evidence checks.
   - _Requirements: 1.2, 1.8_
+- [x] 1.5 Link the read-only order context to the existing authorization slip when the user can
+  print the linked order; leave the Fuel Order and slip unchanged.
+  - _Requirements: 1.1, 1.2, 1.3_
 
 ## Phase 2: Fuel cost and analysis
 
@@ -70,3 +73,8 @@ One line per finished task or phase, newest last.
   26 Fuel Order tests, and 5 notification tests passed; one opt-in concurrency test was skipped.
   Migration, JSON, JavaScript, Python compilation, live calculation, and spec checks passed. Ruff
   is unavailable; Desk login still needs the missing local credentials file. Next: task 2.2.
+- `06/10/2026`: Added a permission-gated link from the transaction's read-only order context to
+  the linked Fuel Order's existing authorization slip. The link opens the existing print preview
+  in a new tab; the Fuel Order and slip are unchanged. The focused suite passed 33 integration
+  tests and 2 unit tests (one opt-in concurrency test skipped). JavaScript syntax and rendering
+  smoke checks, spec check, and whitespace check passed. Ruff is unavailable. No migration ran.
