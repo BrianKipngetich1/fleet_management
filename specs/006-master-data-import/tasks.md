@@ -37,7 +37,7 @@ list, and an order for a vehicle at that second company accepts the station.
   - _Requirements: 4.1, 2.4_
 - [x] 2.3 Scope stations by the whole set in `permissions.py`
   - _Requirements: 5.3_
-- [ ] 2.4 Test Property 5 (accepted when served, refused when not, suggestion and search agree) and Property 6 (shared station visible, other company's orders and vehicles refused)
+- [x] 2.4 Test Property 5 (accepted when served, refused when not, suggestion and search agree) and Property 6 (shared station visible, other company's orders and vehicles refused)
   - _Requirements: 4.1, 4.2, 2.4, 5.3_
 
 ## Phase 3: The real fleet on the test site
@@ -98,3 +98,7 @@ site shows the same fill-ups for each vehicle.
   Serves), in lists and when opening it. The station's location links no longer go through Frappe's
   own User Permission filter (as Fuel Order already does), so the app's location scope alone decides.
   Main site migrated. Next: 2.4.
+- `07/10/2026`: 2.4 `tests/test_shared_station.py` (Properties 5 and 6) passes 4/4 on a rebuilt MariaDB test
+  site; the station-related modules still pass (permissions 13, fuel order 26, signal 9, import 3). The
+  test site was built with the backed-up old login file, since its sample data still creates Philip,
+  Vikas, and Amina until 3.2; then taken down. Part 1 complete. Next: 3.1.
