@@ -45,7 +45,7 @@ list, and an order for a vehicle at that second company accepts the station.
 **Tracer:** After `bench fleet-test-site up --replace`, Phyllis signs in, opens KAY222A, and
 raises an order to Ecoflame with Mrs. Danbhai Kanji as driver; Vishal signs off a red one.
 
-- [ ] 3.1 Write `fleet_management/master_data.py` from the templates with the D-10 and D-11 corrections, and `load(people_users)` that only adds
+- [x] 3.1 Write `fleet_management/master_data.py` from the templates with the D-10 and D-11 corrections, and `load(people_users)` that only adds
   - _Requirements: 3.1, 3.3, 3.4_
 - [ ] 3.2 Rewrite `sample_data.py` to load the real fleet with the D-8 logins and company access, Ecoflame's address, and an empty history
   - _Requirements: 3.2, 5.1, 5.2_
@@ -102,3 +102,8 @@ site shows the same fill-ups for each vehicle.
   site; the station-related modules still pass (permissions 13, fuel order 26, signal 9, import 3). The
   test site was built with the backed-up old login file, since its sample data still creates Philip,
   Vikas, and Amina until 3.2; then taken down. Part 1 complete. Next: 3.1.
+- `07/10/2026`: 3.1 `fleet_management/master_data.py` holds the real fleet (2 companies, 2 fuel types, 14
+  models, 12 people, Ecoflame serving both, 15 assets) and `load`, which only adds. Cross-checked against
+  the owner's templates: every asset and model matches after the D-10/D-11 corrections; only the
+  generator's and crane's tanks differ (blank in the template, 100 L by the owner). Not yet run on a
+  site (3.2 and 3.3). Next: 3.2.
