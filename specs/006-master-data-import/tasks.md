@@ -49,7 +49,7 @@ raises an order to Ecoflame with Mrs. Danbhai Kanji as driver; Vishal signs off 
   - _Requirements: 3.1, 3.3, 3.4_
 - [x] 3.2 Rewrite `sample_data.py` to load the real fleet with the D-8 logins and company access, Ecoflame's address, and an empty history
   - _Requirements: 3.2, 5.1, 5.2_
-- [ ] 3.3 Test Property 3 (the listed fleet, every time) and Property 4 (only adds, keeps edits)
+- [x] 3.3 Test Property 3 (the listed fleet, every time) and Property 4 (only adds, keeps edits)
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 - [ ] 3.4 Test Property 7 (Phyllis's orders with the holder as driver, green and red routes to Vishal, Ecoflame on the slip)
   - _Requirements: 5.1, 5.2, 5.4, 2.5, 4.3_
@@ -113,3 +113,8 @@ site shows the same fill-ups for each vehicle.
   also Kanha, address on file), 15 assets; Phyllis and Vishal see 15 vehicles, the Kanha approver 10;
   all three see Ecoflame; dd/mm/yyyy; 5 logins checked. Sample-data, shared-station, and permission
   tests pass. Test site left up for a look. Next: 3.3.
+- `07/10/2026`: 3.3 `tests/test_master_data.py` (Properties 3 and 4) passes 5/5 on the rebuilt MariaDB test
+  site, which keeps its data afterwards. The app folder had been switched to 010 and then 008 by a paused
+  session (008 now merges 009 and migrated the main site at 13:01, removing this branch's station table
+  there; no records exist on the main site). Owner: switch back after this work. Main-site migrations
+  skipped from here until Phase 4. Next: 3.4.
