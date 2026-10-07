@@ -8,7 +8,7 @@ the acceptance criteria it serves (a property test also names its property), and
 criterion is cited by at least one task. Tick a task's checkbox when it is committed.
 -->
 
-# Import the fleet's master lists: tasks
+# Import the fleet's master lists and load the company's real fleet: tasks
 
 ## Phase 1: Import the master lists
 
@@ -23,8 +23,56 @@ template, and imports a filled one.
   - _Requirements: 1.1, 2.2_
 - [x] 1.4 Test Property 2: an asset with an assignment row imports; a bad row is reported
   - _Requirements: 1.2, 1.3_
-- [ ] 1.5 Confirm Fleet Admin, Fleet User, and Fleet Approver still cannot open the import tool, and the suites still pass
+- [ ] 1.5 Confirm Fleet Admin, Fleet User, and Fleet Approver still cannot open the import tool, and the suites still pass (run with the pre-PR checks)
   - _Requirements: 2.1, 2.3_
+
+## Phase 2: Ecoflame serves both companies
+
+**Tracer:** On the test site, a fleet admin adds a second company to a station's "also serves"
+list, and an order for a vehicle at that second company accepts the station.
+
+- [ ] 2.1 Add the `Fuel Station Location` child DocType and `Fuel Station.also_serves`; migrate the main site
+  - _Requirements: 4.2_
+- [ ] 2.2 Serve the whole set: `get_served_locations`, `_validate_station`, `get_request_facts`, and a whitelisted `station_query` used by the order form
+  - _Requirements: 4.1, 2.4_
+- [ ] 2.3 Scope stations by the whole set in `permissions.py`
+  - _Requirements: 5.3_
+- [ ] 2.4 Test Property 5 (accepted when served, refused when not, suggestion and search agree) and Property 6 (shared station visible, other company's orders and vehicles refused)
+  - _Requirements: 4.1, 4.2, 2.4, 5.3_
+
+## Phase 3: The real fleet on the test site
+
+**Tracer:** After `bench fleet-test-site up --replace`, Phyllis signs in, opens KAY222A, and
+raises an order to Ecoflame with Mrs. Danbhai Kanji as driver; Vishal signs off a red one.
+
+- [ ] 3.1 Write `fleet_management/master_data.py` from the templates with the D-10 and D-11 corrections, and `load(people_users)` that only adds
+  - _Requirements: 3.1, 3.3, 3.4_
+- [ ] 3.2 Rewrite `sample_data.py` to load the real fleet with the D-8 logins and company access, Ecoflame's address, and an empty history
+  - _Requirements: 3.2, 5.1, 5.2_
+- [ ] 3.3 Test Property 3 (the listed fleet, every time) and Property 4 (only adds, keeps edits)
+  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
+- [ ] 3.4 Test Property 7 (Phyllis's orders with the holder as driver, green and red routes to Vishal, Ecoflame on the slip)
+  - _Requirements: 5.1, 5.2, 5.4, 2.5, 4.3_
+- [ ] 3.5 Update the browser-test facts (`e2e/fixtures.ts`, `e2e/setup.ts`) and the project notes that name the old people and places
+  - _Requirements: 5.3, 2.3_
+
+## Phase 4: The same fleet on the main site
+
+**Tracer:** On the main site, signed in as `fleet.user@example.com`, Phyllis sees all 15
+vehicles at Kabete and Kanha and Ecoflame as their station.
+
+- [ ] 4.1 Add `load_main`, which links Phyllis and Vishal to the main-site logins and adds their company access
+  - _Requirements: 3.3, 5.1, 5.2_
+- [ ] 4.2 Run `load_main` once on the main site and confirm a second run adds nothing
+  - _Requirements: 3.1, 3.3, 3.5_
+
+## Phase 5: September's history becomes the test history (later)
+
+**Tracer:** After Phyllis has entered 01/09/2026–30/09/2026 on the main site, a rebuilt test
+site shows the same fill-ups for each vehicle.
+
+- [ ] 5.1 Copy September's completed fill-ups into the sample-data history (separate approval when the data exists)
+  - _Requirements: 3.2_
 
 ## Progress log
 
@@ -36,3 +84,7 @@ template, and imports a filled one.
 - `30/09/2026`: Migrating from this branch alone removed the Fleet home page from both sites;
   merged `fix/005-fleet-desk-page` in, migrated the main site, rebuilt the test site (five logins
   checked). Next: 1.5 with the full suites before the pull request.
+- `07/10/2026`: Scope widened (Heavy): the company's real fleet becomes the starting data on both
+  sites, Ecoflame serves Kabete and Kanha, Phyllis and Vishal replace Philip and Vikas.
+  Requirements and design approved by Mukesh Singh. Test-site logins renamed in the login file
+  (old file backed up in `~/Backups/fleet_management/`). Next: 2.1.
