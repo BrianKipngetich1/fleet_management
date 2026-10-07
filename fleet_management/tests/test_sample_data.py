@@ -7,7 +7,7 @@ import click
 import frappe
 from frappe.tests import IntegrationTestCase, UnitTestCase
 
-from fleet_management import sample_data
+from fleet_management import master_data, sample_data
 from fleet_management.commands import (
 	DB_NAME,
 	DB_USER,
@@ -179,16 +179,19 @@ class TestLoginCheck(IntegrationTestCase):
 class TestSampleHistory(UnitTestCase):
 	"""Keep the fixed history realistic when someone edits it."""
 
-	assets: ClassVar[dict] = {row[0]: row for row in sample_data.ASSETS}
+	assets: ClassVar[dict] = {row[0]: row for row in master_data.ASSETS}
+	stations: ClassVar[set] = {row[0] for row in master_data.STATIONS}
 
-	def test_every_history_asset_is_defined_with_a_requester(self):
-		for asset in sample_data.HISTORY:
+	def test_every_history_row_names_a_listed_asset_and_station(self):
+		for asset, rows in sample_data.HISTORY.items():
 			self.assertIn(asset, self.assets)
-			self.assertIn(asset, sample_data.REQUESTERS)
+			for row in rows:
+				self.assertIn(row[-1], self.stations, asset)
+				self.assertIn(row[-1], sample_data.INVOICE_PREFIX, asset)
 
 	def test_vehicle_intervals_stay_within_ten_percent_of_target(self):
 		for asset, rows in sample_data.HISTORY.items():
-			_registration, asset_type, _active, _fuel, _model, target, _assignments = self.assets[asset]
+			_identifier, asset_type, _fuel, _model, target, _holder, _location = self.assets[asset]
 			if asset_type != "Vehicle":
 				continue
 			previous_full, litres = None, 0.0

@@ -47,7 +47,7 @@ raises an order to Ecoflame with Mrs. Danbhai Kanji as driver; Vishal signs off 
 
 - [x] 3.1 Write `fleet_management/master_data.py` from the templates with the D-10 and D-11 corrections, and `load(people_users)` that only adds
   - _Requirements: 3.1, 3.3, 3.4_
-- [ ] 3.2 Rewrite `sample_data.py` to load the real fleet with the D-8 logins and company access, Ecoflame's address, and an empty history
+- [x] 3.2 Rewrite `sample_data.py` to load the real fleet with the D-8 logins and company access, Ecoflame's address, and an empty history
   - _Requirements: 3.2, 5.1, 5.2_
 - [ ] 3.3 Test Property 3 (the listed fleet, every time) and Property 4 (only adds, keeps edits)
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
@@ -107,3 +107,9 @@ site shows the same fill-ups for each vehicle.
   the owner's templates: every asset and model matches after the D-10/D-11 corrections; only the
   generator's and crane's tanks differ (blank in the template, 100 L by the owner). Not yet run on a
   site (3.2 and 3.3). Next: 3.2.
+- `07/10/2026`: 3.2 The test site now loads the real fleet: Phyllis and Vishal (both companies), the
+  Kanha-only test approver, and the test Fleet Admin; the holder requests and drives; no history or
+  open orders. Rebuilt on MariaDB: 2 companies, 2 fuel types, 14 models, 12 people, Ecoflame (Kabete,
+  also Kanha, address on file), 15 assets; Phyllis and Vishal see 15 vehicles, the Kanha approver 10;
+  all three see Ecoflame; dd/mm/yyyy; 5 logins checked. Sample-data, shared-station, and permission
+  tests pass. Test site left up for a look. Next: 3.3.
