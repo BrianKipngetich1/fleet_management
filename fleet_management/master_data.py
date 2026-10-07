@@ -7,7 +7,10 @@ generator and the mobile crane are held by Phyllis at Kabete and Kanha; the temp
 tolerance is Excel's 10%. KSL-Westlands holds no vehicles and is left out.
 
 ``load`` creates each record that is missing, by its name, and never changes one that exists, so
-corrections made by hand on the main site survive a second run (spec 006 D-4).
+corrections made by hand on the main site survive a second run (spec 006 D-4). ``grant_access``
+links people to their logins and gives those logins Kabete and Kanha, adding only what is missing.
+``load_main`` runs both once on the main site with its logins (spec 006 D-5); it is never a patch
+or migrate hook.
 """
 
 import frappe
@@ -56,6 +59,7 @@ HOLDERS = (
 	"Mr. Kanji K. Patel",
 )
 PEOPLE = (PHYLLIS, VISHAL, *HOLDERS)
+MAIN_USERS = {PHYLLIS: "fleet.user@example.com", VISHAL: "fleet.approver@example.com"}
 REPRESENTATIVE = {KABETE: PHYLLIS, KANHA: PHYLLIS}
 
 ECOFLAME = "Ecoflame Limited"
@@ -171,6 +175,49 @@ def load(people_users=None):
 			],
 		)
 	return created
+
+
+def grant_access(people_users):
+	"""Link each person to their login and give that login both companies, adding only what is missing.
+
+	A person's login is set only while it is empty, never overwritten. A login that does not exist
+	is skipped and named under "Skipped users".
+	"""
+	_assert_allowed_site()
+	added = {}
+	companies = [name for name, _description in LOCATIONS]
+	for person, user in people_users.items():
+		if not frappe.db.exists("User", user):
+			added.setdefault("Skipped users", []).append(user)
+			continue
+		if frappe.db.exists("Fleet Person", person) and not frappe.db.get_value(
+			"Fleet Person", person, "user"
+		):
+			frappe.db.set_value("Fleet Person", person, "user", user)
+			added.setdefault("Fleet Person linked", []).append(person)
+		for company in companies:
+			permission = {"user": user, "allow": "Fleet Location", "for_value": company}
+			if frappe.db.exists("User Permission", permission):
+				continue
+			frappe.get_doc({"doctype": "User Permission", **permission, "apply_to_all_doctypes": 1}).insert(
+				ignore_permissions=True
+			)
+			added["User Permission"] = added.get("User Permission", 0) + 1
+	return added
+
+
+def load_main():
+	"""Load the real fleet onto the main site and give its two logins their people and companies.
+
+	Run once with ``bench --site fleet_management.localhost execute
+	fleet_management.master_data.load_main``; a second run adds nothing.
+	"""
+	if frappe.local.site != MAIN_SITE:
+		frappe.throw(f"load_main may only run on {MAIN_SITE}.")
+	summary = load(MAIN_USERS)
+	summary.update(grant_access(MAIN_USERS))
+	frappe.db.commit()
+	return summary
 
 
 def _has_address(station):

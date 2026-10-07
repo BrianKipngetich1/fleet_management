@@ -61,7 +61,7 @@ raises an order to Ecoflame with Mrs. Danbhai Kanji as driver; Vishal signs off 
 **Tracer:** On the main site, signed in as `fleet.user@example.com`, Phyllis sees all 15
 vehicles at Kabete and Kanha and Ecoflame as their station.
 
-- [ ] 4.1 Add `load_main`, which links Phyllis and Vishal to the main-site logins and adds their company access
+- [x] 4.1 Add `load_main`, which links Phyllis and Vishal to the main-site logins and adds their company access
   - _Requirements: 3.3, 5.1, 5.2_
 - [ ] 4.2 Run `load_main` once on the main site and confirm a second run adds nothing
   - _Requirements: 3.1, 3.3, 3.5_
@@ -127,3 +127,7 @@ site shows the same fill-ups for each vehicle.
   rebuilt test site, confirmed by an independent verifier (PASS). Known limitation: the tenancy list check
   cannot tell users apart now that Phyllis holds both companies; the acceptance spec proves the split.
   Part 2 complete. Next: 4.1.
+- `07/10/2026`: 4.1 `load_main` loads the real fleet on the main site only, links Phyllis to
+  `fleet.user@example.com` and Vishal to `fleet.approver@example.com` (never overwriting a link), and adds
+  any missing Kabete and Kanha access for both; a missing login is skipped and named. Master-data tests
+  pass 9/9 and sample-data 3/3 on a rebuilt MariaDB test site. Next: 4.2.
