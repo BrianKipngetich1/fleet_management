@@ -5,12 +5,10 @@ frappe.ui.form.on("Fuel Order", {
 			const locations = permissions.map((permission) => permission.doc).filter(Boolean);
 			return locations.length ? { filters: { name: ["in", locations] } } : {};
 		});
+		// Stations serving the order's location, including through Also Serves (spec 006 D-7).
 		frm.set_query("planned_station", () => ({
-			filters: {
-				operational_location: frm.doc.operational_location,
-				active: 1,
-				approved: 1,
-			},
+			query: "fleet_management.fleet_management.doctype.fuel_station.fuel_station.station_query",
+			filters: { operational_location: frm.doc.operational_location },
 		}));
 	},
 	operational_location(frm) {

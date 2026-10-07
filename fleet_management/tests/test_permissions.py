@@ -286,7 +286,7 @@ class TestFleetPermissionIntegration(IntegrationTestCase):
 	def test_planned_station_must_match_operational_location(self):
 		with self.assertRaisesRegex(
 			frappe.ValidationError,
-			r"Planned station must belong to the operational location\.",
+			r"Planned station must serve the operational location\.",
 		):
 			self._insert_order(self.north, self.south_station, self.north_asset)
 

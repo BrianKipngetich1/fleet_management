@@ -33,7 +33,7 @@ list, and an order for a vehicle at that second company accepts the station.
 
 - [x] 2.1 Add the `Fuel Station Location` child DocType and `Fuel Station.also_serves`; migrate the main site
   - _Requirements: 4.2_
-- [ ] 2.2 Serve the whole set: `get_served_locations`, `_validate_station`, `get_request_facts`, and a whitelisted `station_query` used by the order form
+- [x] 2.2 Serve the whole set: `get_served_locations`, `_validate_station`, `get_request_facts`, and a whitelisted `station_query` used by the order form
   - _Requirements: 4.1, 2.4_
 - [ ] 2.3 Scope stations by the whole set in `permissions.py`
   - _Requirements: 5.3_
@@ -91,3 +91,6 @@ site shows the same fill-ups for each vehicle.
 - `07/10/2026`: 2.1 Stations gained an "Also Serves" list (new child table of locations; repeats and the
   station's own location are dropped on save). Main site migrated; Locale unchanged; the Fleet home
   page is back. Next: 2.2.
+- `07/10/2026`: 2.2 Orders accept any station serving their location (own or Also Serves); the vehicle's
+  station suggestion and the order form's station search use the same rule (new `station_query`).
+  Refusal now reads "Planned station must serve the operational location." Main site migrated. Next: 2.3.
