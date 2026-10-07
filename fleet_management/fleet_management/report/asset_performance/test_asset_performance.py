@@ -7,17 +7,16 @@ from frappe.desk.query_report import _export_query, run
 from frappe.tests import IntegrationTestCase, UnitTestCase
 from frappe.utils import add_days, flt, getdate
 
-from fleet_management.sample_data import AMINA, FLEET_ADMIN, VIKAS
-
 from fleet_management.fleet_management.report.asset_performance.asset_performance import (
+	_fueling_source_key,
 	_fulfillment_status,
 	_rate_efficiency,
 	_request_status,
 	_target_history_state,
 	_vehicle_efficiency_columns,
-	_fueling_source_key,
 )
 from fleet_management.fleet_management.report.fueling_summary.fueling_summary import _get_date_range
+from fleet_management.tests.report_history import ReportHistoryFixture
 
 
 class TestAssetPerformanceStatuses(UnitTestCase):
@@ -48,9 +47,7 @@ class TestAssetPerformanceStatuses(UnitTestCase):
 			"Awaiting fueling",
 		)
 		self.assertEqual(
-			_fulfillment_status(
-				_dict(docstatus=1, workflow_state="Approved", has_submitted_transaction=1)
-			),
+			_fulfillment_status(_dict(docstatus=1, workflow_state="Approved", has_submitted_transaction=1)),
 			"Completed",
 		)
 		self.assertEqual(
@@ -65,9 +62,7 @@ class TestAssetPerformanceStatuses(UnitTestCase):
 			),
 			"Expired",
 		)
-		self.assertEqual(
-			_fulfillment_status(_dict(docstatus=2, workflow_state="Approved")), "Cancelled"
-		)
+		self.assertEqual(_fulfillment_status(_dict(docstatus=2, workflow_state="Approved")), "Cancelled")
 
 
 class TestAssetPerformanceEfficiency(UnitTestCase):
@@ -112,7 +107,7 @@ class TestAssetPerformanceEfficiency(UnitTestCase):
 		self.assertLess(_fueling_source_key(opening), _fueling_source_key(closing))
 
 
-class TestAssetPerformanceReport(IntegrationTestCase):
+class TestAssetPerformanceReport(ReportHistoryFixture, IntegrationTestCase):
 	"""Source-row checks for spec 008-overseer-reports Requirements 2.1, 2.2, 2.3, and 2.4."""
 
 	date_filters = {"from_date": "2000-01-01", "to_date": "2099-12-31"}
@@ -125,9 +120,6 @@ class TestAssetPerformanceReport(IntegrationTestCase):
 
 	def _transaction_rows(self, result):
 		return [row for row in self._details(result) if row.get("fueling_transaction")]
-
-	def _asset(self, identifier):
-		return frappe.db.get_value("Fleet Asset", {"asset_identifier": identifier}, "name")
 
 	def _interval_with_partial_fill(self, asset):
 		transactions = frappe.get_all(
@@ -193,9 +185,9 @@ class TestAssetPerformanceReport(IntegrationTestCase):
 	def test_statuses_and_links_match_source_fuel_orders_and_transactions(self):
 		seen_requests = set()
 		seen_fulfillment = set()
-		with self.set_user(FLEET_ADMIN):
-			for identifier in ("KDA 412M", "KDB 551Q", "KCY 230L", "KCZ 908T"):
-				filters = {**self.date_filters, "asset": self._asset(identifier)}
+		with self.set_user(self.admin):
+			for asset in (*self.vehicles.values(), self.generator):
+				filters = {**self.date_filters, "asset": asset}
 				rows = self._details(self._run_report(filters))
 				for row in rows:
 					if row.get("fuel_order"):
@@ -211,9 +203,7 @@ class TestAssetPerformanceReport(IntegrationTestCase):
 					if row.get("fueling_transaction"):
 						transaction = frappe.get_doc("Fueling Transaction", row["fueling_transaction"])
 						self.assertEqual(transaction.docstatus, 1)
-						self.assertTrue(
-							frappe.has_permission("Fueling Transaction", "read", doc=transaction)
-						)
+						self.assertTrue(frappe.has_permission("Fueling Transaction", "read", doc=transaction))
 						self.assertEqual(row["delivered_litres"], transaction.invoice_litres)
 						self.assertEqual(row["station"], transaction.actual_station)
 						self.assertEqual(row["fueling_transaction"], transaction.name)
@@ -225,7 +215,7 @@ class TestAssetPerformanceReport(IntegrationTestCase):
 		self.assertTrue({"Awaiting fueling", "Completed", "Expired"}.issubset(seen_fulfillment))
 
 	def test_vehicle_period_keeps_boundary_activity_and_uses_out_of_period_full_fill(self):
-		asset = self._asset("KDB 551Q")
+		asset = self.vehicles[self.north]
 		opening, partial, closing = self._interval_with_partial_fill(asset)
 		from_date = getdate(partial.actual_fueling_datetime)
 		to_date = getdate(closing.actual_fueling_datetime)
@@ -246,9 +236,9 @@ class TestAssetPerformanceReport(IntegrationTestCase):
 			"asset": asset,
 			"from_date": from_date,
 			"to_date": to_date,
-			"location": "Nairobi",
+			"location": self.north,
 		}
-		with self.set_user(FLEET_ADMIN):
+		with self.set_user(self.admin):
 			result = self._run_report(filters)
 			rows = self._transaction_rows(result)
 			row_by_name = {row["fueling_transaction"]: row for row in rows}
@@ -265,7 +255,9 @@ class TestAssetPerformanceReport(IntegrationTestCase):
 			self.assertTrue(all(from_date <= getdate(row["activity_date"]) <= to_date for row in rows))
 
 			later_start = self._run_report({**filters, "from_date": add_days(from_date, 1)})
-			later_start_rows = {row["fueling_transaction"]: row for row in self._transaction_rows(later_start)}
+			later_start_rows = {
+				row["fueling_transaction"]: row for row in self._transaction_rows(later_start)
+			}
 			self.assertNotIn(partial.name, later_start_rows)
 			self.assertIn(closing.name, later_start_rows)
 			self.assertEqual(
@@ -280,7 +272,7 @@ class TestAssetPerformanceReport(IntegrationTestCase):
 			)
 
 	def test_target_change_inside_interval_withholds_rating_but_keeps_efficiency(self):
-		asset = self._asset("KDB 551Q")
+		asset = self.vehicles[self.north]
 		opening, partial, closing = self._interval_with_partial_fill(asset)
 		filters = {
 			"asset": asset,
@@ -297,7 +289,7 @@ class TestAssetPerformanceReport(IntegrationTestCase):
 				flt(partial.asset_target_km_per_litre_snapshot) + 1,
 				update_modified=False,
 			)
-			with self.set_user(FLEET_ADMIN):
+			with self.set_user(self.admin):
 				row = next(
 					row
 					for row in self._transaction_rows(self._run_report(filters))
@@ -310,7 +302,7 @@ class TestAssetPerformanceReport(IntegrationTestCase):
 			frappe.db.rollback(save_point="asset_performance_target_change")
 
 	def test_generator_shows_hour_meter_and_delivered_litres_only(self):
-		asset = self._asset("GEN-NRB-01 Cummins 100 kVA")
+		asset = self.generator
 		transaction = frappe.get_all(
 			"Fueling Transaction",
 			filters={"asset": asset, "docstatus": 1},
@@ -319,7 +311,7 @@ class TestAssetPerformanceReport(IntegrationTestCase):
 			limit=1,
 		)[0]
 		day = getdate(transaction.actual_fueling_datetime)
-		with self.set_user(FLEET_ADMIN):
+		with self.set_user(self.admin):
 			result = self._run_report({"asset": asset, "from_date": day, "to_date": day})
 			row = next(
 				row
@@ -333,7 +325,7 @@ class TestAssetPerformanceReport(IntegrationTestCase):
 			self.assertFalse(any("consumed" in column["label"].lower() for column in result["columns"]))
 
 	def test_filters_trend_export_and_location_permissions_match(self):
-		asset = self._asset("KDA 412M")
+		asset = self.vehicles[self.north]
 		source = frappe.get_all(
 			"Fueling Transaction",
 			filters={"asset": asset, "docstatus": 1},
@@ -346,16 +338,16 @@ class TestAssetPerformanceReport(IntegrationTestCase):
 			"asset": asset,
 			"from_date": day,
 			"to_date": day,
-			"location": "Nairobi",
+			"location": self.north,
 			"fuel_type": source.fuel_type,
 			"station": source.actual_station,
 		}
-		with self.set_user(VIKAS):
+		with self.set_user(self.approvers[self.north]):
 			result = self._run_report(filters)
 			details = self._details(result)
 			transactions = self._transaction_rows(result)
 			self.assertIn(source.name, {row["fueling_transaction"] for row in transactions})
-			self.assertTrue(all(row["location"] == "Nairobi" for row in details))
+			self.assertTrue(all(row["location"] == self.north for row in details))
 			self.assertTrue(all(row["asset"] == asset for row in details))
 			self.assertTrue(all(row["fuel_type"] == source.fuel_type for row in details))
 			self.assertTrue(all(row["station"] == source.actual_station for row in details))
@@ -374,12 +366,14 @@ class TestAssetPerformanceReport(IntegrationTestCase):
 				row["Fueling Transaction"] for row in csv_rows if row["Activity"] == "Fueling Transaction"
 			]
 			self.assertEqual(set(csv_transactions), {row["fueling_transaction"] for row in transactions})
-			csv_orders = {
-				row["Fuel Order"] for row in csv_rows if row["Activity"].startswith("Fuel Order")
-			}
+			csv_orders = {row["Fuel Order"] for row in csv_rows if row["Activity"].startswith("Fuel Order")}
 			self.assertEqual(csv_orders, {row["fuel_order"] for row in details if row.get("fuel_order")})
 
-			before_day = self._run_report({**filters, "from_date": add_days(day, 1), "to_date": add_days(day, 1)})
-			self.assertNotIn(source.name, {row.get("fueling_transaction") for row in self._transaction_rows(before_day)})
+			before_day = self._run_report(
+				{**filters, "from_date": add_days(day, 1), "to_date": add_days(day, 1)}
+			)
+			self.assertNotIn(
+				source.name, {row.get("fueling_transaction") for row in self._transaction_rows(before_day)}
+			)
 			with self.assertRaises(frappe.PermissionError):
-				self._run_report({**filters, "location": "Mombasa"})
+				self._run_report({**filters, "location": self.south})

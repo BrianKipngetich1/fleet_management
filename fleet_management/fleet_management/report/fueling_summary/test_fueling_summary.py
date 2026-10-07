@@ -7,13 +7,12 @@ from frappe.desk.query_report import _export_query, run
 from frappe.tests import IntegrationTestCase, UnitTestCase
 from frappe.utils import flt, getdate
 
-from fleet_management.sample_data import AMINA, FLEET_ADMIN, PHILIP, VIKAS
-
 from fleet_management.fleet_management.report.fueling_summary.fueling_summary import (
 	LOCATION_EXPRESSION,
 	_build_report_rows,
 	_get_date_range,
 )
+from fleet_management.tests.report_history import ReportHistoryFixture
 
 
 class TestFuelingSummary(UnitTestCase):
@@ -81,7 +80,7 @@ class TestFuelingSummary(UnitTestCase):
 		self.assertEqual(chart["data"]["datasets"][0]["values"], [4000, 0])
 
 
-class TestFuelingSummaryPermissions(IntegrationTestCase):
+class TestFuelingSummaryPermissions(ReportHistoryFixture, IntegrationTestCase):
 	"""Exercise spec 008-overseer-reports Requirements 1.3, 1.4, 1.5, 3.4, 4.1, and 4.2."""
 
 	date_filters = {"from_date": "2000-01-01", "to_date": "2099-12-31"}
@@ -114,8 +113,9 @@ class TestFuelingSummaryPermissions(IntegrationTestCase):
 		return list(csv.DictReader(StringIO(content.decode("utf-8"))))
 
 	def test_approvers_see_only_permitted_locations_and_linked_records(self):
-		for user, expected_location in ((VIKAS, "Nairobi"), (AMINA, "Mombasa")):
-			with self.subTest(user=user), self.set_user(user):
+		for expected_location in (self.north, self.south):
+			user = self.approvers[expected_location]
+			with self.subTest(location=expected_location), self.set_user(user):
 				location_choices = {
 					row.name for row in frappe.get_list("Fleet Location", fields=["name"], limit=100)
 				}
@@ -139,7 +139,7 @@ class TestFuelingSummaryPermissions(IntegrationTestCase):
 				)
 
 	def test_filters_match_source_totals_trend_details_and_export(self):
-		with self.set_user(VIKAS):
+		with self.set_user(self.approvers[self.north]):
 			source = frappe.get_list(
 				"Fueling Transaction",
 				filters={"docstatus": 1},
@@ -157,7 +157,7 @@ class TestFuelingSummaryPermissions(IntegrationTestCase):
 			filters = {
 				"from_date": fueling_date,
 				"to_date": fueling_date,
-				"location": "Nairobi",
+				"location": self.north,
 				"asset": source.asset,
 				"fuel_type": source.fuel_type,
 				"station": source.actual_station,
@@ -181,7 +181,7 @@ class TestFuelingSummaryPermissions(IntegrationTestCase):
 			details = self._details(report)
 			self.assertTrue(details)
 			self.assertEqual({row["name"] for row in details}, {row.name for row in source_rows})
-			self.assertTrue(all(row["location"] == "Nairobi" for row in details))
+			self.assertTrue(all(row["location"] == self.north for row in details))
 			self.assertTrue(all(row["asset"] == source.asset for row in details))
 			self.assertTrue(all(row["fuel_type"] == source.fuel_type for row in details))
 			self.assertTrue(all(row["station"] == source.actual_station for row in details))
@@ -201,16 +201,16 @@ class TestFuelingSummaryPermissions(IntegrationTestCase):
 			)
 
 	def test_approver_cannot_select_another_location_and_user_cannot_open_report(self):
-		with self.set_user(VIKAS), self.assertRaises(frappe.PermissionError):
-			self._run_report({**self.date_filters, "location": "Mombasa"})
+		with self.set_user(self.approvers[self.north]), self.assertRaises(frappe.PermissionError):
+			self._run_report({**self.date_filters, "location": self.south})
 
-		with self.set_user(PHILIP), self.assertRaises(frappe.PermissionError):
+		with self.set_user(self.users[self.north]), self.assertRaises(frappe.PermissionError):
 			self._run_report()
 
 	def test_fleet_admin_retains_all_location_access(self):
-		with self.set_user(FLEET_ADMIN):
+		with self.set_user(self.admin):
 			details = self._details(self._run_report())
-			self.assertTrue({"Nairobi", "Mombasa"}.issubset({row["location"] for row in details}))
+			self.assertTrue({self.north, self.south}.issubset({row["location"] for row in details}))
 
 	def test_report_matches_two_location_source_and_excludes_cancelled_legacy_rows(self):
 		def source_rows(docstatus):
@@ -234,9 +234,9 @@ class TestFuelingSummaryPermissions(IntegrationTestCase):
 
 		frappe.db.savepoint("fueling_summary_source_check")
 		try:
-			with self.set_user(FLEET_ADMIN):
+			with self.set_user(self.admin):
 				before = source_rows(1)
-				self.assertTrue({"Nairobi", "Mombasa"}.issubset({row.location for row in before}))
+				self.assertTrue({self.north, self.south}.issubset({row.location for row in before}))
 				legacy = next((row for row in before if flt(row.invoice_amount) <= 0), None)
 				self.assertIsNotNone(
 					legacy,
@@ -246,7 +246,7 @@ class TestFuelingSummaryPermissions(IntegrationTestCase):
 				to_cancel = next(
 					row
 					for row in before
-					if row.location == "Nairobi"
+					if row.location == self.north
 					and not any(
 						frappe.db.exists(
 							"Fueling Transaction",
@@ -264,7 +264,8 @@ class TestFuelingSummaryPermissions(IntegrationTestCase):
 				report = self._run_report()
 				details = self._details(report)
 				self.assertEqual({row["name"] for row in details}, {row.name for row in active})
-				self.assertEqual({row["location"] for row in details}, {"Nairobi", "Mombasa"})
+				self.assertEqual({row["location"] for row in details}, {row.location for row in active})
+				self.assertTrue({self.north, self.south}.issubset({row["location"] for row in details}))
 				self.assertNotIn(to_cancel.name, {row["name"] for row in details})
 				self.assertIn("Monthly spend totals include only recorded invoice amounts", report["message"])
 
@@ -303,7 +304,9 @@ class TestFuelingSummaryPermissions(IntegrationTestCase):
 				if source["spend"]:
 					self.assertAlmostEqual(total["recorded_spend"], source["spend"], places=2)
 					self.assertAlmostEqual(
-						total["calculated_price_per_litre"], source["spend"] / source["priced_litres"], places=4
+						total["calculated_price_per_litre"],
+						source["spend"] / source["priced_litres"],
+						places=4,
 					)
 				else:
 					self.assertIsNone(total["recorded_spend"])
