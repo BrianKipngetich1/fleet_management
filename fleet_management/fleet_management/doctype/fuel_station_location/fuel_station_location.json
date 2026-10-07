@@ -1,0 +1,23 @@
+{
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "fleet_location"
+ ],
+ "fields": [
+  {
+   "fieldname": "fleet_location",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Fleet Location",
+   "options": "Fleet Location",
+   "reqd": 1
+  }
+ ],
+ "istable": 1,
+ "module": "Fleet Management",
+ "name": "Fuel Station Location",
+ "permissions": [],
+ "track_changes": 1
+}

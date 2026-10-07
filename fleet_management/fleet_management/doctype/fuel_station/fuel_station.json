@@ -5,6 +5,7 @@
  "field_order": [
   "station_name",
   "operational_location",
+  "also_serves",
   "active",
   "approved",
   "address_section",
@@ -26,6 +27,13 @@
    "label": "Operational Location",
    "options": "Fleet Location",
    "reqd": 1
+  },
+  {
+   "description": "Other locations whose vehicles may be sent to this station, besides its operational location.",
+   "fieldname": "also_serves",
+   "fieldtype": "Table MultiSelect",
+   "label": "Also Serves",
+   "options": "Fuel Station Location"
   },
   {
    "default": "1",

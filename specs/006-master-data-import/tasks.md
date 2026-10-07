@@ -31,7 +31,7 @@ template, and imports a filled one.
 **Tracer:** On the test site, a fleet admin adds a second company to a station's "also serves"
 list, and an order for a vehicle at that second company accepts the station.
 
-- [ ] 2.1 Add the `Fuel Station Location` child DocType and `Fuel Station.also_serves`; migrate the main site
+- [x] 2.1 Add the `Fuel Station Location` child DocType and `Fuel Station.also_serves`; migrate the main site
   - _Requirements: 4.2_
 - [ ] 2.2 Serve the whole set: `get_served_locations`, `_validate_station`, `get_request_facts`, and a whitelisted `station_query` used by the order form
   - _Requirements: 4.1, 2.4_
@@ -88,3 +88,6 @@ site shows the same fill-ups for each vehicle.
   sites, Ecoflame serves Kabete and Kanha, Phyllis and Vishal replace Philip and Vikas.
   Requirements and design approved by Mukesh Singh. Test-site logins renamed in the login file
   (old file backed up in `~/Backups/fleet_management/`). Next: 2.1.
+- `07/10/2026`: 2.1 Stations gained an "Also Serves" list (new child table of locations; repeats and the
+  station's own location are dropped on save). Main site migrated; Locale unchanged; the Fleet home
+  page is back. Next: 2.2.
