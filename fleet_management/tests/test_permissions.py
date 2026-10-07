@@ -3,12 +3,12 @@ from unittest.mock import patch
 import frappe
 from frappe.tests import IntegrationTestCase, UnitTestCase
 
+from fleet_management.history import get_order_history, record_history_event
 from fleet_management.permissions import (
 	get_permission_query_conditions,
 	has_permission,
 )
 from fleet_management.request import guard_invalid_api_method
-from fleet_management.history import get_order_history, record_history_event
 
 
 class TestFleetPermissions(UnitTestCase):
@@ -287,7 +287,7 @@ class TestFleetPermissionIntegration(IntegrationTestCase):
 	def test_planned_station_must_match_operational_location(self):
 		with self.assertRaisesRegex(
 			frappe.ValidationError,
-			r"Planned station must belong to the operational location\.",
+			r"Planned station must serve the operational location\.",
 		):
 			self._insert_order(self.north, self.south_station, self.north_asset)
 
@@ -305,7 +305,6 @@ class TestFleetPermissionIntegration(IntegrationTestCase):
 		self.assertEqual(north_order.assigned_location_snapshot, self.north.name)
 		self.assertEqual(south_order.assigned_location_snapshot, self.south.name)
 
-
 	def test_history_events_inherit_linked_order_location_access(self):
 		north_event = record_history_event(
 			self.north_order.name,
@@ -320,19 +319,21 @@ class TestFleetPermissionIntegration(IntegrationTestCase):
 		user = self._user("Fleet User", self.north.name)
 
 		with self.set_user(user):
-			event_names = {
-				row.name for row in frappe.get_list("Fuel Order History Event", fields=["name"])
-			}
+			event_names = {row.name for row in frappe.get_list("Fuel Order History Event", fields=["name"])}
 			self.assertIn(north_event, event_names)
 			self.assertNotIn(south_event, event_names)
 			self.assertTrue(
 				frappe.has_permission(
-					"Fuel Order History Event", "read", frappe.get_doc("Fuel Order History Event", north_event)
+					"Fuel Order History Event",
+					"read",
+					frappe.get_doc("Fuel Order History Event", north_event),
 				)
 			)
 			self.assertFalse(
 				frappe.has_permission(
-					"Fuel Order History Event", "read", frappe.get_doc("Fuel Order History Event", south_event)
+					"Fuel Order History Event",
+					"read",
+					frappe.get_doc("Fuel Order History Event", south_event),
 				)
 			)
 			self.assertEqual(

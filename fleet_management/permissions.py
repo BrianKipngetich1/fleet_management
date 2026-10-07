@@ -11,6 +11,7 @@ from frappe.permissions import get_roles, get_user_permissions
 from frappe.utils import today
 
 from fleet_management.fleet_management.doctype.fleet_asset.fleet_asset import get_effective_assignment
+from fleet_management.fleet_management.doctype.fuel_station.fuel_station import get_served_locations
 
 LOCATION_DOCTYPE = "Fleet Location"
 HISTORY_EVENT_DOCTYPE = "Fuel Order History Event"
@@ -127,6 +128,14 @@ def _document_location_names(doc):
 			return (
 				{str(assignment.assigned_location)} if assignment and assignment.assigned_location else set()
 			)
+	if doctype == "Fuel Station":
+		# A station is in scope wherever it serves: its own location and every Also Serves row.
+		rows = doc.get("also_serves")
+		if rows is None and doc.get("name"):
+			# A partial record (not a loaded document) carries no rows; read them from the station.
+			return {str(location) for location in get_served_locations(doc.get("name"))}
+		locations = {str(doc.get("operational_location"))} if doc.get("operational_location") else set()
+		return locations | {str(row.get("fleet_location")) for row in rows or [] if row.get("fleet_location")}
 	if doctype == "Fueling Transaction":
 		location = doc.get("assigned_location_snapshot")
 		if location:
@@ -187,6 +196,13 @@ def _query_condition(doctype, locations):
 		f"{_table(doctype)}.`{field}` IN ({_escaped_locations(locations)})"
 		for field in _query_location_fields(doctype)
 	]
+	if doctype == "Fuel Station":
+		parts.append(
+			"EXISTS (SELECT 1 FROM `tabFuel Station Location` fsl "
+			f"WHERE fsl.parent = {_table(doctype)}.`name` "
+			"AND fsl.parenttype = 'Fuel Station' AND fsl.parentfield = 'also_serves' "
+			f"AND fsl.fleet_location IN ({_escaped_locations(locations)}))"
+		)
 	if doctype == "Fueling Transaction":
 		parts.append(
 			"EXISTS (SELECT 1 FROM `tabFuel Order` fo "
@@ -215,9 +231,32 @@ def get_permission_query_conditions(user=None, doctype=None):
 		q = chr(96)
 		return (
 			"EXISTS (SELECT 1 FROM " + q + "tabFuel Order" + q + " "
-			"WHERE " + q + "tabFuel Order" + q + "." + q + "name" + q
-			+ " = " + q + "tabFuel Order History Event" + q + "." + q + "fuel_order" + q + " "
-			"AND " + q + "tabFuel Order" + q + "." + q + "assigned_location_snapshot" + q + " IN ("
+			"WHERE "
+			+ q
+			+ "tabFuel Order"
+			+ q
+			+ "."
+			+ q
+			+ "name"
+			+ q
+			+ " = "
+			+ q
+			+ "tabFuel Order History Event"
+			+ q
+			+ "."
+			+ q
+			+ "fuel_order"
+			+ q
+			+ " "
+			"AND "
+			+ q
+			+ "tabFuel Order"
+			+ q
+			+ "."
+			+ q
+			+ "assigned_location_snapshot"
+			+ q
+			+ " IN ("
 			+ _escaped_locations(locations)
 			+ "))"
 		)
@@ -240,10 +279,7 @@ def has_permission(doc, ptype=None, user=None, debug=False):
 		if ptype not in (None, "read"):
 			return False
 		order_name = doc.get("fuel_order")
-		return bool(
-			order_name
-			and frappe.has_permission("Fuel Order", "read", order_name, user=user)
-		)
+		return bool(order_name and frappe.has_permission("Fuel Order", "read", order_name, user=user))
 
 	if _is_unrestricted(user) or not _is_location_scoped(user):
 		return True

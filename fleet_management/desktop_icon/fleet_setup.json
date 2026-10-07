@@ -1,0 +1,25 @@
+{
+ "app": "fleet_management",
+ "creation": "2026-09-29 12:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Desktop Icon",
+ "hidden": 0,
+ "icon": "settings",
+ "icon_type": "Link",
+ "idx": 0,
+ "label": "Fleet Setup",
+ "link_to": "Fleet Setup",
+ "link_type": "Workspace Sidebar",
+ "modified": "2026-09-29 12:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "Fleet Setup",
+ "owner": "Administrator",
+ "restrict_removal": 0,
+ "roles": [
+  {
+   "doctype": "Has Role",
+   "role": "Fleet Admin"
+  }
+ ],
+ "standard": 1
+}

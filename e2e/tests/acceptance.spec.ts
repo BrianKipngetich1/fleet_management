@@ -230,7 +230,7 @@ test("live Desk transaction acceptance covers evidence, KPI, integrity, and scop
 	await expect(explanationField).toBeHidden();
 
 	const refs = {
-		location: await firstName(page, "Fleet Location", "Nairobi"),
+		location: await firstName(page, "Fleet Location", QA_FIXTURES.locations[0]),
 		station: await firstName(page, "Fuel Station", QA_FIXTURES.station),
 		fuelType: await firstName(page, "Fuel Type", QA_FIXTURES.fuelTypes[0]),
 		asset: "",

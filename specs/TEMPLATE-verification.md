@@ -13,23 +13,21 @@ Three rules that keep this file from growing into a chronicle:
 3. Evidence of a run belongs in CI and git, linked from here. Never pasted in. A CI run
    proves it on an exact commit; pasted terminal output proves nothing and goes stale silently.
 
-Never record credentials, tokens, cookies, or session ids in this tracked file. Phase login
-values belong only in the gitignored, mode-0600 `verification/CREDENTIALS.md` required by
-`CLAUDE.md`; refer to that path without copying its contents.
+Never record credentials, tokens, cookies, or session ids in any form.
 -->
 
 # Phase <N> — <name>
 
 | | |
 |---|---|
-| Specification | [`../spec.md`](../spec.md) @ `<approved revision>` |
+| Specification | [`../requirements.md`](../requirements.md) (or `../bugfix.md`) · [`../design.md`](../design.md) @ `<approved revision>` |
 | Status | `Not started` \| `In progress` \| `Ready for review` \| `Complete` |
 | Started / Closed | `<YYYY-MM-DD>` / `<YYYY-MM-DD>` |
 | Author | `<name>` |
-| Reviewed by | `<reviewer>` |
+| Reviewed by | `@<gh-login> · DD/MM/YYYY · model <model or "human">` |
 | Signed off | `<name>, <YYYY-MM-DD>` |
 | Landed in | `<PR link>` |
-| Covers | `<acceptance criteria>` |
+| Covers | `Requirements <N.k, …>` |
 
 ## What this phase makes true
 
@@ -76,7 +74,7 @@ and the outcome that must follow.
 
 | # | Put the system in this state | Expect | Covers |
 |---|---|---|---|
-| 1 | <as role X, do Y> | <outcome> | `AC-n` |
+| 1 | <as role X, do Y> | <outcome> | `N.k` |
 
 **How to run it.** <Which rows the automated suite covers and the command; which rows need a
 real Desk walkthrough or a live pull request, and why they cannot be automated.>

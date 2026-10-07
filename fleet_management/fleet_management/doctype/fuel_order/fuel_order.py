@@ -10,6 +10,10 @@ from fleet_management.fleet_management.doctype.fleet_asset.fleet_asset import (
 	get_assignment_snapshot,
 	get_effective_assignment,
 )
+from fleet_management.fleet_management.doctype.fuel_station.fuel_station import (
+	get_served_locations,
+	get_stations_serving,
+)
 from fleet_management.fleet_management.doctype.fueling_transaction.fueling_transaction import (
 	resolve_attached_file,
 	validate_evidence_file,
@@ -89,11 +93,7 @@ class FuelOrder(Document):
 			("Pending Approval", "Rejected"): "rejected",
 		}.get((previous_state, self.workflow_state))
 		action_event = self._record_workflow_history(previous_state)
-		if (
-			action_event
-			and self.workflow_state == "Approved"
-			and self.quantity_authorization == "Partial"
-		):
+		if action_event and self.workflow_state == "Approved" and self.quantity_authorization == "Partial":
 			signal_event = latest_signal_history_event(self.name)
 			record_history_event(
 				self.name,
@@ -740,7 +740,7 @@ class FuelOrder(Document):
 		station = frappe.db.get_value(
 			"Fuel Station",
 			self.planned_station,
-			["name", "active", "approved", "operational_location"],
+			["name", "active", "approved"],
 			as_dict=True,
 		)
 		if not station or not station.active or not station.approved:
@@ -748,9 +748,10 @@ class FuelOrder(Document):
 				frappe._("Planned station must reference an existing active, approved Fuel Station."),
 				frappe.ValidationError,
 			)
-		if self.operational_location and station.operational_location != self.operational_location:
+		# A station serves its own location and every Also Serves location (spec 006 D-7).
+		if self.operational_location and self.operational_location not in get_served_locations(station.name):
 			frappe.throw(
-				frappe._("Planned station must belong to the operational location."),
+				frappe._("Planned station must serve the operational location."),
 				frappe.ValidationError,
 			)
 
@@ -942,14 +943,7 @@ def get_request_facts(asset: str):
 	asset_doc = frappe.get_doc("Fleet Asset", asset)
 	asset_doc.check_permission("read")
 	assignment = get_effective_assignment(asset_doc)
-	stations = []
-	if assignment:
-		stations = frappe.get_all(
-			"Fuel Station",
-			filters={"operational_location": assignment.assigned_location, "active": 1, "approved": 1},
-			pluck="name",
-			limit=2,
-		)
+	stations = get_stations_serving(assignment.assigned_location) if assignment else []
 	return {
 		**(get_assignment_snapshot(asset_doc) or {}),
 		"asset_type": asset_doc.asset_type,
@@ -974,12 +968,8 @@ def preview_signal(
 	driver=None,
 ):
 	"""Preview an unsaved order with the same server-side facts and rules used on save."""
-	request_meter_reading = (
-		None if request_meter_reading in (None, "") else flt(request_meter_reading)
-	)
-	request_gauge_percent = (
-		None if request_gauge_percent in (None, "") else flt(request_gauge_percent)
-	)
+	request_meter_reading = None if request_meter_reading in (None, "") else flt(request_meter_reading)
+	request_gauge_percent = None if request_gauge_percent in (None, "") else flt(request_gauge_percent)
 	authorized_quantity_litres = (
 		None if authorized_quantity_litres in (None, "") else flt(authorized_quantity_litres)
 	)

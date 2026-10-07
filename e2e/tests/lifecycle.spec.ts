@@ -37,7 +37,7 @@ async function loginAs(page: Parameters<typeof openNew>[0], email: string) {
 }
 
 test("a Fuel Order goes draft -> approved -> cancelled", async ({ page }) => {
-	const location = await firstName(page, "Fleet Location", "Nairobi");
+	const location = await firstName(page, "Fleet Location", QA_FIXTURES.locations[0]);
 	const station = await firstName(page, "Fuel Station", QA_FIXTURES.station);
 	const asset = await firstName(page, "Fleet Asset", QA_FIXTURES.asset);
 	const requester = await firstName(page, "Fleet Person", QA_FIXTURES.requester);

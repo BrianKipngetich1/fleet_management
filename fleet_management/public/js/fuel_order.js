@@ -3,8 +3,8 @@ function set_meter_label(frm) {
 		frm.doc.asset_type === "Vehicle"
 			? __("Odometer")
 			: frm.doc.asset_type === "Generator"
-				? __("Hour Meter")
-				: __("Meter Reading");
+			? __("Hour Meter")
+			: __("Meter Reading");
 	frm.set_df_property("request_meter_reading", "label", label);
 }
 
@@ -25,9 +25,9 @@ function summary_row(label, value, unit) {
 	return (
 		'<div class="fuel-order-summary-row"><span class="text-muted">' +
 		escape_panel_text(label) +
-		'</span><strong>' +
+		"</span><strong>" +
 		escape_panel_text(summary_value(value, unit)) +
-		'</strong></div>'
+		"</strong></div>"
 	);
 }
 
@@ -35,9 +35,9 @@ function summary_card(title, rows) {
 	return (
 		'<div class="fuel-order-summary-card"><div class="fuel-order-summary-title">' +
 		escape_panel_text(title) +
-		'</div>' +
+		"</div>" +
 		rows.map((row) => summary_row(row[0], row[1], row[2])).join("") +
-		'</div>'
+		"</div>"
 	);
 }
 
@@ -54,9 +54,11 @@ function render_vehicle_summary(frm) {
 		summary.html(
 			'<div class="text-muted">' +
 				escape_panel_text(
-					__("Select an asset to see its vehicle, assignment, previous-entry, and estimate summary.")
+					__(
+						"Select an asset to see its vehicle, assignment, previous-entry, and estimate summary."
+					)
 				) +
-			'</div>'
+				"</div>"
 		);
 		return;
 	}
@@ -83,9 +85,10 @@ function render_vehicle_summary(frm) {
 		[__("Home location"), frm.doc.assigned_location_snapshot],
 	];
 	const noPreviousEntry = frm.doc.previous_entry_source === "none";
-	const previous_date = !noPreviousEntry && frm.doc.previous_entry_date
-		? frappe.datetime.str_to_user(frm.doc.previous_entry_date)
-		: null;
+	const previous_date =
+		!noPreviousEntry && frm.doc.previous_entry_date
+			? frappe.datetime.str_to_user(frm.doc.previous_entry_date)
+			: null;
 	const history_rows = [
 		[
 			__("Previous entry"),
@@ -114,8 +117,8 @@ function render_vehicle_summary(frm) {
 			economySource === "recent_average"
 				? __("recent weighted average")
 				: economySource === "vehicle_target"
-					? __("vehicle target")
-					: __("source not recorded");
+				? __("vehicle target")
+				: __("source not recorded");
 		history_rows.push([
 			`${__("Applicable fuel economy")} (${sourceLabel})`,
 			requestSummary.average_km_per_litre ?? frm.doc.average_km_per_litre,
@@ -131,16 +134,16 @@ function render_vehicle_summary(frm) {
 	summary.html(
 		'<div class="fuel-order-summary-heading">' +
 			escape_panel_text(__("Selected Asset Summary")) +
-		'</div><div class="row fuel-order-summary">' +
+			'</div><div class="row fuel-order-summary">' +
 			cards
 				.map(
 					(card) =>
 						'<div class="col-12 col-md-6 col-xl-4 mb-3">' +
 						summary_card(card[0], card[1]) +
-						'</div>'
+						"</div>"
 				)
 				.join("") +
-			'</div>'
+			"</div>"
 	);
 }
 
@@ -156,17 +159,19 @@ function render_order_history(frm, events, error) {
 	const field = frm.fields_dict.history_html;
 	if (!field) return;
 	if (error) {
-		field.set_value('<p class="text-muted">' + escape_panel_text(error) + '</p>');
+		field.set_value('<p class="text-muted">' + escape_panel_text(error) + "</p>");
 		return;
 	}
 	if (!events || !events.length) {
-		field.set_value('<p class="text-muted">' + __("No saved history events yet.") + '</p>');
+		field.set_value('<p class="text-muted">' + __("No saved history events yet.") + "</p>");
 		return;
 	}
 	const events_by_name = new Map(events.map((event) => [event.name, event]));
 	const rows = events
 		.map((event) => {
-			const related_event = event.related_event ? events_by_name.get(event.related_event) : null;
+			const related_event = event.related_event
+				? events_by_name.get(event.related_event)
+				: null;
 			let facts = event.source_facts_json || "";
 			let evidence = [];
 			try {
@@ -181,52 +186,66 @@ function render_order_history(frm, events, error) {
 			}
 			const evidenceHtml = evidence
 				.map((reference) => {
-					const label = escape_panel_text(reference.file_name || reference.fieldname || reference.file);
+					const label = escape_panel_text(
+						reference.file_name || reference.fieldname || reference.file
+					);
 					const url = String(reference.file_url || "");
 					return url.startsWith("/private/files/")
-						? '<li><a href="' + escape_panel_text(url) + '">' + label + '</a></li>'
-						: '<li>' + label + '</li>';
+						? '<li><a href="' + escape_panel_text(url) + '">' + label + "</a></li>"
+						: "<li>" + label + "</li>";
 				})
 				.join("");
 			const capturedFacts = facts
-				? '<details><summary>' + __("Captured facts") + '</summary><pre>' + escape_panel_text(facts) + '</pre></details>'
+				? "<details><summary>" +
+				  __("Captured facts") +
+				  "</summary><pre>" +
+				  escape_panel_text(facts) +
+				  "</pre></details>"
 				: "";
 			const evidenceList = evidenceHtml
-				? '<p>' + __("Evidence") + '</p><ul>' + evidenceHtml + '</ul>'
+				? "<p>" + __("Evidence") + "</p><ul>" + evidenceHtml + "</ul>"
 				: "";
 			const relatedEventHtml = related_event
 				? '<p class="text-muted">' +
-					__("Related to:") +
-					' ' +
-					escape_panel_text(related_event.event_type) +
-					' — ' +
-					escape_panel_text(related_event.summary) +
-					'</p>'
+				  __("Related to:") +
+				  " " +
+				  escape_panel_text(related_event.event_type) +
+				  " — " +
+				  escape_panel_text(related_event.summary) +
+				  "</p>"
 				: "";
 			return (
 				'<li class="fuel-order-history-event"><strong>' +
 				escape_panel_text(event.event_type) +
-				':</strong> ' +
+				":</strong> " +
 				escape_panel_text(event.summary) +
 				'<p class="text-muted">' +
 				escape_panel_text(event.actor) +
-				' · ' +
+				" · " +
 				escape_panel_text(event.event_datetime) +
-				'</p>' +
+				"</p>" +
 				(event.reason
-					? '<p><strong>' + __("Reason or explanation:") + '</strong> ' + escape_panel_text(event.reason) + '</p>'
+					? "<p><strong>" +
+					  __("Reason or explanation:") +
+					  "</strong> " +
+					  escape_panel_text(event.reason) +
+					  "</p>"
 					: "") +
 				(event.fueling_transaction
-					? '<p>' + __("Fueling Transaction:") + ' ' + escape_panel_text(event.fueling_transaction) + '</p>'
+					? "<p>" +
+					  __("Fueling Transaction:") +
+					  " " +
+					  escape_panel_text(event.fueling_transaction) +
+					  "</p>"
 					: "") +
 				relatedEventHtml +
 				capturedFacts +
 				evidenceList +
-				'</li>'
+				"</li>"
 			);
 		})
 		.join("");
-	field.set_value('<ol class="fuel-order-history">' + rows + '</ol>');
+	field.set_value('<ol class="fuel-order-history">' + rows + "</ol>");
 }
 
 function load_order_history(frm) {
@@ -234,10 +253,11 @@ function load_order_history(frm) {
 		render_order_history(frm, []);
 		return;
 	}
-	frappe.call({
-		method: "fleet_management.history.get_order_history",
-		args: { name: frm.doc.name },
-	})
+	frappe
+		.call({
+			method: "fleet_management.history.get_order_history",
+			args: { name: frm.doc.name },
+		})
 		.then(({ message }) => render_order_history(frm, message || []))
 		.catch((error) =>
 			render_order_history(frm, null, error.message || __("History could not be loaded."))
@@ -248,7 +268,12 @@ function prompt_cancel_reason(frm, doctype) {
 	frappe.dom.unfreeze();
 	return new Promise((resolve, reject) => {
 		frappe.prompt(
-			{ fieldname: "reason", fieldtype: "Small Text", label: __("Cancellation reason"), reqd: 1 },
+			{
+				fieldname: "reason",
+				fieldtype: "Small Text",
+				label: __("Cancellation reason"),
+				reqd: 1,
+			},
 			({ reason }) =>
 				frappe
 					.call({
@@ -283,7 +308,9 @@ function render_signal_panel(frm, result) {
 			<div class="alert alert-warning" role="status">
 				<strong>${__("Signal preview unavailable")}</strong>
 				<p>${escape_panel_text(result.message)}</p>
-				<p>${__("This is a preview error, not a Red signal. Normal validation and permissions still apply.")}</p>
+				<p>${__(
+					"This is a preview error, not a Red signal. Normal validation and permissions still apply."
+				)}</p>
 			</div>
 		`);
 		return;
@@ -308,14 +335,19 @@ function render_signal_panel(frm, result) {
 		? `<strong>${__("Red signal — review needed")}</strong>`
 		: `<strong>${__("Green signal — every check passed")}</strong>`;
 	const baseline = result.signal_inputs && result.signal_inputs.mileage_baseline;
-	const baselineTime = baseline && baseline.timestamp ? frappe.datetime.str_to_user(baseline.timestamp) : "";
+	const baselineTime =
+		baseline && baseline.timestamp ? frappe.datetime.str_to_user(baseline.timestamp) : "";
 	const baselineDetails = baseline
 		? [
 				`${escape_panel_text(baseline.label)} — ${escape_panel_text(baseline.reference)}`,
 				`${__("Baseline Odometer:")} ${escape_panel_text(baseline.vehicle_odometer)} km`,
-				baselineTime ? `${__("Baseline date and time:")} ${escape_panel_text(baselineTime)}` : "",
-				baseline.fuel_order ? `${__("Fuel Order:")} ${escape_panel_text(baseline.fuel_order)}` : "",
-			]
+				baselineTime
+					? `${__("Baseline date and time:")} ${escape_panel_text(baselineTime)}`
+					: "",
+				baseline.fuel_order
+					? `${__("Fuel Order:")} ${escape_panel_text(baseline.fuel_order)}`
+					: "",
+		  ]
 				.filter(Boolean)
 				.join("; ")
 		: "";
@@ -333,12 +365,20 @@ function render_signal_panel(frm, result) {
 				`${(1 / average).toFixed(3)} L/km`,
 				`${(100 / average).toFixed(1)} L/100 km`,
 			].join("; ");
-			economy = `${escape_panel_text(average)} km/L (${__("recent weighted average")}; ${__("observed full-to-full equivalents")}: ${equivalents})`;
+			economy = `${escape_panel_text(average)} km/L (${__("recent weighted average")}; ${__(
+				"observed full-to-full equivalents"
+			)}: ${equivalents})`;
 		}
 		const comparison = [
-			`${__("Odometer distance travelled:")} ${escape_panel_text(mileageCheck.distance_km)} km`,
-			`${__("Expected distance:")} ${escape_panel_text(Number(mileageCheck.expected_distance_km).toFixed(1))} km`,
-			`${__("Estimated fuel used:")} ${escape_panel_text(mileageCheck.estimated_consumed_litres)} L`,
+			`${__("Odometer distance travelled:")} ${escape_panel_text(
+				mileageCheck.distance_km
+			)} km`,
+			`${__("Expected distance:")} ${escape_panel_text(
+				Number(mileageCheck.expected_distance_km).toFixed(1)
+			)} km`,
+			`${__("Estimated fuel used:")} ${escape_panel_text(
+				mileageCheck.estimated_consumed_litres
+			)} L`,
 			`${__("Applicable fuel economy:")} ${economy}`,
 			`${__("Allowed mileage margin:")} ±${escape_panel_text(mileageCheck.margin_percent)}%`,
 		].join("; ");
@@ -384,9 +424,13 @@ function show_saved_signal_panel(frm) {
 			.map((text) => ({ text, details: [], next_action: "Review the saved order." })),
 		next_action:
 			frm.doc.signal === "Red"
-				? __("A Fleet User may reject this order or send it to a permitted Fleet Approver with an explanation.")
+				? __(
+						"A Fleet User may reject this order or send it to a permitted Fleet Approver with an explanation."
+				  )
 				: __("A Fleet User may approve this green order."),
-		note: __("A signal is review information; evidence, permissions, and required-field checks still apply."),
+		note: __(
+			"A signal is review information; evidence, permissions, and required-field checks still apply."
+		),
 	});
 }
 
@@ -489,12 +533,10 @@ frappe.ui.form.on("Fuel Order", {
 			const locations = permissions.map((permission) => permission.doc).filter(Boolean);
 			return locations.length ? { filters: { name: ["in", locations] } } : {};
 		});
+		// Stations serving the order's location, including through Also Serves (spec 006 D-7).
 		frm.set_query("planned_station", () => ({
-			filters: {
-				operational_location: frm.doc.operational_location,
-				active: 1,
-				approved: 1,
-			},
+			query: "fleet_management.fleet_management.doctype.fuel_station.fuel_station.station_query",
+			filters: { operational_location: frm.doc.operational_location },
 		}));
 	},
 	operational_location(frm) {
@@ -537,29 +579,39 @@ frappe.ui.form.on("Fuel Order", {
 				previous_meter_reading: facts.previous_meter_reading,
 				previous_entry_date: facts.previous_entry_date,
 			});
-			if (requestId !== frm._fuel_order_asset_request_id || frm.doc.asset !== selectedAsset) return;
+			if (requestId !== frm._fuel_order_asset_request_id || frm.doc.asset !== selectedAsset)
+				return;
 			await frm.set_value({
 				driver: facts.custodian || null,
 				actual_requester: facts.custodian || null,
 			});
-			if (requestId !== frm._fuel_order_asset_request_id || frm.doc.asset !== selectedAsset) return;
+			if (requestId !== frm._fuel_order_asset_request_id || frm.doc.asset !== selectedAsset)
+				return;
 			if (facts.assigned_location_snapshot) {
 				await frm.set_value("operational_location", facts.assigned_location_snapshot);
 			}
-			if (requestId !== frm._fuel_order_asset_request_id || frm.doc.asset !== selectedAsset) return;
+			if (requestId !== frm._fuel_order_asset_request_id || frm.doc.asset !== selectedAsset)
+				return;
 			if (facts.suggested_station) {
 				await frm.set_value("planned_station", facts.suggested_station);
 			}
-			if (requestId !== frm._fuel_order_asset_request_id || frm.doc.asset !== selectedAsset) return;
+			if (requestId !== frm._fuel_order_asset_request_id || frm.doc.asset !== selectedAsset)
+				return;
 			if (facts.asset_type === "Generator") {
-				await frm.set_value({ request_gauge_percent: null, gauge_photo: null, estimated_litres: null });
+				await frm.set_value({
+					request_gauge_percent: null,
+					gauge_photo: null,
+					estimated_litres: null,
+				});
 			}
-			if (requestId !== frm._fuel_order_asset_request_id || frm.doc.asset !== selectedAsset) return;
+			if (requestId !== frm._fuel_order_asset_request_id || frm.doc.asset !== selectedAsset)
+				return;
 			render_vehicle_summary(frm);
 			set_meter_label(frm);
 			queue_signal_preview(frm);
 		} catch (error) {
-			if (requestId !== frm._fuel_order_asset_request_id || frm.doc.asset !== selectedAsset) return;
+			if (requestId !== frm._fuel_order_asset_request_id || frm.doc.asset !== selectedAsset)
+				return;
 			render_signal_panel(frm, {
 				status: "unavailable",
 				message: error.message || __("The asset summary could not be loaded."),
@@ -612,12 +664,14 @@ frappe.ui.form.on("Fuel Order", {
 				const savedSummary = savedSignal.request_summary || null;
 				if (savedSummary) {
 					savedSummary.applicable_fuel_economy_source =
-						savedSummary.applicable_fuel_economy_source || savedSignal.signal_inputs?.average_source;
+						savedSummary.applicable_fuel_economy_source ||
+						savedSignal.signal_inputs?.average_source;
 					if (
 						savedSummary.recent_observed_average_km_per_litre == null &&
 						savedSummary.applicable_fuel_economy_source === "recent_average"
 					) {
-						savedSummary.recent_observed_average_km_per_litre = savedSummary.average_km_per_litre;
+						savedSummary.recent_observed_average_km_per_litre =
+							savedSummary.average_km_per_litre;
 					}
 				}
 				frm._fuel_order_request_summary = savedSummary;
@@ -672,7 +726,6 @@ frappe.ui.form.on("Fuel Order", {
 		);
 	},
 });
-
 
 frappe.ui.form.on("Fueling Transaction", {
 	before_cancel(frm) {
