@@ -1,5 +1,5 @@
 import { execFileSync, execSync } from "node:child_process";
-import { assertTestSite, TEST_SITE } from "./target";
+import { assertTestSite, TEST_SITE } from "./target.ts";
 
 const BENCH_ROOT = process.env.BENCH_ROOT || "/home/kayadmin/frappe-bench";
 const SITE = assertTestSite(process.env.E2E_SITE || TEST_SITE);

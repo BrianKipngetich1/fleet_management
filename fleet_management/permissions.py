@@ -13,6 +13,7 @@ from frappe.utils import today
 from fleet_management.fleet_management.doctype.fleet_asset.fleet_asset import get_effective_assignment
 
 LOCATION_DOCTYPE = "Fleet Location"
+HISTORY_EVENT_DOCTYPE = "Fuel Order History Event"
 LOCATION_ROLES = frozenset({"Fleet User", "Fleet Approver"})
 SCOPED_DOCTYPES = frozenset(
 	{
@@ -23,6 +24,7 @@ SCOPED_DOCTYPES = frozenset(
 		"Fuel Order",
 		"Fueling Transaction",
 		"Fueling Discrepancy",
+		HISTORY_EVENT_DOCTYPE,
 	}
 )
 
@@ -207,7 +209,19 @@ def get_permission_query_conditions(user=None, doctype=None):
 		return ""
 
 	locations = get_permitted_location_names(user)
-	return _query_condition(doctype, locations) if locations else "1=0"
+	if not locations:
+		return "1=0"
+	if doctype == HISTORY_EVENT_DOCTYPE:
+		q = chr(96)
+		return (
+			"EXISTS (SELECT 1 FROM " + q + "tabFuel Order" + q + " "
+			"WHERE " + q + "tabFuel Order" + q + "." + q + "name" + q
+			+ " = " + q + "tabFuel Order History Event" + q + "." + q + "fuel_order" + q + " "
+			"AND " + q + "tabFuel Order" + q + "." + q + "assigned_location_snapshot" + q + " IN ("
+			+ _escaped_locations(locations)
+			+ "))"
+		)
+	return _query_condition(doctype, locations)
 
 
 def get_report_query_conditions(doctype, user=None):
@@ -218,10 +232,22 @@ def get_report_query_conditions(doctype, user=None):
 def has_permission(doc, ptype=None, user=None, debug=False):
 	"""Deny direct, print, report, and action access outside the location scope."""
 	user = _user(user)
-	if not doc or _is_unrestricted(user) or not _is_location_scoped(user):
+	if not doc:
 		return True
 
-	if doc.get("doctype") not in SCOPED_DOCTYPES:
+	doctype = doc.get("doctype")
+	if doctype == HISTORY_EVENT_DOCTYPE:
+		if ptype not in (None, "read"):
+			return False
+		order_name = doc.get("fuel_order")
+		return bool(
+			order_name
+			and frappe.has_permission("Fuel Order", "read", order_name, user=user)
+		)
+
+	if _is_unrestricted(user) or not _is_location_scoped(user):
+		return True
+	if doctype not in SCOPED_DOCTYPES:
 		return True
 
 	return bool(_document_location_names(doc) & get_permitted_location_names(user))

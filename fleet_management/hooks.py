@@ -48,7 +48,7 @@ fixtures = [
 # ------------------
 
 # include js, css files in header of desk.html
-# app_include_css = "/assets/fleet_management/css/fleet_management.css"
+app_include_css = "/assets/fleet_management/css/fuel_order.css"
 # app_include_js = "/assets/fleet_management/js/fleet_management.js"
 
 # include js, css files in header of web template
@@ -173,6 +173,7 @@ permission_query_conditions = {
 		"Fuel Order",
 		"Fueling Transaction",
 		"Fueling Discrepancy",
+		"Fuel Order History Event",
 	)
 }
 
@@ -181,6 +182,7 @@ after_request = ["fleet_management.request.strip_api_tracebacks"]
 
 doctype_js = {
 	"Fuel Order": "public/js/fuel_order.js",
+	"Fueling Transaction": "public/js/fuel_order.js",
 }
 
 scheduler_events = {
