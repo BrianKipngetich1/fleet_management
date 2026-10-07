@@ -130,8 +130,8 @@ disables the sandbox by default for the same reason).
 tenancy scoping, list and form rendering, create/submit/cancel, permission allow and deny. It
 is never per phase and must never encode one phase's acceptance criterion — its only job is
 proving a finished phase broke nothing. `e2e/fixtures.ts` is the only file that carries project
-facts, and every fact in it names a sample-data record: Philip, Vikas, and Amina as the suite's
-users, and the pool vehicle KDH 201A for its generic orders. The suite never creates users,
+facts, and every fact in it names a sample-data record: Phyllis, Vishal, and the Kanha-only
+approver as the suite's users, and the Kabete vehicle KAY222A for its generic orders. The suite never creates users,
 permissions, or master data; its setup step only checks the sample data is present and stops with
 the rebuild command when it is not. `npm run test:ui` before every push.
 
@@ -152,10 +152,11 @@ and throwaway records, QA user creation and deletion, unauthorised-access probes
 fleet-test-site up` whenever a walkthrough, Playwright run, or backend test run is needed, and throw
 it away with `bench fleet-test-site down` when that testing is done. Each build installs the
 current code into an empty database, copies the main site's regional settings, completes the
-setup wizard, and loads the fixed sample data in `fleet_management/sample_data.py` — Philip
-(Fleet User) and Vikas (Fleet Approver) in Nairobi, Amina (Fleet Approver) in Mombasa, the
-Krystalline Salt locations, real vehicle models and standby generators, and about two months of
-fuelling history. Describe checks and walkthroughs in those terms ("as Philip, open KDA 412M").
+setup wizard, and loads the fixed sample data in `fleet_management/sample_data.py` — Phyllis
+(Fleet User) and Vishal (Fleet Approver) on both Kabete and Kanha, a test approver on Kanha only,
+a Fleet Admin, Ecoflame Limited as the station serving both companies, the company's 15 real
+vehicles and a generator, and no fuelling history until the September 2026 history is copied in.
+Describe checks and walkthroughs in those terms ("as Phyllis, open KAY222A").
 Nothing on the site is a record: evidence lives in CI, git, and the phase records. The build needs
 no MariaDB root access — the site's own database user rebuilds its one database. Following Frappe's own UI
 test convention, both tools reach it through the bench's standard web server (the `frappe-web`

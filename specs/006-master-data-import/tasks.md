@@ -53,7 +53,7 @@ raises an order to Ecoflame with Mrs. Danbhai Kanji as driver; Vishal signs off 
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 - [x] 3.4 Test Property 7 (Phyllis's orders with the holder as driver, green and red routes to Vishal, Ecoflame on the slip)
   - _Requirements: 5.1, 5.2, 5.4, 2.5, 4.3_
-- [ ] 3.5 Update the browser-test facts (`e2e/fixtures.ts`, `e2e/setup.ts`) and the project notes that name the old people and places
+- [x] 3.5 Update the browser-test facts (`e2e/fixtures.ts`, `e2e/setup.ts`) and the project notes that name the old people and places
   - _Requirements: 5.3, 2.3_
 
 ## Phase 4: The same fleet on the main site
@@ -122,3 +122,8 @@ site shows the same fill-ups for each vehicle.
   orders for a Kabete and a Kanha vehicle with the holder driving and herself as representative, approves
   green, sends red with a reason to Vishal, who signs off; the slip shows Ecoflame's address and email.
   Each test uses its own vehicles (an earlier test's open order would turn the next red). Next: 3.5.
+- `07/10/2026`: 3.5 Browser-test facts and CLAUDE.md now describe the real fleet (Phyllis, Vishal, the Kanha-only
+  approver, Ecoflame, KAY222A); setup checks each user's companies as an exact set. Playwright 24/24 on a
+  rebuilt test site, confirmed by an independent verifier (PASS). Known limitation: the tenancy list check
+  cannot tell users apart now that Phyllis holds both companies; the acceptance spec proves the split.
+  Part 2 complete. Next: 4.1.
