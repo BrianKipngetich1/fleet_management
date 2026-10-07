@@ -9,6 +9,7 @@
   {
    "fieldname": "fleet_location",
    "fieldtype": "Link",
+   "ignore_user_permissions": 1,
    "in_list_view": 1,
    "label": "Fleet Location",
    "options": "Fleet Location",

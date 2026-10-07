@@ -35,7 +35,7 @@ list, and an order for a vehicle at that second company accepts the station.
   - _Requirements: 4.2_
 - [x] 2.2 Serve the whole set: `get_served_locations`, `_validate_station`, `get_request_facts`, and a whitelisted `station_query` used by the order form
   - _Requirements: 4.1, 2.4_
-- [ ] 2.3 Scope stations by the whole set in `permissions.py`
+- [x] 2.3 Scope stations by the whole set in `permissions.py`
   - _Requirements: 5.3_
 - [ ] 2.4 Test Property 5 (accepted when served, refused when not, suggestion and search agree) and Property 6 (shared station visible, other company's orders and vehicles refused)
   - _Requirements: 4.1, 4.2, 2.4, 5.3_
@@ -94,3 +94,7 @@ site shows the same fill-ups for each vehicle.
 - `07/10/2026`: 2.2 Orders accept any station serving their location (own or Also Serves); the vehicle's
   station suggestion and the order form's station search use the same rule (new `station_query`).
   Refusal now reads "Planned station must serve the operational location." Main site migrated. Next: 2.3.
+- `07/10/2026`: 2.3 A Fleet User or Approver sees a station wherever it serves (own location or Also
+  Serves), in lists and when opening it. The station's location links no longer go through Frappe's
+  own User Permission filter (as Fuel Order already does), so the app's location scope alone decides.
+  Main site migrated. Next: 2.4.

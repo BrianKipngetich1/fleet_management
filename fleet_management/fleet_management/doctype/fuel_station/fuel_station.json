@@ -23,6 +23,7 @@
   {
    "fieldname": "operational_location",
    "fieldtype": "Link",
+   "ignore_user_permissions": 1,
    "in_list_view": 1,
    "label": "Operational Location",
    "options": "Fleet Location",
