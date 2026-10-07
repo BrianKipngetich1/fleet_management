@@ -51,7 +51,7 @@ raises an order to Ecoflame with Mrs. Danbhai Kanji as driver; Vishal signs off 
   - _Requirements: 3.2, 5.1, 5.2_
 - [x] 3.3 Test Property 3 (the listed fleet, every time) and Property 4 (only adds, keeps edits)
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
-- [ ] 3.4 Test Property 7 (Phyllis's orders with the holder as driver, green and red routes to Vishal, Ecoflame on the slip)
+- [x] 3.4 Test Property 7 (Phyllis's orders with the holder as driver, green and red routes to Vishal, Ecoflame on the slip)
   - _Requirements: 5.1, 5.2, 5.4, 2.5, 4.3_
 - [ ] 3.5 Update the browser-test facts (`e2e/fixtures.ts`, `e2e/setup.ts`) and the project notes that name the old people and places
   - _Requirements: 5.3, 2.3_
@@ -118,3 +118,7 @@ site shows the same fill-ups for each vehicle.
   session (008 now merges 009 and migrated the main site at 13:01, removing this branch's station table
   there; no records exist on the main site). Owner: switch back after this work. Main-site migrations
   skipped from here until Phase 4. Next: 3.4.
+- `07/10/2026`: 3.4 `tests/test_real_fleet_routes.py` (Property 7) passes 3/3 on the MariaDB test site: Phyllis
+  orders for a Kabete and a Kanha vehicle with the holder driving and herself as representative, approves
+  green, sends red with a reason to Vishal, who signs off; the slip shows Ecoflame's address and email.
+  Each test uses its own vehicles (an earlier test's open order would turn the next red). Next: 3.5.
