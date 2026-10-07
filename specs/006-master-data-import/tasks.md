@@ -63,7 +63,7 @@ vehicles at Kabete and Kanha and Ecoflame as their station.
 
 - [x] 4.1 Add `load_main`, which links Phyllis and Vishal to the main-site logins and adds their company access
   - _Requirements: 3.3, 5.1, 5.2_
-- [ ] 4.2 Run `load_main` once on the main site and confirm a second run adds nothing
+- [x] 4.2 Run `load_main` once on the main site and confirm a second run adds nothing
   - _Requirements: 3.1, 3.3, 3.5_
 
 ## Phase 5: September's history becomes the test history (later)
@@ -131,3 +131,10 @@ site shows the same fill-ups for each vehicle.
   `fleet.user@example.com` and Vishal to `fleet.approver@example.com` (never overwriting a link), and adds
   any missing Kabete and Kanha access for both; a missing login is skipped and named. Master-data tests
   pass 9/9 and sample-data 3/3 on a rebuilt MariaDB test site. Next: 4.2.
+- `07/10/2026`: 4.2 The main site was backed up (`~/Backups/frappe-bench/site-backups/fleet_management.localhost/20261007-before-real-fleet/`),
+  migrated from `feature/008-overseer-reports` with this branch merged in (so it now runs merged 008, with
+  009 and 006), and loaded with `load_main`: 2 companies, 2 fuel types, 14 models, 12 people, Ecoflame
+  (Kabete, also Kanha, with its address), 15 assets, and Kabete and Kanha access for
+  `fleet.user@example.com` (Phyllis) and `fleet.approver@example.com` (Vishal). A second run added nothing.
+  No orders or fuellings; dd/mm/yyyy. Part 3 complete. Next: pre-PR checks (1.5) when the owner asks to
+  publish; Phase 5 after September's history exists.
