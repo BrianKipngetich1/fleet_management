@@ -57,7 +57,7 @@ criterion is cited by at least one task. Tick a task's checkbox when it is commi
 
 - [x] 4.1 Add distinct Approvals, Flag Reports, and Discrepancy Reports sections to Requests & Audit; show every flagged request's status, reason, and source links.
   - _Requirements: 3.5, 3.6, 4.1, 4.2_
-- [ ] 4.2 Apply a full-row Green/Red warning gradient to linked Fueling Summary transaction rows; leave unflagged rows, monthly totals, status text, and exports unchanged.
+- [x] 4.2 Apply a full-row Green/Red warning gradient to linked Fueling Summary transaction rows; leave unflagged rows, monthly totals, status text, and exports unchanged.
   - _Requirements: 1.5, 1.7, 4.1, 4.2_
 - [ ] 4.3 Extend Asset Performance to default to all retained asset history with optional date filters and graph monthly delivered litres alongside valid-interval km/L efficiency for vehicles.
   - _Requirements: 2.1, 2.2, 2.5, 4.1, 4.2_
@@ -65,6 +65,8 @@ criterion is cited by at least one task. Tick a task's checkbox when it is commi
   - _Requirements: 1.5, 1.7, 2.1, 2.5, 3.5, 3.6, 4.1, 4.2, 5.1_
 
 ## Progress log
+
+- `08/10/2026`: Task 4.2 complete. Fueling Summary carries linked Fuel Order warning status and reasons as non-column row metadata. Its formatter shades every cell of warned transaction rows with a Green/Red gradient; Green rows without a warning reason and monthly totals stay neutral, and export columns are unchanged. On the disposable site, the warning metadata unit test and existing filter/export integration test passed. Main and test-site migrations passed with Locale matched; JSON validity, Python compilation, JavaScript syntax, diff checks, and spec-check passed. Ruff is unavailable. No test records were created on the main site. Next: task 4.3.
 
 - `08/10/2026`: Task 4.1 complete. Added section buttons and a shared Section filter for Approvals, Flag Reports, Discrepancy Reports, and All Audit; the selected rows remain the standard export source, and All Audit retains cancellation rows. Flag Reports include Green/Red requests only when a warning reason exists, with request/decision status and any linked fueling transaction. The disposable test site passed all 3 Requests & Audit unit and 3 integration tests, including section filters, reasons, linked transactions, discrepancy-only rows, exports, and cancellation status. Main and test-site migrations passed with Locale matched; JSON validity, Python compilation, JavaScript syntax, diff checks, and spec-check passed. Ruff is unavailable. No test records were created on the main site. Next: task 4.2.
 

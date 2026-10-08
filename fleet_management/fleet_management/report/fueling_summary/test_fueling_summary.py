@@ -79,6 +79,35 @@ class TestFuelingSummary(UnitTestCase):
 		self.assertEqual(chart["data"]["labels"], ["2025-12", "2026-01"])
 		self.assertEqual(chart["data"]["datasets"][0]["values"], [4000, 0])
 
+	def test_warning_metadata_is_only_attached_to_warned_detail_rows(self):
+		data, _ = _build_report_rows(
+			[
+				{
+					"name": "FT-RED",
+					"fueling_datetime": "2026-10-01 09:00:00",
+					"delivered_litres": 10,
+					"invoice_amount": 2000,
+					"warning_status": "Red",
+					"warning_reasons": "Review the meter reading.",
+				},
+				{
+					"name": "FT-GREEN",
+					"fueling_datetime": "2026-10-02 09:00:00",
+					"delivered_litres": 10,
+					"invoice_amount": 2000,
+					"warning_status": "Green",
+					"warning_reasons": None,
+				},
+			]
+		)
+
+		self.assertEqual(data[1]["warning_status"], "Red")
+		self.assertEqual(data[1]["warning_reasons"], "Review the meter reading.")
+		self.assertEqual(data[2]["warning_status"], "Green")
+		self.assertIsNone(data[2]["warning_reasons"])
+		self.assertNotIn("warning_status", data[0])
+		self.assertNotIn("warning_reasons", data[0])
+
 
 class TestFuelingSummaryPermissions(ReportHistoryFixture, IntegrationTestCase):
 	"""Exercise spec 008-overseer-reports Requirements 1.3, 1.4, 1.5, 3.4, 4.1, and 4.2."""
@@ -194,6 +223,7 @@ class TestFuelingSummaryPermissions(ReportHistoryFixture, IntegrationTestCase):
 			)
 			self.assertEqual(report["chart"]["data"]["labels"], [fueling_date.strftime("%Y-%m")])
 			csv_rows = self._export_csv(filters)
+			self.assertNotIn("Warning Status", csv_rows[0])
 			csv_details = [row for row in csv_rows if row["Row Type"] == "Fueling transaction"]
 			self.assertEqual(
 				{row["Fueling Transaction"] for row in csv_details},

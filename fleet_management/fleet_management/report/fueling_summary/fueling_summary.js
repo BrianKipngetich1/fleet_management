@@ -44,6 +44,13 @@ frappe.query_reports["Fueling Summary"] = {
 		if (data?.row_type === __("Monthly total")) {
 			return `<strong>${formatted}</strong>`;
 		}
+		const color = {
+			Green: "34, 197, 94",
+			Red: "239, 68, 68",
+		}[data?.warning_status];
+		if (data?.row_type === __("Fueling transaction") && data.warning_reasons && color) {
+			return `<div style="box-sizing:border-box;height:100%;margin:-8px;padding:8px;background:linear-gradient(90deg,rgba(${color},0.22),rgba(${color},0.06))">${formatted}</div>`;
+		}
 		return formatted;
 	},
 };

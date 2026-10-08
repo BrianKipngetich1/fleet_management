@@ -129,7 +129,9 @@ def execute(filters=None):
 			{TRANSACTION_TABLE}.actual_fueling_datetime AS fueling_datetime,
 			{TRANSACTION_TABLE}.invoice_litres AS delivered_litres,
 			{TRANSACTION_TABLE}.invoice_amount AS invoice_amount,
-			{TRANSACTION_TABLE}.printed_unit_price AS printed_unit_price
+			{TRANSACTION_TABLE}.printed_unit_price AS printed_unit_price,
+			{ORDER_TABLE}.signal AS warning_status,
+			{ORDER_TABLE}.signal_reasons AS warning_reasons
 		FROM {TRANSACTION_TABLE}
 		LEFT JOIN {ORDER_TABLE} ON {ORDER_TABLE}.name = {TRANSACTION_TABLE}.fuel_order
 		WHERE {' AND '.join(conditions)}
@@ -205,6 +207,8 @@ def _build_report_rows(transactions):
 			"amount_status": _("Recorded") if has_amount else _("Unavailable"),
 			"calculated_price_per_litre": flt(amount / litres, 4) if has_amount and litres > 0 else None,
 			"printed_unit_price": printed_price if printed_price > 0 else None,
+			"warning_status": transaction.warning_status,
+			"warning_reasons": transaction.warning_reasons,
 		}
 		bucket = months[month]
 		bucket["records"].append(record)
