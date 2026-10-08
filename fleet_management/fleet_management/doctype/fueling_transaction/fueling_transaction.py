@@ -41,6 +41,8 @@ KPI_FIELDS = (
 	"qualifying_litres",
 	"km_per_litre",
 )
+FUEL_TAX_RATE = 0.08
+CURRENCY_PRECISION = 2
 
 
 def normalize_identifier(value):
@@ -77,6 +79,75 @@ def calculate_vehicle_interval(previous_odometer, current_odometer, qualifying_l
 		"qualifying_litres": qualifying_litres,
 		"km_per_litre": distance_km / qualifying_litres,
 	}
+
+
+@frappe.whitelist()
+def get_fuel_order_context(fuel_order):
+	"""Return the linked order facts for the read-only transaction form panel."""
+	if not fuel_order:
+		return None
+
+	if not frappe.has_permission("Fuel Order", "read", fuel_order):
+		frappe.throw(
+			frappe._("You do not have access to the linked Fuel Order."), frappe.PermissionError
+		)
+	order = frappe.get_doc("Fuel Order", fuel_order)
+
+	asset = frappe.get_doc("Fleet Asset", order.asset)
+	station = frappe.db.get_value("Fuel Station", order.planned_station, "station_name")
+	location = frappe.db.get_value("Fleet Location", order.operational_location, "location_name")
+	fuel = frappe.db.get_value("Fuel Type", order.fuel_type, "fuel_type_name")
+	driver = frappe.db.get_value("Fleet Person", order.driver, "person_name")
+	representative = frappe.db.get_value(
+		"Fleet Person", order.company_representative, "person_name"
+	)
+	vehicle_model = (
+		frappe.db.get_value("Vehicle Model", asset.vehicle_model, "model")
+		if asset.vehicle_model
+		else None
+	)
+
+	return {
+		"order_number": order.name,
+		"can_print_slip": frappe.has_permission("Fuel Order", "print", order),
+		"workflow_state": order.workflow_state,
+		"asset_identifier": asset.asset_identifier,
+		"asset_type": asset.asset_type,
+		"vehicle_model": vehicle_model,
+		"location": location or order.operational_location,
+		"station": station or order.planned_station,
+		"station_link": order.planned_station,
+		"fuel_type": fuel or order.fuel_type,
+		"fuel_type_link": order.fuel_type,
+		"quantity_authorization": order.quantity_authorization,
+		"authorized_quantity_litres": order.authorized_quantity_litres,
+		"estimated_litres": order.estimated_litres,
+		"approved_on": order.approved_on,
+		"valid_until": order.valid_until,
+		"driver": driver or order.driver,
+		"company_representative": representative or order.company_representative,
+	}
+
+
+@frappe.whitelist(methods=["GET"])
+def get_generator_efficiency(transaction_name: str):
+	"""Return this readable transaction's valid generator efficiency, if available."""
+	if not frappe.has_permission("Fueling Transaction", "read", transaction_name):
+		frappe.throw(
+			frappe._("You do not have access to this Fueling Transaction."), frappe.PermissionError
+		)
+
+	transaction = frappe.get_doc("Fueling Transaction", transaction_name)
+	if transaction.docstatus != 1 or not transaction.asset:
+		return None
+	if frappe.db.get_value("Fleet Asset", transaction.asset, "asset_type") != "Generator":
+		return None
+
+	from fleet_management.fleet_management.report.fueling_transaction_analysis.fueling_transaction_analysis import (
+		_generator_intervals,
+	)
+
+	return _generator_intervals({transaction.asset}).get(transaction.name, {}).get("litres_per_hour")
 
 
 def resolve_attached_file(doc, fieldname, label, missing_message=None):
@@ -182,6 +253,31 @@ class FuelingTransaction(Document):
 
 	def validate(self):
 		self._validate_submitted_immutability()
+		self._validate_new_invoice_amounts()
+		self._calculate_invoice_amounts()
+
+	def _validate_new_invoice_amounts(self):
+		if not self.is_new():
+			return
+
+		if flt(self.invoice_litres) <= 0:
+			frappe.throw(frappe._("Enter positive invoice litres before saving."), frappe.ValidationError)
+		if flt(self.pre_tax_amount) <= 0:
+			frappe.throw(
+				frappe._("Enter a positive pre-tax fuel amount in KES before saving."),
+				frappe.ValidationError,
+			)
+
+	def _calculate_invoice_amounts(self):
+		pre_tax_amount = flt(self.pre_tax_amount, CURRENCY_PRECISION)
+		if pre_tax_amount < 0:
+			frappe.throw(
+				frappe._("Pre-tax fuel amount cannot be negative."), frappe.ValidationError
+			)
+
+		self.pre_tax_amount = pre_tax_amount
+		self.tax_amount = flt(pre_tax_amount * FUEL_TAX_RATE, CURRENCY_PRECISION)
+		self.invoice_total = flt(pre_tax_amount + self.tax_amount, CURRENCY_PRECISION)
 
 	def before_submit(self):
 		if not {"Fleet User", "Fleet Admin"}.intersection(frappe.get_roles()):

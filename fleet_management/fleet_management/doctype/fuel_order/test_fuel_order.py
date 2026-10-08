@@ -605,6 +605,8 @@ class TestFuelOrder(IntegrationTestCase):
 				"doctype": "Fueling Transaction",
 				"fuel_order": order.name,
 				"actual_fueling_datetime": get_datetime(order.approved_on) + timedelta(minutes=1),
+				"invoice_litres": 20,
+				"pre_tax_amount": 100,
 			}
 		).insert(ignore_permissions=True)
 
