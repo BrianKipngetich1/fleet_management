@@ -145,7 +145,7 @@ the first 001 Phase 1 location-access work).
   extension and content type.
 - **Test harness** (built 2026-09-25 at the owner's request, ahead of this approval):
   `fleet_management/sample_data.py` loads the D-14 data; `bench fleet-test-site up|down` builds and
-  removes the test site with logins from the 001 `CREDENTIALS.md`.
+  removes the test site with logins from the root `CREDENTIALS.md`.
 - **Reference slip**: the owner's scan, kept locally and untracked, at
   `specs/001-fleet-fuel-management/To Build/F.O (Fuel Order).png`.
 

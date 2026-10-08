@@ -15,7 +15,7 @@ verified, from what was actually observed. Procedure, not transcript. Never reco
 | Signed off | — |
 | Landed in | — |
 | Covers | AC-04, AC-05, AC-06, AC-07 |
-| Credential inventory | `verification/CREDENTIALS.md` (gitignored, mode 0600) |
+| Credential inventory | root `CREDENTIALS.md` (gitignored, mode 0600) |
 
 ## What this phase makes true
 

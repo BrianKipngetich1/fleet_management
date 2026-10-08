@@ -1,3 +1,4 @@
+import json
 import os
 from datetime import timedelta
 from io import BytesIO
@@ -21,6 +22,7 @@ from fleet_management.fleet_management.report.fueling_transaction_analysis.fueli
 	calculate_litre_variance,
 	execute as run_fuel_analysis,
 )
+from fleet_management.history import stage_cancel_reason
 from fleet_management.tests.concurrency_proof import (
 	EXPECTED_UNIQUE_INDEXES,
 	assert_concurrency_site,
@@ -297,6 +299,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 
 	def _submit_measured_transaction(self, order, user=None, **values):
 		user = user or self.user
+		values.setdefault("invoice_amount", 3700)
 		values.setdefault("actual_fueling_datetime", get_datetime(order.approved_on) + timedelta(minutes=1))
 		values.setdefault("fueling_time_source", "Printed on invoice")
 		values.setdefault("attendant_name", "Test Attendant")
@@ -329,6 +332,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 	def _prepare_transaction(self, order=None, user=None, **values):
 		order = order or self.order
 		user = user or self.user
+		values.setdefault("invoice_amount", 3700)
 		values.setdefault("actual_fueling_datetime", get_datetime(order.approved_on) + timedelta(minutes=1))
 		values.setdefault("fueling_time_source", "Printed on invoice")
 		values.setdefault("attendant_name", "Test Attendant")
@@ -572,6 +576,17 @@ class TestFuelingTransaction(IntegrationTestCase):
 		with self.set_user(self.user), self.assertRaises(frappe.ValidationError):
 			transaction.submit()
 
+	def test_submission_requires_a_positive_invoice_total(self):
+		# spec 008-overseer-reports, Requirements 1.4, 5.1.
+		transaction = self._prepare_transaction(invoice_litres=20, invoice_amount=0, vehicle_odometer=1000)
+		with (
+			self.set_user(self.user),
+			self.assertRaisesRegex(
+				frappe.ValidationError, "Invoice total must be positive before submission"
+			),
+		):
+			transaction.submit()
+
 	def test_missing_signed_order_attachment_is_rejected(self):
 		transaction = self._prepare_transaction(invoice_litres=20, vehicle_odometer=1000)
 		transaction.signed_order = None
@@ -606,6 +621,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 				transaction.submit()
 
 	def test_private_pdf_jpg_and_png_attachments_allow_submission_and_stay_linked(self):
+		# spec 008-overseer-reports, Requirement 1.4: a printed unit price is optional.
 		for extension in ("pdf", "jpg", "png"):
 			with self.subTest(extension=extension):
 				order = self._make_approved_order(self.location, self.station, self.user, self.approver)
@@ -615,6 +631,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 						"actual_fueling_datetime": get_datetime(order.approved_on) + timedelta(minutes=1),
 						"fueling_time_source": "Printed on invoice",
 						"invoice_litres": 20,
+						"invoice_amount": 3700,
 						"vehicle_odometer": 1000,
 						"attendant_name": "Test Attendant",
 					}
@@ -625,8 +642,9 @@ class TestFuelingTransaction(IntegrationTestCase):
 				with self.set_user(self.user):
 					transaction.submit()
 
-				self.assertEqual(transaction.docstatus, 1)
-				self.assertEqual(transaction.submitted_by, self.user)
+					self.assertEqual(transaction.docstatus, 1)
+					self.assertEqual(transaction.submitted_by, self.user)
+					self.assertFalse(transaction.printed_unit_price)
 				for fieldname, file_doc in (
 					("signed_invoice", invoice),
 					("signed_order", signed_order),
@@ -658,6 +676,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 
 		admin = self._user(("Fleet Admin",), self.location.name)
 		with self.set_user(admin):
+			stage_cancel_reason("Fueling Transaction", transaction.name, "Duplicate test transaction")
 			frappe.get_doc("Fueling Transaction", transaction.name).cancel()
 		self.assertEqual(
 			get_previous_entry(order.asset)["previous_entry_source"], f"Approved order {order.name}"
@@ -697,6 +716,52 @@ class TestFuelingTransaction(IntegrationTestCase):
 			fresh_transaction.submit()
 
 		self.assertEqual(fresh_transaction.fuel_order_slip_revision, 2)
+
+	def test_fueling_history_preserves_submitted_source_and_reasoned_cancellation(self):
+		transaction = self._submit_valid_transaction()
+		submitted = frappe.get_all(
+			"Fuel Order History Event",
+			filters={
+				"fuel_order": transaction.fuel_order,
+				"fueling_transaction": transaction.name,
+				"event_type": "Fueling Submitted",
+			},
+			fields=["source_facts_json", "evidence_references_json"],
+			limit=1,
+		)[0]
+		source = json.loads(submitted.source_facts_json)
+		self.assertEqual(source["invoice_number"], transaction.invoice_number)
+		self.assertEqual(source["vehicle_odometer"], transaction.vehicle_odometer)
+		self.assertEqual(source["invoice_litres"], transaction.invoice_litres)
+		self.assertEqual(len(json.loads(submitted.evidence_references_json)), 2)
+
+		admin = self._user(("Fleet Admin",), self.location.name)
+		with self.set_user(self.user), self.assertRaises(frappe.PermissionError):
+			frappe.get_doc("Fueling Transaction", transaction.name).cancel()
+		with self.set_user(admin):
+			with self.assertRaisesRegex(frappe.ValidationError, "cancellation reason is required"):
+				frappe.get_doc("Fueling Transaction", transaction.name).cancel()
+			stage_cancel_reason(
+				"Fueling Transaction", transaction.name, "Invoice was attached to the wrong order"
+			)
+			frappe.get_doc("Fueling Transaction", transaction.name).cancel()
+
+		cancelled = frappe.get_all(
+			"Fuel Order History Event",
+			filters={
+				"fuel_order": transaction.fuel_order,
+				"fueling_transaction": transaction.name,
+				"event_type": "Fueling Cancelled",
+			},
+			fields=["actor", "reason", "source_facts_json", "evidence_references_json"],
+			limit=1,
+		)[0]
+		self.assertEqual(cancelled.actor, admin)
+		self.assertEqual(cancelled.reason, "Invoice was attached to the wrong order")
+		self.assertEqual(
+			json.loads(cancelled.source_facts_json)["invoice_number"], transaction.invoice_number
+		)
+		self.assertEqual(len(json.loads(cancelled.evidence_references_json)), 2)
 
 	def test_unapproved_fuel_order_cannot_be_submitted(self):
 		with self.set_user(self.user):
@@ -803,6 +868,8 @@ class TestFuelingTransaction(IntegrationTestCase):
 			+ timedelta(minutes=1),
 			"fueling_time_source": "Printed on invoice",
 			"fueling_time_explanation": "Changed after submission.",
+			"invoice_amount": transaction.invoice_amount + 1,
+			"printed_unit_price": 190,
 		}
 		for fieldname, value in changes.items():
 			with self.subTest(fieldname=fieldname):
@@ -1104,6 +1171,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 
 		admin = self._user(("Fleet Admin",), self.location.name)
 		with self.set_user(admin):
+			stage_cancel_reason("Fueling Transaction", transaction.name, "Close the test fueling record")
 			frappe.get_doc("Fueling Transaction", transaction.name).cancel()
 		self.assertEqual(status(), "Expired")
 
@@ -1182,6 +1250,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 			return
 		doc = frappe.get_doc(doctype, name)
 		if doc.docstatus == 1:
+			stage_cancel_reason(doctype, name, "Remove disposable concurrency test record")
 			doc.cancel()
 		frappe.delete_doc(doctype, name, force=True, ignore_permissions=True)
 

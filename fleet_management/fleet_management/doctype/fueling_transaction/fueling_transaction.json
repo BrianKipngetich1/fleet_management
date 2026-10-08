@@ -33,6 +33,8 @@
   "vehicle_odometer",
   "hour_meter",
   "invoice_litres",
+  "invoice_amount",
+  "printed_unit_price",
   "full_tank_confirmed",
   "attendant_name",
   "pre_tax_amount",
@@ -292,6 +294,20 @@
    "description": "Litres shown on the invoice."
   },
   {
+   "fieldname": "invoice_amount",
+   "fieldtype": "Currency",
+   "label": "Invoice Total (KES)",
+   "no_copy": 1,
+   "description": "Total amount recorded on the signed fueling invoice. Required before submission."
+  },
+  {
+   "fieldname": "printed_unit_price",
+   "fieldtype": "Currency",
+   "label": "Printed Unit Price (KES/L)",
+   "no_copy": 1,
+   "description": "Unit price shown on the signed fueling invoice, when present."
+  },
+  {
    "default": "0",
    "fieldname": "full_tank_confirmed",
    "fieldtype": "Check",
@@ -487,6 +503,7 @@
    "write": 1
   },
   {
+   "export": 1,
    "print": 1,
    "read": 1,
    "report": 1,

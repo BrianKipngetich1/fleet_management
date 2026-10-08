@@ -1,5 +1,5 @@
 import { execFileSync, execSync } from "node:child_process";
-import { assertTestSite, TEST_SITE } from "./target";
+import { assertTestSite, TEST_SITE } from "./target.ts";
 
 const BENCH_ROOT = process.env.BENCH_ROOT || "/home/kayadmin/frappe-bench";
 const SITE = assertTestSite(process.env.E2E_SITE || TEST_SITE);
@@ -34,28 +34,18 @@ function runBench(args: string[]) {
 	}
 }
 
-function parseJsonLine(output: string) {
-	for (const line of output.trim().split(/\r?\n/).reverse()) {
-		try {
-			return JSON.parse(line) as unknown;
-		} catch {
-			// Bench may write non-JSON status lines before its result.
-		}
-	}
-	return null;
-}
-
-// Passwordless Desk authentication. `bench browse --user` runs Frappe's own
-// LoginManager.login_as and persists a server-side session. The SID is read back
-// only inside this process and is installed as a cookie by auth.ts; it never goes
-// into a browser URL, log, or screenshot. Playwright's temporary local auth state
-// is ignored and removed after verification.
+// Passwordless Desk authentication. The default path runs the app's own
+// `bench fleet-test-site session` command, which uses Frappe's LoginManager.login_as
+// to persist a server-side session and never opens a browser. The SID is read only
+// inside this process and is installed as a cookie by auth.ts; it never goes into a
+// browser URL, log, or screenshot. Playwright's temporary local auth state is
+// ignored and removed after verification.
 //
 // This is a user-impersonation primitive and is permitted only against the dedicated
-// test site. See CLAUDE.md "Authentication for UI tests".
+// test site. See CLAUDE.md "UI verification".
 //
 // CI (the kit's ci.yml) sets PC_SID_CMD, because bench runs directly there. The
-// command prints the ?sid= URL for $PC_USER, and that replaces the bench path below.
+// command prints the ?sid= URL for $PC_USER, and that replaces the session command below.
 export function mintSid(user: string): string {
 	if (!user || user === "Guest") {
 		throw new Error(`A named QA user is required to mint a test session; received ${user || "<empty>"}`);
@@ -73,19 +63,11 @@ export function mintSid(user: string): string {
 		return sid;
 	}
 
-	runBench(["--site", SITE, "browse", "--user", user]);
-	const query =
-		`frappe.db.sql(${JSON.stringify(
-			`select sid, user from tabSessions where user = ${JSON.stringify(user)} order by lastupdate desc limit 1`,
-		)}, as_dict=True)`;
-	const rows = parseJsonLine(runBench(["--site", SITE, "execute", query]));
-	const session = Array.isArray(rows) ? (rows[0] as { sid?: string; user?: string } | undefined) : undefined;
-
-	if (!session?.sid || session.user !== user) {
-		throw new Error(
-			`Frappe did not persist a session for ${user}; detected session user ${session?.user || "<none>"}`,
-		);
+	const sid = runBench(["--site", SITE, "fleet-test-site", "session", user]).match(
+		/[?&]sid=([A-Za-z0-9]+)/,
+	)?.[1];
+	if (!sid) {
+		throw new Error(`No sid was printed by the session command for ${user}`);
 	}
-
-	return session.sid;
+	return sid;
 }

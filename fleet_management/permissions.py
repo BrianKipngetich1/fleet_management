@@ -11,8 +11,10 @@ from frappe.permissions import get_roles, get_user_permissions
 from frappe.utils import today
 
 from fleet_management.fleet_management.doctype.fleet_asset.fleet_asset import get_effective_assignment
+from fleet_management.fleet_management.doctype.fuel_station.fuel_station import get_served_locations
 
 LOCATION_DOCTYPE = "Fleet Location"
+HISTORY_EVENT_DOCTYPE = "Fuel Order History Event"
 LOCATION_ROLES = frozenset({"Fleet User", "Fleet Approver"})
 SCOPED_DOCTYPES = frozenset(
 	{
@@ -22,6 +24,8 @@ SCOPED_DOCTYPES = frozenset(
 		"Asset Assignment",
 		"Fuel Order",
 		"Fueling Transaction",
+		"Fueling Discrepancy",
+		HISTORY_EVENT_DOCTYPE,
 	}
 )
 
@@ -124,6 +128,14 @@ def _document_location_names(doc):
 			return (
 				{str(assignment.assigned_location)} if assignment and assignment.assigned_location else set()
 			)
+	if doctype == "Fuel Station":
+		# A station is in scope wherever it serves: its own location and every Also Serves row.
+		rows = doc.get("also_serves")
+		if rows is None and doc.get("name"):
+			# A partial record (not a loaded document) carries no rows; read them from the station.
+			return {str(location) for location in get_served_locations(doc.get("name"))}
+		locations = {str(doc.get("operational_location"))} if doc.get("operational_location") else set()
+		return locations | {str(row.get("fleet_location")) for row in rows or [] if row.get("fleet_location")}
 	if doctype == "Fueling Transaction":
 		location = doc.get("assigned_location_snapshot")
 		if location:
@@ -131,6 +143,12 @@ def _document_location_names(doc):
 		if doc.get("fuel_order"):
 			location = frappe.db.get_value("Fuel Order", doc.get("fuel_order"), "assigned_location_snapshot")
 			return {str(location)} if location else set()
+	if doctype == "Fueling Discrepancy":
+		try:
+			transaction = frappe.get_doc("Fueling Transaction", doc.get("fueling_transaction"))
+		except frappe.DoesNotExistError:
+			return set()
+		return _document_location_names(transaction)
 
 	locations = _location_values(doc, doctype)
 	return locations or _linked_asset_locations(doc, doctype)
@@ -151,6 +169,14 @@ def _assignment_exists_condition(parent_expression, locations):
 
 
 def _query_condition(doctype, locations):
+	if doctype == "Fueling Discrepancy":
+		transaction_scope = _query_condition("Fueling Transaction", locations)
+		return (
+			"EXISTS (SELECT 1 FROM `tabFueling Transaction` "
+			"WHERE `tabFueling Transaction`.`name` = `tabFueling Discrepancy`.`fueling_transaction` "
+			f"AND ({transaction_scope}))"
+		)
+
 	if doctype == "Fleet Location":
 		return f"{_table(doctype)}.`name` IN ({_escaped_locations(locations)})"
 
@@ -170,6 +196,13 @@ def _query_condition(doctype, locations):
 		f"{_table(doctype)}.`{field}` IN ({_escaped_locations(locations)})"
 		for field in _query_location_fields(doctype)
 	]
+	if doctype == "Fuel Station":
+		parts.append(
+			"EXISTS (SELECT 1 FROM `tabFuel Station Location` fsl "
+			f"WHERE fsl.parent = {_table(doctype)}.`name` "
+			"AND fsl.parenttype = 'Fuel Station' AND fsl.parentfield = 'also_serves' "
+			f"AND fsl.fleet_location IN ({_escaped_locations(locations)}))"
+		)
 	if doctype == "Fueling Transaction":
 		parts.append(
 			"EXISTS (SELECT 1 FROM `tabFuel Order` fo "
@@ -192,7 +225,42 @@ def get_permission_query_conditions(user=None, doctype=None):
 		return ""
 
 	locations = get_permitted_location_names(user)
-	return _query_condition(doctype, locations) if locations else "1=0"
+	if not locations:
+		return "1=0"
+	if doctype == HISTORY_EVENT_DOCTYPE:
+		q = chr(96)
+		return (
+			"EXISTS (SELECT 1 FROM " + q + "tabFuel Order" + q + " "
+			"WHERE "
+			+ q
+			+ "tabFuel Order"
+			+ q
+			+ "."
+			+ q
+			+ "name"
+			+ q
+			+ " = "
+			+ q
+			+ "tabFuel Order History Event"
+			+ q
+			+ "."
+			+ q
+			+ "fuel_order"
+			+ q
+			+ " "
+			"AND "
+			+ q
+			+ "tabFuel Order"
+			+ q
+			+ "."
+			+ q
+			+ "assigned_location_snapshot"
+			+ q
+			+ " IN ("
+			+ _escaped_locations(locations)
+			+ "))"
+		)
+	return _query_condition(doctype, locations)
 
 
 def get_report_query_conditions(doctype, user=None):
@@ -203,10 +271,19 @@ def get_report_query_conditions(doctype, user=None):
 def has_permission(doc, ptype=None, user=None, debug=False):
 	"""Deny direct, print, report, and action access outside the location scope."""
 	user = _user(user)
-	if not doc or _is_unrestricted(user) or not _is_location_scoped(user):
+	if not doc:
 		return True
 
-	if doc.get("doctype") not in SCOPED_DOCTYPES:
+	doctype = doc.get("doctype")
+	if doctype == HISTORY_EVENT_DOCTYPE:
+		if ptype not in (None, "read"):
+			return False
+		order_name = doc.get("fuel_order")
+		return bool(order_name and frappe.has_permission("Fuel Order", "read", order_name, user=user))
+
+	if _is_unrestricted(user) or not _is_location_scoped(user):
+		return True
+	if doctype not in SCOPED_DOCTYPES:
 		return True
 
 	return bool(_document_location_names(doc) & get_permitted_location_names(user))

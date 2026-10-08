@@ -18,7 +18,7 @@ gaps it found were built and are recorded in the Phase 0 record. No recorded dec
 | Signed off | BrianKipngetich1 — 2026-09-24 (merged PR #2) |
 | Landed in | [PR #2](https://github.com/BrianKipngetich1/fleet_management/pull/2) — merge commit `81754a0` |
 | Covers | D-14–D-16; independent review of Phase 0; harness defects; re-phasing |
-| Credential inventory | No new logins; the Phase 0 QA users in `verification/CREDENTIALS.md` were reused |
+| Credential inventory | No new logins; the Phase 0 QA users in root `CREDENTIALS.md` were reused |
 
 ## What this phase makes true
 

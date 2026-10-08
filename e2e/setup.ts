@@ -52,13 +52,15 @@ async function assertUser(page: Page, key: keyof typeof USER_LOCATIONS) {
 		`User Permission lookup for ${email}`,
 	);
 	const granted = permissions.map((permission) => permission.for_value).sort();
-	const expected = USER_LOCATIONS[key];
+	const expected = [...USER_LOCATIONS[key]].sort();
 	if (
-		granted.length !== 1 ||
-		granted[0] !== expected ||
-		Number(permissions[0].apply_to_all_doctypes) !== 1
+		granted.length !== expected.length ||
+		granted.some((value, index) => value !== expected[index]) ||
+		permissions.some((permission) => Number(permission.apply_to_all_doctypes) !== 1)
 	) {
-		throw new Error(`${email} must hold exactly Fleet Location = ${expected}, found [${granted}]. ${REBUILD}`);
+		throw new Error(
+			`${email} must hold exactly Fleet Location = [${expected}], found [${granted}]. ${REBUILD}`,
+		);
 	}
 }
 

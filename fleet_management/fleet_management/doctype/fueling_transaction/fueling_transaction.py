@@ -6,6 +6,14 @@ from frappe.core.api.file import get_max_file_size
 from frappe.model.document import Document
 from frappe.utils import cint, flt, get_datetime, now_datetime
 
+from fleet_management.history import (
+	capture_evidence_references,
+	capture_transaction_facts,
+	clear_cancel_reason,
+	record_history_event,
+	take_cancel_reason,
+)
+
 ALLOWED_EVIDENCE_TYPES = {
 	".pdf": "application/pdf",
 	".jpg": "image/jpeg",
@@ -215,6 +223,34 @@ class FuelingTransaction(Document):
 	def before_validate(self):
 		self._set_location_from_order()
 
+	def before_cancel(self):
+		self.flags.fuel_order_history_cancel_reason = take_cancel_reason(self.doctype, self.name)
+
+	def on_submit(self):
+		order = self._get_order()
+		record_history_event(
+			order.name,
+			"Fueling Submitted",
+			"Actual fueling was submitted.",
+			fueling_transaction=self.name,
+			source_facts=capture_transaction_facts(self),
+			evidence_references=capture_evidence_references(self),
+		)
+
+	def on_cancel(self):
+		order = self._get_order()
+		reason = self.flags.get("fuel_order_history_cancel_reason")
+		record_history_event(
+			order.name,
+			"Fueling Cancelled",
+			"Actual fueling record was cancelled.",
+			reason=reason,
+			fueling_transaction=self.name,
+			source_facts=capture_transaction_facts(self),
+			evidence_references=capture_evidence_references(self),
+		)
+		clear_cancel_reason(self.doctype, self.name)
+
 	def validate(self):
 		self._validate_submitted_immutability()
 		self._validate_new_invoice_amounts()
@@ -383,6 +419,10 @@ class FuelingTransaction(Document):
 	def _validate_measured_values(self):
 		if flt(self.invoice_litres) <= 0:
 			frappe.throw(frappe._("Invoice litres must be positive."), frappe.ValidationError)
+		if flt(self.invoice_amount) <= 0:
+			frappe.throw(
+				frappe._("Invoice total must be positive before submission."), frappe.ValidationError
+			)
 
 		self.attendant_name = str(self.attendant_name or "").strip()
 		if not self.attendant_name:
@@ -416,6 +456,8 @@ class FuelingTransaction(Document):
 			"actual_fueling_datetime",
 			"fueling_time_source",
 			"fueling_time_explanation",
+			"invoice_amount",
+			"printed_unit_price",
 			"approved_station",
 			"approved_fuel_type",
 			"attendant_name",

@@ -29,6 +29,14 @@ fixtures = [
 		"dt": "Print Format",
 		"filters": [["name", "=", "Fuel Order Approval Slip"]],
 	},
+	{
+		"dt": "Desktop Icon",
+		"filters": [["name", "in", ["Fleet", "Fleet Setup"]]],
+	},
+	{
+		"dt": "Workspace Sidebar",
+		"filters": [["name", "in", ["Fleet", "Fleet Setup"]]],
+	},
 ]
 
 # required_apps = []
@@ -48,7 +56,7 @@ fixtures = [
 # ------------------
 
 # include js, css files in header of desk.html
-# app_include_css = "/assets/fleet_management/css/fleet_management.css"
+app_include_css = "/assets/fleet_management/css/fuel_order.css"
 # app_include_js = "/assets/fleet_management/js/fleet_management.js"
 
 # include js, css files in header of web template
@@ -172,6 +180,8 @@ permission_query_conditions = {
 		"Asset Assignment",
 		"Fuel Order",
 		"Fueling Transaction",
+		"Fueling Discrepancy",
+		"Fuel Order History Event",
 	)
 }
 
