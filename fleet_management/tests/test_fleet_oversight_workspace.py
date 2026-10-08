@@ -55,6 +55,7 @@ class TestFleetOversightWorkspace(IntegrationTestCase):
 		reports_section = next(item for item in sidebar.items if item.label == "Reports")
 		self.assertEqual(reports_section.type, "Section Break")
 		self.assertEqual(reports_section.collapsible, 1)
+		self.assertEqual(reports_section.show_arrow, 0)
 		expected_reports = {"Fueling Summary", "Asset Performance", "Requests & Audit"}
 		configured_reports = {
 			item.link_to
