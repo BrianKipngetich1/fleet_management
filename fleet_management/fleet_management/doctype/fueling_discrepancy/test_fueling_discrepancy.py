@@ -158,7 +158,9 @@ class FuelingDiscrepancyFixture:
 		order = frappe.get_doc("Fuel Order", transaction.fuel_order)
 		user = self.users[location_name]
 		with self.set_user(user):
-			frappe.get_print("Fuel Order", order.name, print_format="Fuel Order Approval Slip", no_letterhead=1)
+			frappe.get_print(
+				"Fuel Order", order.name, print_format="Fuel Order Approval Slip", no_letterhead=1
+			)
 			transaction.update(
 				{
 					"actual_station": order.planned_station,
@@ -200,7 +202,9 @@ class TestFuelingDiscrepancy(FuelingDiscrepancyFixture, IntegrationTestCase):
 		self.assertNotEqual(str(discrepancy.recorded_on), "2000-01-01 00:00:00")
 		self.assertLessEqual(str(discrepancy.recorded_on), str(now_datetime()))
 		self.assertEqual(
-			frappe.db.get_value("Fueling Transaction", transaction.name, ["docstatus", "modified"], as_dict=True),
+			frappe.db.get_value(
+				"Fueling Transaction", transaction.name, ["docstatus", "modified"], as_dict=True
+			),
 			before,
 		)
 

@@ -122,9 +122,7 @@ class TestFuelSignal(UnitTestCase):
 				self.assertGreater(round(check["variance_percent"], 6), check["margin_percent"])
 
 	def test_old_mileage_check_stays_unchanged_when_full_tank_result_differs(self):
-		reasons = evaluate_signal(
-			self._with_mileage_baseline(previous_reading=1250, current_reading=1550)
-		)
+		reasons = evaluate_signal(self._with_mileage_baseline(previous_reading=1250, current_reading=1550))
 
 		self.assertFalse(any(reason.startswith("Mileage does not add up") for reason in reasons))
 		self.assertTrue(
@@ -166,9 +164,7 @@ class TestFuelSignal(UnitTestCase):
 		)
 
 		without_baseline = evaluate_signal_result(self._vehicle(mileage_baseline=None))
-		self.assertEqual(
-			without_baseline["signal_inputs"]["full_tank_mileage_check"]["status"], "skipped"
-		)
+		self.assertEqual(without_baseline["signal_inputs"]["full_tank_mileage_check"]["status"], "skipped")
 
 	def test_signal_explanation_names_distance_estimate_economy_margin_and_action(self):
 		result = evaluate_signal_result(

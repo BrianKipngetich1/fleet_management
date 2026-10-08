@@ -2,6 +2,7 @@ import csv
 from datetime import datetime
 from importlib import import_module
 from io import StringIO
+from typing import ClassVar
 
 import frappe
 from frappe.desk.query_report import _export_query, run
@@ -121,7 +122,7 @@ class TestRequestsAuditRows(UnitTestCase):
 class TestRequestsAudit(FuelingDiscrepancyFixture, IntegrationTestCase):
 	"""Integration checks for spec 008-overseer-reports Requirements 3.1, 3.2, 3.3, 3.4, 4.1, 4.2."""
 
-	date_filters = {"from_date": "2000-01-01", "to_date": "2099-12-31"}
+	date_filters: ClassVar[dict[str, str]] = {"from_date": "2000-01-01", "to_date": "2099-12-31"}
 
 	def setUp(self):
 		super().setUp()
@@ -179,7 +180,11 @@ class TestRequestsAudit(FuelingDiscrepancyFixture, IntegrationTestCase):
 			self.assertTrue(all(row["fuel_type"] == filters["fuel_type"] for row in rows))
 			self.assertTrue(all(row["station"] == filters["station"] for row in rows))
 
-			request = next(row for row in rows if row.get("fuel_order") == order.name and row["activity"] == "Fuel request")
+			request = next(
+				row
+				for row in rows
+				if row.get("fuel_order") == order.name and row["activity"] == "Fuel request"
+			)
 			approval = next(
 				row
 				for row in rows
@@ -205,7 +210,9 @@ class TestRequestsAudit(FuelingDiscrepancyFixture, IntegrationTestCase):
 
 			approvals = self._run_report({**filters, "section": "Approvals"})["result"]
 			self.assertTrue(approvals)
-			self.assertTrue(all(row["activity"] in ("Fuel request", "Fuel request decision") for row in approvals))
+			self.assertTrue(
+				all(row["activity"] in ("Fuel request", "Fuel request decision") for row in approvals)
+			)
 
 			flags = self._run_report({**filters, "section": "Flag Reports"})["result"]
 			self.assertTrue(flags)
@@ -251,7 +258,8 @@ class TestRequestsAudit(FuelingDiscrepancyFixture, IntegrationTestCase):
 			audit = next(
 				row
 				for row in rows
-				if row.get("fueling_transaction") == transaction.name and row["activity"] == "Fueling transaction"
+				if row.get("fueling_transaction") == transaction.name
+				and row["activity"] == "Fueling transaction"
 			)
 			self.assertEqual(audit["discrepancy_status"], "No discrepancy was recorded")
 			self.assertNotIn("no issue occurred", audit["discrepancy_status"].lower())

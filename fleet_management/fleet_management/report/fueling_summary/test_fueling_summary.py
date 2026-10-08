@@ -1,6 +1,7 @@
 import csv
 from collections import defaultdict
 from io import StringIO
+from typing import ClassVar
 
 import frappe
 from frappe.desk.query_report import _export_query, run
@@ -12,6 +13,7 @@ from fleet_management.fleet_management.report.fueling_summary.fueling_summary im
 	_build_report_rows,
 	_get_date_range,
 )
+from fleet_management.history import stage_cancel_reason
 from fleet_management.tests.report_history import ReportHistoryFixture
 
 
@@ -112,7 +114,7 @@ class TestFuelingSummary(UnitTestCase):
 class TestFuelingSummaryPermissions(ReportHistoryFixture, IntegrationTestCase):
 	"""Exercise spec 008-overseer-reports Requirements 1.3, 1.4, 1.5, 3.4, 4.1, and 4.2."""
 
-	date_filters = {"from_date": "2000-01-01", "to_date": "2099-12-31"}
+	date_filters: ClassVar[dict[str, str]] = {"from_date": "2000-01-01", "to_date": "2099-12-31"}
 
 	def _run_report(self, filters=None):
 		return run("Fueling Summary", filters or self.date_filters)
@@ -285,6 +287,7 @@ class TestFuelingSummaryPermissions(ReportHistoryFixture, IntegrationTestCase):
 						for fieldname in ("previous_full_fill", "closing_full_fill")
 					)
 				)
+				stage_cancel_reason("Fueling Transaction", to_cancel.name, "Duplicate test transaction")
 				frappe.get_doc("Fueling Transaction", to_cancel.name).cancel()
 				active = source_rows(1)
 				cancelled = source_rows(2)

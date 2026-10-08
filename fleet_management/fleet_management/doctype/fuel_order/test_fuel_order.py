@@ -194,16 +194,22 @@ class TestFuelOrder(IntegrationTestCase):
 		field_positions = {field.fieldname: index for index, field in enumerate(meta.fields)}
 		self.assertLess(field_positions["asset"], field_positions["column_break_vehicle_driver"])
 		self.assertLess(field_positions["driver"], field_positions["column_break_vehicle_requester"])
-		self.assertLess(field_positions["column_break_vehicle_requester"], field_positions["actual_requester"])
+		self.assertLess(
+			field_positions["column_break_vehicle_requester"], field_positions["actual_requester"]
+		)
 		self.assertLess(field_positions["company_representative"], field_positions["operational_location"])
 		self.assertLess(field_positions["request_meter_reading"], field_positions["meter_photo"])
 		self.assertLess(field_positions["meter_photo"], field_positions["column_break_readings_gauge"])
-		self.assertLess(field_positions["column_break_readings_gauge"], field_positions["request_gauge_percent"])
+		self.assertLess(
+			field_positions["column_break_readings_gauge"], field_positions["request_gauge_percent"]
+		)
 		self.assertLess(field_positions["request_gauge_percent"], field_positions["gauge_photo"])
 		self.assertLess(field_positions["meter_photo"], field_positions["quantity_authorization"])
 		self.assertLess(field_positions["partial_authorization_reason"], field_positions["signal_panel_html"])
 		self.assertLess(field_positions["signal_panel_html"], field_positions["workflow_state"])
-		self.assertLess(field_positions["send_up_explanation"], field_positions["column_break_approval_decision"])
+		self.assertLess(
+			field_positions["send_up_explanation"], field_positions["column_break_approval_decision"]
+		)
 		self.assertLess(field_positions["column_break_approval_decision"], field_positions["approved_by"])
 		self.assertFalse(meta.get_field("workflow_state").hidden)
 		self.assertEqual(
@@ -211,7 +217,9 @@ class TestFuelOrder(IntegrationTestCase):
 			"eval:doc.asset_type=='Vehicle'",
 		)
 		self.assertIn("column_break_approval_decision", field_positions)
-		self.assertLess(field_positions["section_break_history"], field_positions["section_break_system_details"])
+		self.assertLess(
+			field_positions["section_break_history"], field_positions["section_break_system_details"]
+		)
 		self.assertEqual(meta.get_field("section_break_history").collapsible, 1)
 		self.assertGreater(field_positions["signal"], field_positions["section_break_system_details"])
 		self.assertGreater(field_positions["signal_reasons"], field_positions["section_break_system_details"])
@@ -256,7 +264,9 @@ class TestFuelOrder(IntegrationTestCase):
 			self.assertEqual(meta.get_field(fieldname).read_only, 1, fieldname)
 
 		for fieldname in ("request_gauge_percent", "gauge_photo"):
-			self.assertEqual(meta.get_field(fieldname).depends_on, "eval:doc.asset_type=='Vehicle'", fieldname)
+			self.assertEqual(
+				meta.get_field(fieldname).depends_on, "eval:doc.asset_type=='Vehicle'", fieldname
+			)
 		self.assertEqual(meta.get_field("meter_photo").fieldtype, "Attach Image")
 		self.assertEqual(
 			meta.get_field("authorized_quantity_litres").depends_on,

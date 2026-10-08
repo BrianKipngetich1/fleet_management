@@ -29,6 +29,14 @@ fixtures = [
 		"dt": "Print Format",
 		"filters": [["name", "=", "Fuel Order Approval Slip"]],
 	},
+	{
+		"dt": "Desktop Icon",
+		"filters": [["name", "in", ["Fleet", "Fleet Setup"]]],
+	},
+	{
+		"dt": "Workspace Sidebar",
+		"filters": [["name", "in", ["Fleet", "Fleet Setup"]]],
+	},
 ]
 
 # required_apps = []

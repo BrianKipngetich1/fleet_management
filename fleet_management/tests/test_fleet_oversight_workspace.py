@@ -9,10 +9,7 @@ class TestFleetOversightWorkspace(IntegrationTestCase):
 
 	def setUp(self):
 		super().setUp()
-		self.users = {
-			role: self._user(role)
-			for role in ("Fleet Approver", "Fleet Admin", "Fleet User")
-		}
+		self.users = {role: self._user(role) for role in ("Fleet Approver", "Fleet Admin", "Fleet User")}
 
 	def _user(self, role):
 		user = frappe.get_doc(
@@ -58,9 +55,7 @@ class TestFleetOversightWorkspace(IntegrationTestCase):
 		self.assertEqual(reports_section.show_arrow, 0)
 		expected_reports = {"Fueling Summary", "Asset Performance", "Requests & Audit"}
 		configured_reports = {
-			item.link_to
-			for item in sidebar.items
-			if item.child and item.link_type == "Report"
+			item.link_to for item in sidebar.items if item.child and item.link_type == "Report"
 		}
 		self.assertEqual(configured_reports, expected_reports)
 

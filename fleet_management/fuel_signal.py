@@ -72,9 +72,7 @@ def _full_tank_mileage_result(facts, limits):
 		capacity = gauge = average = current = baseline_reading = math.nan
 
 	if (
-		not all(
-			math.isfinite(value) for value in (capacity, gauge, average, current, baseline_reading)
-		)
+		not all(math.isfinite(value) for value in (capacity, gauge, average, current, baseline_reading))
 		or capacity <= 0
 		or not 0 <= gauge <= 100
 		or average <= 0
@@ -468,7 +466,9 @@ def evaluate_signal_result(facts, limits=None, workflow_state="Draft"):
 	if workflow_state == "Pending Approval":
 		next_action = "A permitted Fleet Approver may approve or reject this order with a reason."
 	elif colour == "Red":
-		next_action = "A Fleet User may reject this order or send it to a permitted Fleet Approver with an explanation."
+		next_action = (
+			"A Fleet User may reject this order or send it to a permitted Fleet Approver with an explanation."
+		)
 	else:
 		next_action = "A Fleet User may approve this green order."
 

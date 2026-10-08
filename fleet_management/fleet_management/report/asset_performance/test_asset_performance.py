@@ -1,5 +1,6 @@
 import csv
 from io import StringIO
+from typing import ClassVar
 
 import frappe
 from frappe import _dict
@@ -33,9 +34,7 @@ class TestAssetPerformanceStatuses(UnitTestCase):
 		self.assertEqual(
 			_get_optional_date_range(_dict(from_date="2026-10-02")), (getdate("2026-10-02"), None)
 		)
-		self.assertEqual(
-			_get_optional_date_range(_dict(to_date="2026-10-03")), (None, getdate("2026-10-03"))
-		)
+		self.assertEqual(_get_optional_date_range(_dict(to_date="2026-10-03")), (None, getdate("2026-10-03")))
 		with self.assertRaisesRegex(frappe.ValidationError, "From Date cannot be later than To Date"):
 			_get_optional_date_range(_dict(from_date="2026-10-02", to_date="2026-10-01"))
 
@@ -132,7 +131,7 @@ class TestAssetPerformanceEfficiency(UnitTestCase):
 class TestAssetPerformanceReport(ReportHistoryFixture, IntegrationTestCase):
 	"""Source-row checks for spec 008-overseer-reports Requirements 2.1, 2.2, 2.3, and 2.4."""
 
-	date_filters = {"from_date": "2000-01-01", "to_date": "2099-12-31"}
+	date_filters: ClassVar[dict[str, str]] = {"from_date": "2000-01-01", "to_date": "2099-12-31"}
 
 	def _run_report(self, filters):
 		return run("Asset Performance", filters)
@@ -250,9 +249,7 @@ class TestAssetPerformanceReport(ReportHistoryFixture, IntegrationTestCase):
 			rows = self._transaction_rows(result)
 			self.assertEqual({row["fueling_transaction"] for row in rows}, {row.name for row in transactions})
 			monthly = {
-				row["month"]: row
-				for row in result["result"]
-				if row.get("record_type") == "Monthly total"
+				row["month"]: row for row in result["result"] if row.get("record_type") == "Monthly total"
 			}
 			valid_by_month = {}
 			for transaction in transactions:

@@ -134,7 +134,7 @@ def execute(filters=None):
 			{ORDER_TABLE}.signal_reasons AS warning_reasons
 		FROM {TRANSACTION_TABLE}
 		LEFT JOIN {ORDER_TABLE} ON {ORDER_TABLE}.name = {TRANSACTION_TABLE}.fuel_order
-		WHERE {' AND '.join(conditions)}
+		WHERE {" AND ".join(conditions)}
 		ORDER BY {TRANSACTION_TABLE}.actual_fueling_datetime, {TRANSACTION_TABLE}.name
 		""",
 		query_filters,
@@ -150,9 +150,13 @@ def execute(filters=None):
 def _assert_report_access():
 	roles = set(frappe.get_roles())
 	if frappe.session.user != "Administrator" and not {"Fleet Approver", "Fleet Admin"}.intersection(roles):
-		frappe.throw(_("Only Fleet Approvers and Fleet Admins can access this report."), frappe.PermissionError)
+		frappe.throw(
+			_("Only Fleet Approvers and Fleet Admins can access this report."), frappe.PermissionError
+		)
 	if frappe.session.user != "Administrator" and not frappe.has_permission("Fueling Transaction", "report"):
-		frappe.throw(_("You do not have permission to report on Fueling Transactions."), frappe.PermissionError)
+		frappe.throw(
+			_("You do not have permission to report on Fueling Transactions."), frappe.PermissionError
+		)
 
 
 def _get_date_range(filters):

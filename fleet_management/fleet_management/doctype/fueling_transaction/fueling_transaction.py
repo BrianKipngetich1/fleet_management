@@ -7,11 +7,11 @@ from frappe.model.document import Document
 from frappe.utils import cint, flt, get_datetime, now_datetime
 
 from fleet_management.history import (
-    capture_evidence_references,
-    capture_transaction_facts,
-    clear_cancel_reason,
-    record_history_event,
-    take_cancel_reason,
+	capture_evidence_references,
+	capture_transaction_facts,
+	clear_cancel_reason,
+	record_history_event,
+	take_cancel_reason,
 )
 
 ALLOWED_EVIDENCE_TYPES = {

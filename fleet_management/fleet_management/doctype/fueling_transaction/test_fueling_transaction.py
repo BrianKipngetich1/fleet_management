@@ -11,10 +11,10 @@ from frappe.utils import get_datetime, now_datetime
 from PIL import Image
 
 from fleet_management.fleet_management.doctype.fuel_order.fuel_order import get_previous_entry
-from fleet_management.history import stage_cancel_reason
 from fleet_management.fleet_management.doctype.fueling_transaction.fueling_transaction import (
 	calculate_vehicle_interval,
 )
+from fleet_management.history import stage_cancel_reason
 from fleet_management.tests.concurrency_proof import (
 	EXPECTED_UNIQUE_INDEXES,
 	assert_concurrency_site,
@@ -307,9 +307,7 @@ class TestFuelingTransaction(IntegrationTestCase):
 
 	def test_submission_requires_a_positive_invoice_total(self):
 		# spec 008-overseer-reports, Requirements 1.4, 5.1.
-		transaction = self._prepare_transaction(
-			invoice_litres=20, invoice_amount=0, vehicle_odometer=1000
-		)
+		transaction = self._prepare_transaction(invoice_litres=20, invoice_amount=0, vehicle_odometer=1000)
 		with (
 			self.set_user(self.user),
 			self.assertRaisesRegex(
@@ -489,7 +487,9 @@ class TestFuelingTransaction(IntegrationTestCase):
 		)[0]
 		self.assertEqual(cancelled.actor, admin)
 		self.assertEqual(cancelled.reason, "Invoice was attached to the wrong order")
-		self.assertEqual(json.loads(cancelled.source_facts_json)["invoice_number"], transaction.invoice_number)
+		self.assertEqual(
+			json.loads(cancelled.source_facts_json)["invoice_number"], transaction.invoice_number
+		)
 		self.assertEqual(len(json.loads(cancelled.evidence_references_json)), 2)
 
 	def test_unapproved_fuel_order_cannot_be_submitted(self):

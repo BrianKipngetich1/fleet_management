@@ -60,13 +60,16 @@ frappe.query_reports["Asset Performance"] = {
 		if (!monthly.length) return;
 
 		const is_vehicle = monthly.some((row) => row.asset_type === "Vehicle");
-		const valid_efficiency_months = monthly.filter((row) => row.efficiency_km_per_litre != null);
-		efficiencyChartData = is_vehicle && valid_efficiency_months.length
-			? {
-					labels: valid_efficiency_months.map((row) => row.month),
-					values: valid_efficiency_months.map((row) => row.efficiency_km_per_litre),
-				}
-			: null;
+		const valid_efficiency_months = monthly.filter(
+			(row) => row.efficiency_km_per_litre != null
+		);
+		efficiencyChartData =
+			is_vehicle && valid_efficiency_months.length
+				? {
+						labels: valid_efficiency_months.map((row) => row.month),
+						values: valid_efficiency_months.map((row) => row.efficiency_km_per_litre),
+				  }
+				: null;
 
 		return {
 			data: {
@@ -86,7 +89,9 @@ frappe.query_reports["Asset Performance"] = {
 
 		const report = frappe.query_report;
 		const wrapper = $("<div class='asset-efficiency-chart'>").appendTo(report.$chart);
-		$("<h4 class='text-muted'>").text(__("Monthly Vehicle Efficiency (km/L)")).appendTo(wrapper);
+		$("<h4 class='text-muted'>")
+			.text(__("Monthly Vehicle Efficiency (km/L)"))
+			.appendTo(wrapper);
 		const chart = $("<div>").appendTo(wrapper);
 		new frappe.Chart(chart[0], {
 			data: {

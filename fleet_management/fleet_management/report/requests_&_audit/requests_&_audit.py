@@ -2,7 +2,6 @@ import frappe
 from frappe import _
 from frappe.utils import cint, getdate
 
-from fleet_management.permissions import get_permitted_location_names, get_report_query_conditions
 from fleet_management.fleet_management.report.asset_performance.asset_performance import (
 	ORDER_LOCATION_EXPRESSION,
 	_fulfillment_status,
@@ -13,6 +12,7 @@ from fleet_management.fleet_management.report.fueling_summary.fueling_summary im
 	_get_date_range,
 	_validate_location_filter,
 )
+from fleet_management.permissions import get_permitted_location_names, get_report_query_conditions
 
 ORDER_TABLE = "`tabFuel Order`"
 TRANSACTION_TABLE = "`tabFueling Transaction`"
@@ -177,11 +177,15 @@ def execute(filters=None):
 def _assert_report_access():
 	roles = set(frappe.get_roles())
 	if frappe.session.user != "Administrator" and not {"Fleet Approver", "Fleet Admin"}.intersection(roles):
-		frappe.throw(_("Only Fleet Approvers and Fleet Admins can access this report."), frappe.PermissionError)
+		frappe.throw(
+			_("Only Fleet Approvers and Fleet Admins can access this report."), frappe.PermissionError
+		)
 	if frappe.session.user != "Administrator":
 		for doctype in ("Fuel Order", "Fueling Transaction", "Fueling Discrepancy"):
 			if not frappe.has_permission(doctype, "report"):
-				frappe.throw(_("You do not have permission to report on {0}.").format(doctype), frappe.PermissionError)
+				frappe.throw(
+					_("You do not have permission to report on {0}.").format(doctype), frappe.PermissionError
+				)
 
 
 def _get_orders(filters, from_date, to_date):
@@ -242,7 +246,7 @@ def _get_orders(filters, from_date, to_date):
 				LIMIT 1
 			) AS linked_fueling_transaction
 		FROM {ORDER_TABLE}
-		WHERE {' AND '.join(conditions)}
+		WHERE {" AND ".join(conditions)}
 		ORDER BY {ORDER_TABLE}.request_datetime, {ORDER_TABLE}.name
 		""",
 		query_filters,
@@ -296,8 +300,8 @@ def _get_transactions(filters, from_date, to_date):
 			{DISCREPANCY_TABLE}.recorded_on
 		FROM {TRANSACTION_TABLE}
 		LEFT JOIN {ORDER_TABLE} ON {ORDER_TABLE}.name = {TRANSACTION_TABLE}.fuel_order
-		LEFT JOIN {DISCREPANCY_TABLE} ON {' AND '.join(join_conditions)}
-		WHERE {' AND '.join(conditions)}
+		LEFT JOIN {DISCREPANCY_TABLE} ON {" AND ".join(join_conditions)}
+		WHERE {" AND ".join(conditions)}
 		ORDER BY {TRANSACTION_TABLE}.actual_fueling_datetime, {TRANSACTION_TABLE}.name,
 		         {DISCREPANCY_TABLE}.recorded_on, {DISCREPANCY_TABLE}.name
 		""",
@@ -342,7 +346,9 @@ def _build_rows(orders, transactions, from_date, to_date):
 					"activity": _("Fuel request decision"),
 					"decision_action": order.decision_action,
 					"decision_reason": order.decision_reason,
-					"decision_by": order.approved_by if order.decision_action == "Approve" else order.rejected_by,
+					"decision_by": order.approved_by
+					if order.decision_action == "Approve"
+					else order.rejected_by,
 				}
 			)
 

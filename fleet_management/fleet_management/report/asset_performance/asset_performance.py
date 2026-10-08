@@ -4,10 +4,10 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, get_datetime, getdate, now_datetime
 
-from fleet_management.permissions import get_report_query_conditions
 from fleet_management.fleet_management.report.fueling_summary.fueling_summary import (
 	_validate_location_filter,
 )
+from fleet_management.permissions import get_report_query_conditions
 
 ORDER_TABLE = "`tabFuel Order`"
 TRANSACTION_TABLE = "`tabFueling Transaction`"
@@ -17,8 +17,7 @@ LOCATION_EXPRESSION = (
 	f"{TRANSACTION_TABLE}.operational_location, {ORDER_TABLE}.operational_location)"
 )
 ORDER_LOCATION_EXPRESSION = (
-	f"COALESCE(NULLIF({ORDER_TABLE}.assigned_location_snapshot, ''), "
-	f"{ORDER_TABLE}.operational_location)"
+	f"COALESCE(NULLIF({ORDER_TABLE}.assigned_location_snapshot, ''), {ORDER_TABLE}.operational_location)"
 )
 
 COLUMNS = [
@@ -185,11 +184,15 @@ def execute(filters=None):
 def _assert_report_access():
 	roles = set(frappe.get_roles())
 	if frappe.session.user != "Administrator" and not {"Fleet Approver", "Fleet Admin"}.intersection(roles):
-		frappe.throw(_("Only Fleet Approvers and Fleet Admins can access this report."), frappe.PermissionError)
+		frappe.throw(
+			_("Only Fleet Approvers and Fleet Admins can access this report."), frappe.PermissionError
+		)
 	if frappe.session.user != "Administrator":
 		for doctype in ("Fuel Order", "Fueling Transaction"):
 			if not frappe.has_permission(doctype, "report"):
-				frappe.throw(_("You do not have permission to report on {0}.").format(doctype), frappe.PermissionError)
+				frappe.throw(
+					_("You do not have permission to report on {0}.").format(doctype), frappe.PermissionError
+				)
 
 
 def _get_optional_date_range(filters):
@@ -225,7 +228,9 @@ def _get_orders(filters, from_date, to_date):
 	query_filters = {"asset": filters.asset}
 	event_conditions = []
 	for fieldname in ("request_datetime", "approved_on", "rejected_on"):
-		date_conditions = _date_filter_conditions(f"{ORDER_TABLE}.{fieldname}", from_date, to_date, query_filters)
+		date_conditions = _date_filter_conditions(
+			f"{ORDER_TABLE}.{fieldname}", from_date, to_date, query_filters
+		)
 		if date_conditions:
 			event_conditions.append("(" + " AND ".join(date_conditions) + ")")
 	cancellation_conditions = _date_filter_conditions(
@@ -281,10 +286,10 @@ def _get_orders(filters, from_date, to_date):
 			{ORDER_TABLE}.request_meter_reading,
 			EXISTS (
 				SELECT 1 FROM {TRANSACTION_TABLE}
-				WHERE {' AND '.join(has_transaction)}
+				WHERE {" AND ".join(has_transaction)}
 			) AS has_submitted_transaction
 		FROM {ORDER_TABLE}
-		WHERE {' AND '.join(conditions)}
+		WHERE {" AND ".join(conditions)}
 		ORDER BY {ORDER_TABLE}.request_datetime, {ORDER_TABLE}.name
 		""",
 		query_filters,
@@ -350,7 +355,7 @@ def _get_transactions(filters, from_date, to_date):
 			{ORDER_TABLE}.authorized_quantity_litres
 		FROM {TRANSACTION_TABLE}
 		INNER JOIN {ORDER_TABLE} ON {ORDER_TABLE}.name = {TRANSACTION_TABLE}.fuel_order
-		WHERE {' AND '.join(conditions)}
+		WHERE {" AND ".join(conditions)}
 		ORDER BY {TRANSACTION_TABLE}.actual_fueling_datetime, {TRANSACTION_TABLE}.name
 		""",
 		query_filters,
@@ -360,7 +365,9 @@ def _get_transactions(filters, from_date, to_date):
 
 def _build_rows(asset, orders, transactions, from_date, to_date):
 	rows = []
-	interval_states = _get_interval_target_states(asset.name, transactions) if asset.asset_type == "Vehicle" else {}
+	interval_states = (
+		_get_interval_target_states(asset.name, transactions) if asset.asset_type == "Vehicle" else {}
+	)
 	for order in orders:
 		activity_date, record_type = _order_activity(order, from_date, to_date)
 		status = _request_status(order)
@@ -384,7 +391,9 @@ def _build_rows(asset, orders, transactions, from_date, to_date):
 				"vehicle_odometer": (
 					_optional_float(order.request_meter_reading) if asset.asset_type == "Vehicle" else None
 				),
-				"hour_meter": _optional_float(order.request_meter_reading) if asset.asset_type == "Generator" else None,
+				"hour_meter": _optional_float(order.request_meter_reading)
+				if asset.asset_type == "Generator"
+				else None,
 				"request_status": status,
 				"fulfillment_status": _fulfillment_status(order),
 				"cancellation_status": _("Cancelled") if cint(order.docstatus) == 2 else None,
@@ -478,9 +487,7 @@ def _build_rows(asset, orders, transactions, from_date, to_date):
 
 def _monthly_efficiency(rows):
 	intervals = [
-		row
-		for row in rows
-		if flt(row.get("distance_km")) > 0 and flt(row.get("qualifying_litres")) > 0
+		row for row in rows if flt(row.get("distance_km")) > 0 and flt(row.get("qualifying_litres")) > 0
 	]
 	qualifying_litres = sum(flt(row["qualifying_litres"]) for row in intervals)
 	if not intervals or qualifying_litres <= 0:
@@ -640,7 +647,7 @@ def _get_interval_target_states(asset, transactions):
 		f"""
 		SELECT name, actual_fueling_datetime, asset_target_km_per_litre_snapshot
 		FROM {TRANSACTION_TABLE}
-		WHERE {' AND '.join(opening_conditions)}
+		WHERE {" AND ".join(opening_conditions)}
 		""",
 		{"asset": asset},
 		as_dict=True,
@@ -664,7 +671,7 @@ def _get_interval_target_states(asset, transactions):
 		f"""
 		SELECT name, actual_fueling_datetime, asset_target_km_per_litre_snapshot
 		FROM {TRANSACTION_TABLE}
-		WHERE {' AND '.join(interval_conditions)}
+		WHERE {" AND ".join(interval_conditions)}
 		""",
 		{"asset": asset, "from_datetime": from_datetime, "to_datetime": to_datetime},
 		as_dict=True,
@@ -681,7 +688,7 @@ def _get_interval_target_states(asset, transactions):
 		f"""
 		SELECT request_datetime, asset_target_km_per_litre_snapshot
 		FROM {ORDER_TABLE}
-	WHERE {' AND '.join(order_conditions)}
+	WHERE {" AND ".join(order_conditions)}
 		""",
 		{"asset": asset, "from_datetime": from_datetime, "to_datetime": to_datetime},
 		as_dict=True,

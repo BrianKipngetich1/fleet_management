@@ -6,7 +6,11 @@ frappe.query_reports["Requests & Audit"] = {
 			[__("Flag Reports"), "Flag Reports"],
 			[__("Discrepancy Reports"), "Discrepancy Reports"],
 		].forEach(([label, section]) => {
-			report.page.add_inner_button(label, () => report.set_filter_value("section", section), __("Sections"));
+			report.page.add_inner_button(
+				label,
+				() => report.set_filter_value("section", section),
+				__("Sections")
+			);
 		});
 	},
 	formatter(value, row, column, data, default_formatter) {
@@ -61,7 +65,12 @@ frappe.query_reports["Requests & Audit"] = {
 			fieldname: "section",
 			label: __("Section"),
 			fieldtype: "Select",
-			options: [__("All Audit"), __("Approvals"), __("Flag Reports"), __("Discrepancy Reports")],
+			options: [
+				__("All Audit"),
+				__("Approvals"),
+				__("Flag Reports"),
+				__("Discrepancy Reports"),
+			],
 			default: __("All Audit"),
 		},
 	],

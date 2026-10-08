@@ -272,9 +272,7 @@ class TestFuelOrderSignal(IntegrationTestCase):
 		requester = self._user(("Fleet User",), self.location.name)
 		approver = self._user(("Fleet Approver",), self.location.name)
 		with self.set_user(requester):
-			pending = attach_request_photos(
-				self.make_order(request_gauge_percent=80).insert()
-			)
+			pending = attach_request_photos(self.make_order(request_gauge_percent=80).insert())
 			pending = send_up(pending)
 
 		with self.set_user(approver):
@@ -514,14 +512,10 @@ class TestFuelOrderSignal(IntegrationTestCase):
 		self.assertEqual(inputs["mileage_baseline"]["source"], "previous_entry_fallback")
 		self.assertEqual(inputs["mileage_baseline"]["reference"], f"Fueling {fueling_name}")
 		self.assertEqual(inputs["mileage_baseline"]["vehicle_odometer"], 900)
-		self.assertEqual(
-			inputs["full_tank_mileage_check"]["baseline"]["source"], "previous_entry_fallback"
-		)
+		self.assertEqual(inputs["full_tank_mileage_check"]["baseline"]["source"], "previous_entry_fallback")
 		self.assertEqual(
 			get_datetime(inputs["mileage_baseline"]["timestamp"]),
-			get_datetime(
-				frappe.db.get_value("Fueling Transaction", fueling_name, "actual_fueling_datetime")
-			),
+			get_datetime(frappe.db.get_value("Fueling Transaction", fueling_name, "actual_fueling_datetime")),
 		)
 
 	def test_server_preview_and_save_refresh_the_full_tank_result_from_newer_history(self):
@@ -584,9 +578,7 @@ class TestFuelOrderSignal(IntegrationTestCase):
 		)
 		values["request_gauge_percent"] = 40
 		preview = preview_signal(**values)
-		self.assertEqual(
-			preview["signal_inputs"]["full_tank_mileage_check"]["expected_distance_km"], 360
-		)
+		self.assertEqual(preview["signal_inputs"]["full_tank_mileage_check"]["expected_distance_km"], 360)
 		order.request_gauge_percent = 40
 		order.save(ignore_permissions=True)
 		saved_check = json.loads(order.signal_details_json)["signal_inputs"]["full_tank_mileage_check"]

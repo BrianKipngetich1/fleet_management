@@ -14,7 +14,9 @@ class FuelingDiscrepancy(Document):
 		self._validate_transaction_access()
 		for fieldname in ("discrepancy_type", "details", "reason"):
 			if not (self.get(fieldname) or "").strip():
-				frappe.throw(_("{0} is required.").format(self.meta.get_label(fieldname)), frappe.ValidationError)
+				frappe.throw(
+					_("{0} is required.").format(self.meta.get_label(fieldname)), frappe.ValidationError
+				)
 
 	def _validate_transaction_access(self):
 		if not self.fueling_transaction:
@@ -22,4 +24,6 @@ class FuelingDiscrepancy(Document):
 
 		transaction = frappe.get_doc("Fueling Transaction", self.fueling_transaction)
 		if not frappe.has_permission("Fueling Transaction", "read", doc=transaction):
-			frappe.throw(_("You do not have access to the linked Fueling Transaction."), frappe.PermissionError)
+			frappe.throw(
+				_("You do not have access to the linked Fueling Transaction."), frappe.PermissionError
+			)

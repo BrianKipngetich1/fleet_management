@@ -15,6 +15,7 @@ from fleet_management.tests.utils import attach_request_photos
 class TestFuelOrderDecisions(IntegrationTestCase):
 	def setUp(self):
 		super().setUp()
+		frappe.local.conf["throttle_user_limit"] = max(frappe.local.conf.get("throttle_user_limit", 60), 1000)
 		self.no_mail = patch("fleet_management.notifications._outgoing_mail_configured", return_value=False)
 		self.no_mail.start()
 		self.addCleanup(self.no_mail.stop)
@@ -345,7 +346,6 @@ class TestFuelOrderDecisions(IntegrationTestCase):
 		self.assertFalse(persisted.decision_action)
 		self.assertEqual(persisted.send_up_explanation, "Driver on a long field trip")
 
-
 	def test_history_keeps_workflow_reasons_and_separate_partial_authorization(self):
 		partial = self._draft(
 			request_gauge_percent=20,
@@ -436,7 +436,14 @@ class TestFuelOrderDecisions(IntegrationTestCase):
 			issues = frappe.get_all(
 				"Fuel Order History Event",
 				filters={"fuel_order": order.name, "event_type": "Signal Issue"},
-				fields=["name", "actor", "issue_key", "related_event", "source_facts_json", "evidence_references_json"],
+				fields=[
+					"name",
+					"actor",
+					"issue_key",
+					"related_event",
+					"source_facts_json",
+					"evidence_references_json",
+				],
 				order_by="event_datetime asc, creation asc",
 			)
 			self.assertEqual(len(issues), 1)
@@ -470,7 +477,9 @@ class TestFuelOrderDecisions(IntegrationTestCase):
 			self.assertEqual(len(issues), 2)
 			self.assertEqual(issues[1].issue_key, first.issue_key)
 			self.assertEqual(issues[1].related_event, first.name)
-			self.assertIn("90%", json.loads(issues[1].source_facts_json)["signal_result"]["reasons"][0]["details"][0])
+			self.assertIn(
+				"90%", json.loads(issues[1].source_facts_json)["signal_result"]["reasons"][0]["details"][0]
+			)
 
 			self._save_settings(gauge_limit_percent=82)
 			order = frappe.get_doc("Fuel Order", order.name)
@@ -484,7 +493,9 @@ class TestFuelOrderDecisions(IntegrationTestCase):
 			self.assertEqual(len(issues), 3)
 			self.assertEqual(issues[2].issue_key, first.issue_key)
 			self.assertEqual(issues[2].related_event, issues[1].name)
-			self.assertIn("above 82%", json.loads(issues[2].source_facts_json)["signal_result"]["reasons"][0]["text"])
+			self.assertIn(
+				"above 82%", json.loads(issues[2].source_facts_json)["signal_result"]["reasons"][0]["text"]
+			)
 
 			order = frappe.get_doc("Fuel Order", order.name)
 			order.request_gauge_percent = 20
