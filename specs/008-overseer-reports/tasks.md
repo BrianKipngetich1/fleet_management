@@ -55,7 +55,7 @@ criterion is cited by at least one task. Tick a task's checkbox when it is commi
 
 **Tracer:** an overseer can open focused approvals, flags, and discrepancy sections; identify warning status directly in fueling rows; and review a selected vehicle's full history and monthly trends.
 
-- [ ] 4.1 Add distinct Approvals, Flag Reports, and Discrepancy Reports sections to Requests & Audit; show every flagged request's status, reason, and source links.
+- [x] 4.1 Add distinct Approvals, Flag Reports, and Discrepancy Reports sections to Requests & Audit; show every flagged request's status, reason, and source links.
   - _Requirements: 3.5, 3.6, 4.1, 4.2_
 - [ ] 4.2 Apply a full-row Green/Red warning gradient to linked Fueling Summary transaction rows; leave unflagged rows, monthly totals, status text, and exports unchanged.
   - _Requirements: 1.5, 1.7, 4.1, 4.2_
@@ -65,6 +65,8 @@ criterion is cited by at least one task. Tick a task's checkbox when it is commi
   - _Requirements: 1.5, 1.7, 2.1, 2.5, 3.5, 3.6, 4.1, 4.2, 5.1_
 
 ## Progress log
+
+- `08/10/2026`: Task 4.1 complete. Added section buttons and a shared Section filter for Approvals, Flag Reports, Discrepancy Reports, and All Audit; the selected rows remain the standard export source, and All Audit retains cancellation rows. Flag Reports include Green/Red requests only when a warning reason exists, with request/decision status and any linked fueling transaction. The disposable test site passed all 3 Requests & Audit unit and 3 integration tests, including section filters, reasons, linked transactions, discrepancy-only rows, exports, and cancellation status. Main and test-site migrations passed with Locale matched; JSON validity, Python compilation, JavaScript syntax, diff checks, and spec-check passed. Ruff is unavailable. No test records were created on the main site. Next: task 4.2.
 
 - `03/10/2026`: Task 3.5 complete. Requests & Audit formats Green statuses with the green flag color and Red statuses with the red flag color while preserving status and export values. Main and disposable test-site migrations exited successfully; JS syntax, all 30 JSON files, diff checks, and spec-check passed (spec-check retains its existing test-naming warnings). Ruff/pre-commit were unavailable. A Desk walkthrough was skipped because agent-browser could not create its socket under read-only `/run/user/1000/agent-browser`; its diagnostic check passed. No test records were created on the main site.
 

@@ -1,4 +1,14 @@
 frappe.query_reports["Requests & Audit"] = {
+	onload(report) {
+		[
+			[__("All Audit"), "All Audit"],
+			[__("Approvals"), "Approvals"],
+			[__("Flag Reports"), "Flag Reports"],
+			[__("Discrepancy Reports"), "Discrepancy Reports"],
+		].forEach(([label, section]) => {
+			report.page.add_inner_button(label, () => report.set_filter_value("section", section), __("Sections"));
+		});
+	},
 	formatter(value, row, column, data, default_formatter) {
 		const formatted = default_formatter(value, row, column, data);
 		if (column.fieldname !== "warning_status") {
@@ -46,6 +56,13 @@ frappe.query_reports["Requests & Audit"] = {
 			label: __("Station"),
 			fieldtype: "Link",
 			options: "Fuel Station",
+		},
+		{
+			fieldname: "section",
+			label: __("Section"),
+			fieldtype: "Select",
+			options: [__("All Audit"), __("Approvals"), __("Flag Reports"), __("Discrepancy Reports")],
+			default: __("All Audit"),
 		},
 	],
 };

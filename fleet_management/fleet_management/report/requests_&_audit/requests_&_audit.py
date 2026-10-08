@@ -170,7 +170,8 @@ def execute(filters=None):
 
 	orders = _get_orders(filters, from_date, to_date)
 	transactions = _get_transactions(filters, from_date, to_date)
-	return COLUMNS, _build_rows(orders, transactions, from_date, to_date), None, None
+	rows = _build_rows(orders, transactions, from_date, to_date)
+	return COLUMNS, _filter_rows(rows, filters.get("section")), None, None
 
 
 def _assert_report_access():
@@ -232,7 +233,14 @@ def _get_orders(filters, from_date, to_date):
 				SELECT 1 FROM {TRANSACTION_TABLE}
 				WHERE {TRANSACTION_TABLE}.fuel_order = {ORDER_TABLE}.name
 				  AND {TRANSACTION_TABLE}.docstatus = 1
-			) AS has_submitted_transaction
+			) AS has_submitted_transaction,
+			(
+				SELECT {TRANSACTION_TABLE}.name FROM {TRANSACTION_TABLE}
+				WHERE {TRANSACTION_TABLE}.fuel_order = {ORDER_TABLE}.name
+				  AND {TRANSACTION_TABLE}.docstatus IN (1, 2)
+				ORDER BY {TRANSACTION_TABLE}.actual_fueling_datetime, {TRANSACTION_TABLE}.name
+				LIMIT 1
+			) AS linked_fueling_transaction
 		FROM {ORDER_TABLE}
 		WHERE {' AND '.join(conditions)}
 		ORDER BY {ORDER_TABLE}.request_datetime, {ORDER_TABLE}.name
@@ -309,6 +317,7 @@ def _build_rows(orders, transactions, from_date, to_date):
 			"fuel_type": order.fuel_type,
 			"station": order.station,
 			"fuel_order": order.name,
+			"fueling_transaction": order.linked_fueling_transaction,
 			"requester": order.requester,
 			"request_status": status,
 			"warning_status": order.signal,
@@ -370,6 +379,22 @@ def _build_rows(orders, transactions, from_date, to_date):
 		)
 
 	rows.sort(key=lambda row: (row["activity_date"], row["activity"], row.get("fuel_order") or ""))
+	return rows
+
+
+def _filter_rows(rows, section):
+	if section == "Approvals":
+		return [row for row in rows if row["activity"] in (_("Fuel request"), _("Fuel request decision"))]
+	if section == "Flag Reports":
+		return [
+			row
+			for row in rows
+			if row["activity"] in (_("Fuel request"), _("Fuel request decision"))
+			and row.get("warning_status") in ("Green", "Red")
+			and row.get("warning_reasons")
+		]
+	if section == "Discrepancy Reports":
+		return [row for row in rows if row.get("fueling_discrepancy")]
 	return rows
 
 

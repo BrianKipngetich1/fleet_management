@@ -11,10 +11,14 @@ from frappe.utils import getdate
 from fleet_management.fleet_management.doctype.fueling_discrepancy.test_fueling_discrepancy import (
 	FuelingDiscrepancyFixture,
 )
+from fleet_management.history import stage_cancel_reason
 
 _build_rows = import_module(
 	"fleet_management.fleet_management.report.requests_&_audit.requests_&_audit"
 )._build_rows
+_filter_rows = import_module(
+	"fleet_management.fleet_management.report.requests_&_audit.requests_&_audit"
+)._filter_rows
 
 
 class TestRequestsAuditRows(UnitTestCase):
@@ -77,6 +81,41 @@ class TestRequestsAuditRows(UnitTestCase):
 		row = _build_rows([], [transaction], day, day)[0]
 		self.assertEqual(row["discrepancy_status"], "No discrepancy was recorded")
 		self.assertIsNone(row["fueling_discrepancy"])
+
+	def test_review_sections_keep_their_rows_and_all_audit_keeps_cancellations(self):
+		rows = [
+			{
+				"activity": "Fuel request",
+				"warning_status": "Red",
+				"warning_reasons": "Review the meter reading.",
+				"fuel_order": "FO-RED",
+			},
+			{
+				"activity": "Fuel request decision",
+				"warning_status": "Red",
+				"fuel_order": "FO-RED",
+				"fueling_transaction": "FT-RED",
+				"warning_reasons": "Review the meter reading.",
+				"request_status": "Approved",
+			},
+			{
+				"activity": "Fuel request",
+				"warning_status": "Green",
+				"warning_reasons": None,
+				"fuel_order": "FO-CLEAR",
+			},
+			{"activity": "Recorded fueling discrepancy", "fueling_discrepancy": "FD-1"},
+			{"activity": "Cancelled fueling transaction", "fueling_status": "Cancelled"},
+		]
+
+		self.assertEqual(len(_filter_rows(rows, "Approvals")), 3)
+		flags = _filter_rows(rows, "Flag Reports")
+		self.assertEqual(len(flags), 2)
+		self.assertEqual(flags[1]["request_status"], "Approved")
+		self.assertEqual(flags[1]["warning_reasons"], "Review the meter reading.")
+		self.assertEqual(flags[1]["fueling_transaction"], "FT-RED")
+		self.assertEqual(_filter_rows(rows, "Discrepancy Reports"), [rows[3]])
+		self.assertEqual(_filter_rows(rows, "All Audit"), rows)
 
 
 class TestRequestsAudit(FuelingDiscrepancyFixture, IntegrationTestCase):
@@ -164,7 +203,26 @@ class TestRequestsAudit(FuelingDiscrepancyFixture, IntegrationTestCase):
 			self.assertEqual(rejection["decision_by"], rejected.rejected_by)
 			self.assertEqual(rejection["activity_date"], rejected.rejected_on)
 
-			audit = next(row for row in rows if row.get("fueling_transaction") == transaction.name)
+			approvals = self._run_report({**filters, "section": "Approvals"})["result"]
+			self.assertTrue(approvals)
+			self.assertTrue(all(row["activity"] in ("Fuel request", "Fuel request decision") for row in approvals))
+
+			flags = self._run_report({**filters, "section": "Flag Reports"})["result"]
+			self.assertTrue(flags)
+			self.assertTrue(all(row["warning_status"] in ("Green", "Red") for row in flags))
+			self.assertTrue(all(row["warning_reasons"] for row in flags))
+			flagged_rejection = next(row for row in flags if row.get("fuel_order") == rejected.name)
+			self.assertEqual(flagged_rejection["request_status"], "Rejected")
+
+			discrepancy_rows = self._run_report({**filters, "section": "Discrepancy Reports"})["result"]
+			self.assertEqual({row["fueling_discrepancy"] for row in discrepancy_rows}, {discrepancy.name})
+
+			audit = next(
+				row
+				for row in rows
+				if row.get("fueling_transaction") == transaction.name
+				and row["activity"] == "Recorded fueling discrepancy"
+			)
 			self.assertEqual(audit["fueling_status"], "Submitted")
 			self.assertEqual(audit["discrepancy_status"], "Recorded")
 			self.assertEqual(audit["fueling_discrepancy"], discrepancy.name)
@@ -190,7 +248,11 @@ class TestRequestsAudit(FuelingDiscrepancyFixture, IntegrationTestCase):
 		}
 		with self.set_user(self.approvers["Mombasa"]):
 			rows = self._run_report(filters)["result"]
-			audit = next(row for row in rows if row.get("fueling_transaction") == transaction.name)
+			audit = next(
+				row
+				for row in rows
+				if row.get("fueling_transaction") == transaction.name and row["activity"] == "Fueling transaction"
+			)
 			self.assertEqual(audit["discrepancy_status"], "No discrepancy was recorded")
 			self.assertNotIn("no issue occurred", audit["discrepancy_status"].lower())
 
@@ -206,6 +268,7 @@ class TestRequestsAudit(FuelingDiscrepancyFixture, IntegrationTestCase):
 	def test_cancelled_transaction_stays_in_audit_and_out_of_summary_and_performance(self):
 		transaction = self._submit_transaction("Nairobi")
 		with self.set_user("Administrator"):
+			stage_cancel_reason("Fueling Transaction", transaction.name, "Duplicate test fueling transaction")
 			frappe.get_doc("Fueling Transaction", transaction.name).cancel()
 
 		day = getdate(transaction.actual_fueling_datetime)
@@ -219,7 +282,12 @@ class TestRequestsAudit(FuelingDiscrepancyFixture, IntegrationTestCase):
 		}
 		with self.set_user(self.approvers["Nairobi"]):
 			audit_rows = self._run_report(filters)["result"]
-			cancelled = next(row for row in audit_rows if row.get("fueling_transaction") == transaction.name)
+			cancelled = next(
+				row
+				for row in audit_rows
+				if row.get("fueling_transaction") == transaction.name
+				and row["activity"] == "Cancelled fueling transaction"
+			)
 			self.assertEqual(cancelled["activity"], "Cancelled fueling transaction")
 			self.assertEqual(cancelled["fueling_status"], "Cancelled")
 
