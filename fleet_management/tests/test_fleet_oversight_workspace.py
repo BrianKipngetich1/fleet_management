@@ -1,4 +1,5 @@
 import frappe
+from frappe.boot import get_bootinfo
 from frappe.desk.desktop import get_workspaces
 from frappe.tests import IntegrationTestCase
 
@@ -48,3 +49,35 @@ class TestFleetOversightWorkspace(IntegrationTestCase):
 		with self.set_user(self.users["Fleet User"]):
 			visible = {page.name for page in get_workspaces()["pages"]}
 			self.assertNotIn("Fleet Oversight", visible)
+
+	def test_fleet_sidebar_lists_reports_only_for_users_with_report_access(self):
+		sidebar = frappe.get_doc("Workspace Sidebar", "Fleet")
+		reports_section = next(item for item in sidebar.items if item.label == "Reports")
+		self.assertEqual(reports_section.type, "Section Break")
+		self.assertEqual(reports_section.collapsible, 1)
+		expected_reports = {"Fueling Summary", "Asset Performance", "Requests & Audit"}
+		configured_reports = {
+			item.link_to
+			for item in sidebar.items
+			if item.child and item.link_type == "Report"
+		}
+		self.assertEqual(configured_reports, expected_reports)
+
+		for role in ("Fleet Approver", "Fleet Admin"):
+			with self.subTest(role=role), self.set_user(self.users[role]):
+				visible = get_bootinfo().workspace_sidebar_item["fleet"]["items"]
+				reports = {
+					item["link_to"]
+					for item in visible
+					if item["type"] == "Link" and item["link_type"] == "Report"
+				}
+				self.assertEqual(reports, expected_reports)
+
+		with self.set_user(self.users["Fleet User"]):
+			visible = get_bootinfo().workspace_sidebar_item["fleet"]["items"]
+			reports = {
+				item["link_to"]
+				for item in visible
+				if item["type"] == "Link" and item["link_type"] == "Report"
+			}
+			self.assertEqual(reports, set())
