@@ -6,7 +6,6 @@ from frappe.utils import cint, flt, get_datetime, getdate, now_datetime
 
 from fleet_management.permissions import get_report_query_conditions
 from fleet_management.fleet_management.report.fueling_summary.fueling_summary import (
-	_get_date_range,
 	_validate_location_filter,
 )
 
@@ -172,7 +171,7 @@ def execute(filters=None):
 	if not filters.get("asset"):
 		frappe.throw(_("Select an asset."), frappe.ValidationError)
 
-	from_date, to_date = _get_date_range(filters)
+	from_date, to_date = _get_optional_date_range(filters)
 	_validate_location_filter(filters.get("location"))
 	asset = frappe.get_doc("Fleet Asset", filters.asset)
 	asset.check_permission("read")
@@ -193,6 +192,28 @@ def _assert_report_access():
 				frappe.throw(_("You do not have permission to report on {0}.").format(doctype), frappe.PermissionError)
 
 
+def _get_optional_date_range(filters):
+	try:
+		from_date = getdate(filters.from_date) if filters.get("from_date") else None
+		to_date = getdate(filters.to_date) if filters.get("to_date") else None
+	except (TypeError, ValueError):
+		frappe.throw(_("Enter valid From Date and To Date values."), frappe.ValidationError)
+	if from_date and to_date and from_date > to_date:
+		frappe.throw(_("From Date cannot be later than To Date."), frappe.ValidationError)
+	return from_date, to_date
+
+
+def _date_filter_conditions(field, from_date, to_date, query_filters):
+	conditions = []
+	if from_date:
+		conditions.append(f"DATE({field}) >= %(from_date)s")
+		query_filters["from_date"] = from_date
+	if to_date:
+		conditions.append(f"DATE({field}) <= %(to_date)s")
+		query_filters["to_date"] = to_date
+	return conditions
+
+
 def _get_orders(filters, from_date, to_date):
 	conditions = [
 		f"{ORDER_TABLE}.asset = %(asset)s",
@@ -200,15 +221,22 @@ def _get_orders(filters, from_date, to_date):
 			f"({ORDER_TABLE}.docstatus != 0 OR "
 			f"{ORDER_TABLE}.workflow_state IN ('Pending Approval', 'Rejected'))"
 		),
-		(
-			f"(DATE({ORDER_TABLE}.request_datetime) BETWEEN %(from_date)s AND %(to_date)s "
-			f"OR DATE({ORDER_TABLE}.approved_on) BETWEEN %(from_date)s AND %(to_date)s "
-			f"OR DATE({ORDER_TABLE}.rejected_on) BETWEEN %(from_date)s AND %(to_date)s "
-			f"OR ({ORDER_TABLE}.docstatus = 2 AND DATE({ORDER_TABLE}.modified) "
-			"BETWEEN %(from_date)s AND %(to_date)s))"
-		),
 	]
-	query_filters = {"asset": filters.asset, "from_date": from_date, "to_date": to_date}
+	query_filters = {"asset": filters.asset}
+	event_conditions = []
+	for fieldname in ("request_datetime", "approved_on", "rejected_on"):
+		date_conditions = _date_filter_conditions(f"{ORDER_TABLE}.{fieldname}", from_date, to_date, query_filters)
+		if date_conditions:
+			event_conditions.append("(" + " AND ".join(date_conditions) + ")")
+	cancellation_conditions = _date_filter_conditions(
+		f"{ORDER_TABLE}.modified", from_date, to_date, query_filters
+	)
+	if cancellation_conditions:
+		event_conditions.append(
+			f"({ORDER_TABLE}.docstatus = 2 AND " + " AND ".join(cancellation_conditions) + ")"
+		)
+	if event_conditions:
+		conditions.append("(" + " OR ".join(event_conditions) + ")")
 	for fieldname, expression in (
 		("location", ORDER_LOCATION_EXPRESSION),
 		("fuel_type", f"{ORDER_TABLE}.fuel_type"),
@@ -268,9 +296,13 @@ def _get_transactions(filters, from_date, to_date):
 	conditions = [
 		f"{TRANSACTION_TABLE}.asset = %(asset)s",
 		f"{TRANSACTION_TABLE}.docstatus = 1",
-		f"DATE({TRANSACTION_TABLE}.actual_fueling_datetime) BETWEEN %(from_date)s AND %(to_date)s",
 	]
-	query_filters = {"asset": filters.asset, "from_date": from_date, "to_date": to_date}
+	query_filters = {"asset": filters.asset}
+	conditions.extend(
+		_date_filter_conditions(
+			f"{TRANSACTION_TABLE}.actual_fueling_datetime", from_date, to_date, query_filters
+		)
+	)
 	for fieldname, expression in (
 		("location", LOCATION_EXPRESSION),
 		("fuel_type", f"{TRANSACTION_TABLE}.fuel_type"),
@@ -419,17 +451,18 @@ def _build_rows(asset, orders, transactions, from_date, to_date):
 	for month in sorted(rows_by_month):
 		month_rows = rows_by_month[month]
 		delivered_litres = sum(flt(row.get("delivered_litres")) for row in month_rows)
-		data.append(
-			{
-				"month": month,
-				"record_type": _("Monthly total"),
-				"asset": asset.name,
-				"asset_type": asset.asset_type,
-				"fuel_order_count": sum(cint(row.get("fuel_order_count")) for row in month_rows),
-				"fueling_count": sum(cint(row.get("fueling_count")) for row in month_rows),
-				"delivered_litres": flt(delivered_litres, 2),
-			}
-		)
+		monthly_total = {
+			"month": month,
+			"record_type": _("Monthly total"),
+			"asset": asset.name,
+			"asset_type": asset.asset_type,
+			"fuel_order_count": sum(cint(row.get("fuel_order_count")) for row in month_rows),
+			"fueling_count": sum(cint(row.get("fueling_count")) for row in month_rows),
+			"delivered_litres": flt(delivered_litres, 2),
+		}
+		if asset.asset_type == "Vehicle":
+			monthly_total["efficiency_km_per_litre"] = _monthly_efficiency(month_rows)
+		data.append(monthly_total)
 		data.extend(month_rows)
 		labels.append(month)
 		litre_values.append(flt(delivered_litres, 2))
@@ -443,19 +476,38 @@ def _build_rows(asset, orders, transactions, from_date, to_date):
 	return data, chart
 
 
+def _monthly_efficiency(rows):
+	intervals = [
+		row
+		for row in rows
+		if flt(row.get("distance_km")) > 0 and flt(row.get("qualifying_litres")) > 0
+	]
+	qualifying_litres = sum(flt(row["qualifying_litres"]) for row in intervals)
+	if not intervals or qualifying_litres <= 0:
+		return None
+	return flt(sum(flt(row["distance_km"]) for row in intervals) / qualifying_litres, 4)
+
+
 def _order_activity(order, from_date, to_date):
 	request_date = order.request_datetime
-	if request_date and from_date <= getdate(request_date) <= to_date:
+	if _matches_date_range(request_date, from_date, to_date):
 		return request_date, _("Fuel Order")
 
 	decision_date = _decision_date(order)
-	if decision_date and from_date <= getdate(decision_date) <= to_date:
+	if _matches_date_range(decision_date, from_date, to_date):
 		return decision_date, _("Fuel Order decision")
 
-	if cint(order.docstatus) == 2 and order.modified and from_date <= getdate(order.modified) <= to_date:
+	if cint(order.docstatus) == 2 and _matches_date_range(order.modified, from_date, to_date):
 		return order.modified, _("Fuel Order cancellation")
 
 	return request_date or decision_date or order.modified, _("Fuel Order")
+
+
+def _matches_date_range(value, from_date, to_date):
+	if not value:
+		return False
+	day = getdate(value)
+	return (not from_date or from_date <= day) and (not to_date or day <= to_date)
 
 
 def _decision_date(order):

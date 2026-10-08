@@ -10,6 +10,8 @@ from frappe.utils import add_days, flt, getdate
 from fleet_management.fleet_management.report.asset_performance.asset_performance import (
 	_fueling_source_key,
 	_fulfillment_status,
+	_get_optional_date_range,
+	_monthly_efficiency,
 	_rate_efficiency,
 	_request_status,
 	_target_history_state,
@@ -25,6 +27,17 @@ class TestAssetPerformanceStatuses(UnitTestCase):
 	def test_reversed_period_is_rejected(self):
 		with self.assertRaisesRegex(frappe.ValidationError, "From Date cannot be later than To Date"):
 			_get_date_range(_dict(from_date="2026-10-02", to_date="2026-10-01"))
+
+	def test_asset_period_is_optional_and_accepts_one_sided_bounds(self):
+		self.assertEqual(_get_optional_date_range(_dict()), (None, None))
+		self.assertEqual(
+			_get_optional_date_range(_dict(from_date="2026-10-02")), (getdate("2026-10-02"), None)
+		)
+		self.assertEqual(
+			_get_optional_date_range(_dict(to_date="2026-10-03")), (None, getdate("2026-10-03"))
+		)
+		with self.assertRaisesRegex(frappe.ValidationError, "From Date cannot be later than To Date"):
+			_get_optional_date_range(_dict(from_date="2026-10-02", to_date="2026-10-01"))
 
 	def test_request_status_distinguishes_pending_approval_rejection_withdrawal_and_cancellation(self):
 		self.assertEqual(_request_status(_dict(docstatus=0, workflow_state="Pending Approval")), "Pending")
@@ -105,6 +118,15 @@ class TestAssetPerformanceEfficiency(UnitTestCase):
 		opening = _dict(name="FT-0001", actual_fueling_datetime="2026-10-01 08:00:00")
 		closing = _dict(name="FT-0002", actual_fueling_datetime="2026-10-01 08:00:00")
 		self.assertLess(_fueling_source_key(opening), _fueling_source_key(closing))
+
+	def test_month_efficiency_weights_only_valid_intervals_by_qualifying_litres(self):
+		rows = [
+			{"distance_km": 400, "qualifying_litres": 40},
+			{"distance_km": 300, "qualifying_litres": 20},
+			{"efficiency_status": "Unavailable"},
+		]
+		self.assertEqual(_monthly_efficiency(rows), 11.6667)
+		self.assertIsNone(_monthly_efficiency([{"efficiency_status": "Unavailable"}]))
 
 
 class TestAssetPerformanceReport(ReportHistoryFixture, IntegrationTestCase):
@@ -213,6 +235,47 @@ class TestAssetPerformanceReport(ReportHistoryFixture, IntegrationTestCase):
 
 		self.assertTrue({"Pending", "Rejected", "Approved"}.issubset(seen_requests))
 		self.assertTrue({"Awaiting fueling", "Completed", "Expired"}.issubset(seen_fulfillment))
+
+	def test_unbounded_asset_history_and_monthly_efficiency_match_valid_intervals(self):
+		asset = self.vehicles[self.north]
+		transactions = frappe.get_all(
+			"Fueling Transaction",
+			filters={"asset": asset, "docstatus": 1},
+			fields=["name", "actual_fueling_datetime", "distance_km", "qualifying_litres"],
+			order_by="actual_fueling_datetime asc, name asc",
+		)
+		self.assertTrue(transactions)
+		with self.set_user(self.admin):
+			result = self._run_report({"asset": asset})
+			rows = self._transaction_rows(result)
+			self.assertEqual({row["fueling_transaction"] for row in rows}, {row.name for row in transactions})
+			monthly = {
+				row["month"]: row
+				for row in result["result"]
+				if row.get("record_type") == "Monthly total"
+			}
+			valid_by_month = {}
+			for transaction in transactions:
+				if flt(transaction.distance_km) > 0 and flt(transaction.qualifying_litres) > 0:
+					month = getdate(transaction.actual_fueling_datetime).strftime("%Y-%m")
+					valid_by_month.setdefault(month, []).append(transaction)
+			for month, total in monthly.items():
+				intervals = valid_by_month.get(month, [])
+				if intervals:
+					expected = sum(flt(row.distance_km) for row in intervals) / sum(
+						flt(row.qualifying_litres) for row in intervals
+					)
+					self.assertAlmostEqual(total["efficiency_km_per_litre"], expected, places=4)
+				else:
+					self.assertIsNone(total["efficiency_km_per_litre"])
+			self.assertEqual(result["chart"]["data"]["labels"], sorted(monthly))
+
+			start = getdate(transactions[len(transactions) // 2].actual_fueling_datetime)
+			from_only = self._transaction_rows(self._run_report({"asset": asset, "from_date": start}))
+			self.assertTrue(all(getdate(row["activity_date"]) >= start for row in from_only))
+			end = getdate(transactions[0].actual_fueling_datetime)
+			to_only = self._transaction_rows(self._run_report({"asset": asset, "to_date": end}))
+			self.assertTrue(all(getdate(row["activity_date"]) <= end for row in to_only))
 
 	def test_vehicle_period_keeps_boundary_activity_and_uses_out_of_period_full_fill(self):
 		asset = self.vehicles[self.north]

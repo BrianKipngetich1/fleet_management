@@ -59,12 +59,14 @@ criterion is cited by at least one task. Tick a task's checkbox when it is commi
   - _Requirements: 3.5, 3.6, 4.1, 4.2_
 - [x] 4.2 Apply a full-row Green/Red warning gradient to linked Fueling Summary transaction rows; leave unflagged rows, monthly totals, status text, and exports unchanged.
   - _Requirements: 1.5, 1.7, 4.1, 4.2_
-- [ ] 4.3 Extend Asset Performance to default to all retained asset history with optional date filters and graph monthly delivered litres alongside valid-interval km/L efficiency for vehicles.
+- [x] 4.3 Extend Asset Performance to default to all retained asset history with optional date filters and graph monthly delivered litres alongside valid-interval km/L efficiency for vehicles.
   - _Requirements: 2.1, 2.2, 2.5, 4.1, 4.2_
 - [ ] 4.4 Verify section contents and filters, approved and non-approved flagged requests, row colors, asset history, trend calculations, and existing exports and access rules.
   - _Requirements: 1.5, 1.7, 2.1, 2.5, 3.5, 3.6, 4.1, 4.2, 5.1_
 
 ## Progress log
+
+- `08/10/2026`: Task 4.3 complete. Asset Performance now defaults to all retained history for the selected asset; either date bound can be set independently. Monthly vehicle efficiency is the weighted distance/qualifying-litre ratio across valid full-to-full intervals closing that month, and a separate km/L chart appears only for months with valid intervals; the delivered-litres chart remains. On the disposable test site, 2 unit tests and 2 integration tests passed for optional bounds, unbounded history, weighted intervals, and prior full-fill boundaries. Main and test-site migrations passed with Locale matched; JSON validity, Python compilation, JavaScript syntax, diff checks, and spec-check passed. Ruff is unavailable. No test records were created on the main site. Next: task 4.4 verification.
 
 - `08/10/2026`: Task 4.2 complete. Fueling Summary carries linked Fuel Order warning status and reasons as non-column row metadata. Its formatter shades every cell of warned transaction rows with a Green/Red gradient; Green rows without a warning reason and monthly totals stay neutral, and export columns are unchanged. On the disposable site, the warning metadata unit test and existing filter/export integration test passed. Main and test-site migrations passed with Locale matched; JSON validity, Python compilation, JavaScript syntax, diff checks, and spec-check passed. Ruff is unavailable. No test records were created on the main site. Next: task 4.3.
 
