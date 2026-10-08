@@ -5,7 +5,7 @@ from frappe.tests import IntegrationTestCase
 
 
 class TestFleetOversightWorkspace(IntegrationTestCase):
-	"""Integration checks for spec 008-overseer-reports Requirements 1.6 and 4.1."""
+	"""Integration checks for spec 008-overseer-reports Requirements 1.6, 4.1, and 4.3."""
 
 	def setUp(self):
 		super().setUp()
