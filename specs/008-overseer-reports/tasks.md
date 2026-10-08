@@ -64,8 +64,18 @@ criterion is cited by at least one task. Tick a task's checkbox when it is commi
 - [x] 4.4 Verify section contents and filters, approved and non-approved flagged requests, row colors, asset history, trend calculations, and existing exports and access rules.
   - _Requirements: 1.5, 1.7, 2.1, 2.5, 3.5, 3.6, 4.1, 4.2, 5.1_
 
+## Phase 5: Persistent report navigation
+
+**Tracer:** an authorized overseer can open any of the three reports from a collapsible Reports section in the persistent Fleet sidebar.
+
+- [ ] 5.1 Add a collapsible Reports section to the Fleet sidebar with links to the three reports; rely on existing report permissions to hide links from users without access.
+  - _Requirements: 1.6, 4.1, 4.3_
+- [ ] 5.2 Verify the three sidebar links and their permission filtering for Fleet Approver, Fleet Admin, and Fleet User in the disposable test site and Desk.
+  - _Requirements: 4.1, 4.3_
+
 ## Progress log
 
+- `08/10/2026`: Phase 5 approved by the requester as Steve. The approved scope adds a persistent collapsible Reports section to the Fleet sidebar for Fueling Summary, Asset Performance, and Requests & Audit, relying on existing report permissions. No role, report, or location access changes. Next: task 5.1.
 - `08/10/2026`: Task 4.4 complete. The disposable site passed Requests & Audit (3 unit, 3 integration), Asset Performance (10 unit, 6 integration), and focused Fueling Summary warning/filter-export checks (1 unit, 1 integration). Browser walkthrough confirmed the audit section buttons, seeded Red flag status/reason, and unbounded asset history with a monthly chart. The current seed has no submitted fueling row or valid vehicle interval, so live row-gradient and km/L-point rendering were not visually observable; their metadata/calculation checks passed. Test-site migration passed with Locale matched. JSON validity (26 files), Python compilation, JavaScript syntax, diff checks, and spec-check passed; Ruff is unavailable. No test records were added on the main site. No full app suite, independent review, or pre-PR pipeline was run. Phase 4 is complete; await a request to publish.
 - `08/10/2026`: Task 4.3 complete. Asset Performance now defaults to all retained history for the selected asset; either date bound can be set independently. Monthly vehicle efficiency is the weighted distance/qualifying-litre ratio across valid full-to-full intervals closing that month, and a separate km/L chart appears only for months with valid intervals; the delivered-litres chart remains. On the disposable test site, 2 unit tests and 2 integration tests passed for optional bounds, unbounded history, weighted intervals, and prior full-fill boundaries. Main and test-site migrations passed with Locale matched; JSON validity, Python compilation, JavaScript syntax, diff checks, and spec-check passed. Ruff is unavailable. No test records were created on the main site. Next: task 4.4 verification.
 

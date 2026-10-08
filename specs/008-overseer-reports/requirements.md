@@ -77,6 +77,7 @@ inside Requests & Audit, and figures that can be traced to the records they summ
 
 1. WHEN a user views any report THE system SHALL show only records and totals for locations that user is permitted to access.
 2. WHEN a user exports report details THE system SHALL preserve the user's location access and selected report filters.
+3. WHEN a user with report access opens the Fleet sidebar THE system SHALL show a persistent, collapsible Reports section containing Fueling Summary, Asset Performance, and Requests & Audit; users without report access SHALL NOT see those report links.
 
 ### Requirement 5: Unchanged behaviour
 

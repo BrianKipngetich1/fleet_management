@@ -23,6 +23,7 @@ Approved by: pending
 - Fueling transactions have no invoice total or printed unit price fields. The transaction form already requires a private invoice attachment.
 - `fleet_management.permissions` already provides location-scoped document checks and `get_report_query_conditions()` for `Fuel Order` and `Fueling Transaction`. A report must apply those conditions itself; report filters alone do not protect rows or exports.
 - The approved 001 role plan says Fleet Approvers can view reports for permitted locations and Fleet Admins can access all operational and audit records. It describes a Fleet Auditor as optional, only if a separate auditor login is needed.
+- The Fleet sidebar is a standard `Workspace Sidebar` available to Fleet roles; report links are filtered by Frappe's existing per-user report permission list.
 - Requests & Audit now colours Green and Red warning statuses with Frappe's indicator pills. The Fuel Order form and Asset Performance report use the same Green/Red warning and Green/Orange/Red efficiency colors.
 - Fueling Summary currently charts recorded monthly spend and colours no flags. Asset Performance already selects one asset, shows its period's request/fueling rows, charts monthly delivered litres, and lists vehicle efficiency on valid interval rows.
 
@@ -59,6 +60,7 @@ Approved by: pending
 - `D-14`: Colour Fueling Summary transaction detail rows across the full row with a restrained Green or Red gradient from the linked request warning flag. Leave rows without a warning and monthly aggregate rows neutral; keep warning text and exports unchanged.
 - `D-15`: Asset Performance defaults to all retained history for its selected asset and allows optional date filters. Show monthly delivered litres and a separate monthly vehicle-efficiency trend in km/L; for each month, divide the total distance of valid intervals closing in that month by their total qualifying litres. Show no efficiency point when a month has no valid interval. Keep generator litres labelled as delivered, not consumed.
 - `D-16`: Present the vehicle trends as two aligned monthly line charts—delivered litres and valid-interval km/L—so values with different units and scales are not compared on one axis.
+- `D-17`: Add one collapsible `Reports` section with the three existing reports to the standard Fleet `Workspace Sidebar`. Let Frappe's report permission filtering show links only to Fleet Approver and Fleet Admin; add no role or report and do not change location access.
 
 ## Design
 
@@ -70,6 +72,10 @@ stateDiagram-v2
     Results --> Exported: export the same filtered rows
     Results --> Filters: change filters
     DateRangeError --> Filters: correct date range
+    FleetSidebar --> ReportsSection: expand Reports
+    ReportsSection --> FuelingSummary: open Fueling Summary
+    ReportsSection --> AssetPerformance: open Asset Performance
+    ReportsSection --> RequestsAudit: open Requests & Audit
 ```
 
 **This diagram is the design, not the build.** The report returns an error without totals for an invalid range. A valid range returns results filtered by the event date appropriate to each record type. Export uses those same results and filters.
@@ -82,7 +88,7 @@ stateDiagram-v2
 | Asset Performance | The selected asset's full retained Fuel Orders and fueling transactions by default, links to each source, request and fulfillment status, and optional date filters. Vehicle views include aligned monthly delivered-litre and valid-interval km/L line charts; generator views continue to show delivered litres and hour-meter readings. |
 | Requests & Audit | Distinct Approvals, Flag Reports, and Discrepancy Reports sections reached by report buttons. Flag Reports show all warning statuses and reasons, decision status, and source links. Discrepancies appear in their own section; cancelled transaction audit rows remain available in Requests & Audit. |
 
-All reports use inclusive start and end dates and accept any span covered by retained records. Asset Performance uses all retained history when no date filters are set. The relevant filters are date range, location, asset, fuel type, and station. A location, asset, fuel, or station filter applies to every summary, trend, detail row, and export in that report. The Workspace remains a navigation page linking the same three reports; its count does not increase.
+The persistent Fleet sidebar includes a collapsible Reports section linking to the same three reports. Frappe's existing report permissions determine which links each user sees. All reports use inclusive start and end dates and accept any span covered by retained records. Asset Performance uses all retained history when no date filters are set. The relevant filters are date range, location, asset, fuel type, and station. A location, asset, fuel, or station filter applies to every summary, trend, detail row, and export in that report. The Fleet Oversight Workspace remains a navigation page linking the same three reports; its count does not increase.
 
 For a month with records that lack invoice amounts, the total is the sum of recorded invoice amounts only. The report shows how many records have no amount, rather than implying the total covers those records. The calculated price per litre uses only transactions with a recorded amount and is the recorded amount total divided by their delivered litres. Each detail row shows the calculated value beside, not in place of, a printed unit price.
 
@@ -93,6 +99,7 @@ For a month with records that lack invoice amounts, the total is the sum of reco
 | Three filterable reports and spreadsheet export | Script Reports, standard report filters, charts, and built-in report export | Report queries and calculations must combine `Fuel Order` and `Fueling Transaction` data and explicitly apply the location scope. |
 | One place to open the reports | A standard Desk Workspace with links to the three reports | None beyond its report links and role visibility. |
 | Separate review areas without adding top-level reports | Standard Script Report filters and report toolbar buttons | Section buttons select Approvals, Flag Reports, or Discrepancy Reports within Requests & Audit while retaining its shared filters, source links, and export. |
+| Persistent navigation to the reports | Standard `Workspace Sidebar` section and report links | None; Frappe filters each report link using the user's existing report permissions. |
 | Invoice amount and printed unit price | `Currency` fields on `Fueling Transaction` | Controller validation must require an amount on new submissions and preserve submitted-record immutability. |
 | Discrepancy observations | A standard `Fueling Discrepancy` DocType linked to `Fueling Transaction` | Controller and permission hooks must set audit fields on the server and enforce the linked transaction's location scope. |
 | Warning status colors | Standard Script Report formatter and Frappe `indicator-pill` CSS | A small client formatter maps the existing Green/Red status values to their matching flag colors; no new CSS or report data is needed. |
@@ -108,6 +115,8 @@ Add the `Fueling Discrepancy` DocType with a link to `Fueling Transaction`, disc
 The warning color is presentation-only. It reads the stored Green or Red status and uses existing Frappe indicator classes. No records or exports are changed.
 
 The additional sections, row gradient, and vehicle trends require no new fields or data migration. Fueling Summary uses a transaction's linked Fuel Order warning status for row colour; a missing link or warning leaves the row neutral. Monthly total rows are neutral because they can combine different warning statuses. Monthly vehicle efficiency uses existing distance and qualifying-litre values from valid intervals, grouped by the interval's closing month and calculated as total valid interval distance divided by total valid interval qualifying litres. No warning or efficiency data is backfilled.
+
+The Reports sidebar section is distributed as the standard Fleet `Workspace Sidebar` JSON and synchronized by Frappe migration. It adds no database fields or records. Frappe hides report links from users who do not have permission to view those reports.
 
 ## Correctness properties
 
@@ -164,6 +173,12 @@ Every flagged request appears in Flag Reports with its decision status, warning 
 Fueling Summary detail-row colours match a linked Green or Red warning, unflagged detail rows and monthly totals remain neutral, and vehicle trend values use only filtered delivered-litre rows and valid full-to-full intervals.
 
 **Validates: Requirements 1.7, 2.1, 2.5, 4.1, 4.2**
+
+### Property 10: Sidebar links respect report access
+
+The Fleet sidebar shows the three existing report links to Fleet Approver and Fleet Admin, and no report links to users without report access. The section does not add a report, role, or location permission.
+
+**Validates: Requirements 4.3**
 
 ## Errors and permissions
 
