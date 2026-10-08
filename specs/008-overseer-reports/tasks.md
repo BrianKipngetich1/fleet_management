@@ -51,6 +51,19 @@ criterion is cited by at least one task. Tick a task's checkbox when it is commi
 - [x] 3.5 Show Green and Red warning statuses in their matching flag colours on Requests & Audit while preserving the status text and export values.
   - _Requirements: 3.2_
 
+## Phase 4: Report sections and vehicle trends
+
+**Tracer:** an overseer can open focused approvals, flags, and discrepancy sections; identify warning status directly in fueling rows; and review a selected vehicle's full history and monthly trends.
+
+- [ ] 4.1 Add distinct Approvals, Flag Reports, and Discrepancy Reports sections to Requests & Audit; show every flagged request's status, reason, and source links.
+  - _Requirements: 3.5, 3.6, 4.1, 4.2_
+- [ ] 4.2 Apply a full-row Green/Red warning gradient to linked Fueling Summary transaction rows; leave unflagged rows, monthly totals, status text, and exports unchanged.
+  - _Requirements: 1.5, 1.7, 4.1, 4.2_
+- [ ] 4.3 Extend Asset Performance to default to all retained asset history with optional date filters and graph monthly delivered litres alongside valid-interval km/L efficiency for vehicles.
+  - _Requirements: 2.1, 2.2, 2.5, 4.1, 4.2_
+- [ ] 4.4 Verify section contents and filters, approved and non-approved flagged requests, row colors, asset history, trend calculations, and existing exports and access rules.
+  - _Requirements: 1.5, 1.7, 2.1, 2.5, 3.5, 3.6, 4.1, 4.2, 5.1_
+
 ## Progress log
 
 - `03/10/2026`: Task 3.5 complete. Requests & Audit formats Green statuses with the green flag color and Red statuses with the red flag color while preserving status and export values. Main and disposable test-site migrations exited successfully; JS syntax, all 30 JSON files, diff checks, and spec-check passed (spec-check retains its existing test-naming warnings). Ruff/pre-commit were unavailable. A Desk walkthrough was skipped because agent-browser could not create its socket under read-only `/run/user/1000/agent-browser`; its diagnostic check passed. No test records were created on the main site.

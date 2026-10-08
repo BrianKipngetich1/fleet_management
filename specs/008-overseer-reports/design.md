@@ -17,13 +17,14 @@ Approved by: pending
 
 ## Current state
 
-- No Fleet Management reports exist yet.
+- Fleet Oversight has three top-level reports: Fueling Summary, Asset Performance, and Requests & Audit.
 - `Fuel Order` stores the request date, workflow state, fulfillment status, warning signal and reasons, and approval or rejection audit details. Rejections and withdrawals both end in `Rejected`; `decision_action` distinguishes them, and `rejected_on` records the event time for either action.
 - `Fueling Transaction` stores the actual fueling date, delivered litres, vehicle odometer or generator hour meter, and vehicle full-fill interval values. Submitted transactions are immutable and cancellations retain their source values.
 - Fueling transactions have no invoice total or printed unit price fields. The transaction form already requires a private invoice attachment.
 - `fleet_management.permissions` already provides location-scoped document checks and `get_report_query_conditions()` for `Fuel Order` and `Fueling Transaction`. A report must apply those conditions itself; report filters alone do not protect rows or exports.
 - The approved 001 role plan says Fleet Approvers can view reports for permitted locations and Fleet Admins can access all operational and audit records. It describes a Fleet Auditor as optional, only if a separate auditor login is needed.
-- Requests & Audit currently returns warning status as text. The Fuel Order form and Asset Performance report already use Frappe's green and red indicator colors for the same status values.
+- Requests & Audit now colours Green and Red warning statuses with Frappe's indicator pills. The Fuel Order form and Asset Performance report use the same Green/Red warning and Green/Orange/Red efficiency colors.
+- Fueling Summary currently charts recorded monthly spend and colours no flags. Asset Performance already selects one asset, shows its period's request/fueling rows, charts monthly delivered litres, and lists vehicle efficiency on valid interval rows.
 
 ## Words in this request
 
@@ -33,6 +34,8 @@ Approved by: pending
 | fueling date | `Fueling Transaction.actual_fueling_datetime` |
 | request date | `Fuel Order.request_datetime` |
 | decision date | The stored approval or rejection/withdrawal event time on `Fuel Order` |
+| flag report | A section of Requests & Audit showing flagged requests, warning reasons, decision status, and source links |
+| full fueling report | The selected asset's retained request and fueling history, with optional date filters |
 | completed fueling | A submitted `Fueling Transaction` that has not been cancelled |
 | generator fuel | Litres delivered in a transaction; reports do not call this consumption |
 | discrepancy | A separate recorded observation linked to a `Fueling Transaction`; source transaction values stay unchanged |
@@ -40,7 +43,7 @@ Approved by: pending
 
 ## Decisions (locked)
 
-- `D-1`: Provide three reports: Fueling Summary, Asset Performance, and Requests & Audit. The first combines the requested fueling and spend summaries; the second combines vehicle and generator views with the asset's request history; the third combines decisions, warnings, discrepancies, and cancellations. Chosen over separate reports for each topic to meet the three-report limit.
+- `D-1`: Keep three top-level reports: Fueling Summary, Asset Performance, and Requests & Audit. Fueling Summary combines fueling and spend figures; Asset Performance combines asset history and performance; Requests & Audit contains distinct Approvals, Flag Reports, and Discrepancy Reports sections, plus cancellation audit rows. Chosen over separate top-level reports to preserve the approved three-report limit.
 - `D-2`: Use native Frappe Script Reports, report filters, built-in export, and a Fleet Oversight Workspace linking the three reports. The standard report result is the single source for on-screen rows and export. Chosen over a custom dashboard page because it would duplicate filtering, export, and permission behavior.
 - `D-3`: Give report access to Fleet Approver and Fleet Admin, with no new role. Fleet Approvers remain limited to their permitted locations; Fleet Admin retains its existing all-location access. Do not create the optional Fleet Auditor role because this request does not ask for a separate auditor login.
 - `D-4`: Add an invoice total and an optional printed unit price to `Fueling Transaction`. Require a positive invoice total when a new transaction is submitted; capture a printed unit price when the invoice shows one. Calculate price per litre as invoice total divided by delivered litres in the report. Chosen over storing a second calculated value, because the source fields are immutable after submission and the result can be derived consistently.
@@ -52,6 +55,10 @@ Approved by: pending
 - `D-10`: Exclude cancelled transactions from fueling, efficiency, and spending totals. Show them in Requests & Audit with their cancellation status. Filter fueling records by actual fueling date; filter requests and their decisions by their request or decision event date.
 - `D-11`: Do not change existing request, approval, or transaction submission rules. Fleet Users may record a discrepancy only for a transaction they can access; Fleet Approver and Fleet Admin may also record one within their existing scope.
 - `D-12`: Render Green and Red warning statuses in Requests & Audit with the existing Frappe `indicator-pill` green and red classes. Use the standard report formatter and leave the returned status value unchanged, so CSV export and warning reasons are unaffected.
+- `D-13`: In Requests & Audit, provide distinct sections reached by report buttons for Approvals, Flag Reports, and Discrepancy Reports. Flag Reports includes every flagged request and its pending, approved, rejected, or withdrawn status, warning reason, and related fueling link when available. Keep cancellation rows in the audit results.
+- `D-14`: Colour Fueling Summary transaction detail rows across the full row with a restrained Green or Red gradient from the linked request warning flag. Leave rows without a warning and monthly aggregate rows neutral; keep warning text and exports unchanged.
+- `D-15`: Asset Performance defaults to all retained history for its selected asset and allows optional date filters. Show monthly delivered litres and a separate monthly vehicle-efficiency trend in km/L; for each month, divide the total distance of valid intervals closing in that month by their total qualifying litres. Show no efficiency point when a month has no valid interval. Keep generator litres labelled as delivered, not consumed.
+- `D-16`: Present the vehicle trends as two aligned monthly line charts—delivered litres and valid-interval km/L—so values with different units and scales are not compared on one axis.
 
 ## Design
 
@@ -71,11 +78,11 @@ stateDiagram-v2
 
 | Report | Contents |
 |---|---|
-| Fueling Summary | Monthly delivered litres, transaction counts, recorded invoice totals in KES, weighted calculated price per litre for records with an amount, printed unit price as its own detail value, monthly trend, and source transaction rows. Rows without an amount are visibly unavailable and counted separately. |
-| Asset Performance | The selected asset's Fuel Orders and fueling transactions in the requested period, links to each source, request and fulfillment status, and vehicle interval efficiency or generator delivered litres and hour-meter readings. |
-| Requests & Audit | Request decisions and reasons, warning signals shown with their matching Green/Red flag colours and reasons, recorded discrepancies, and cancelled fueling transactions with their status and source links. |
+| Fueling Summary | Monthly delivered litres, transaction counts, recorded invoice totals in KES, weighted calculated price per litre for records with an amount, printed unit price as its own detail value, monthly spend trend, and source transaction rows. Transaction detail rows with a linked warning receive a matching full-row Green/Red gradient; unflagged rows and monthly totals remain neutral. Rows without an amount are visibly unavailable and counted separately. |
+| Asset Performance | The selected asset's full retained Fuel Orders and fueling transactions by default, links to each source, request and fulfillment status, and optional date filters. Vehicle views include aligned monthly delivered-litre and valid-interval km/L line charts; generator views continue to show delivered litres and hour-meter readings. |
+| Requests & Audit | Distinct Approvals, Flag Reports, and Discrepancy Reports sections reached by report buttons. Flag Reports show all warning statuses and reasons, decision status, and source links. Discrepancies appear in their own section; cancelled transaction audit rows remain available in Requests & Audit. |
 
-All reports use inclusive start and end dates and accept any span covered by retained records. The relevant filters are date range, location, asset, fuel type, and station. A location, asset, fuel, or station filter applies to every summary, trend, detail row, and export in that report. The Workspace is a navigation page only; it adds no fourth report or separate calculations.
+All reports use inclusive start and end dates and accept any span covered by retained records. Asset Performance uses all retained history when no date filters are set. The relevant filters are date range, location, asset, fuel type, and station. A location, asset, fuel, or station filter applies to every summary, trend, detail row, and export in that report. The Workspace remains a navigation page linking the same three reports; its count does not increase.
 
 For a month with records that lack invoice amounts, the total is the sum of recorded invoice amounts only. The report shows how many records have no amount, rather than implying the total covers those records. The calculated price per litre uses only transactions with a recorded amount and is the recorded amount total divided by their delivered litres. Each detail row shows the calculated value beside, not in place of, a printed unit price.
 
@@ -85,9 +92,11 @@ For a month with records that lack invoice amounts, the total is the sum of reco
 |---|---|---|
 | Three filterable reports and spreadsheet export | Script Reports, standard report filters, charts, and built-in report export | Report queries and calculations must combine `Fuel Order` and `Fueling Transaction` data and explicitly apply the location scope. |
 | One place to open the reports | A standard Desk Workspace with links to the three reports | None beyond its report links and role visibility. |
+| Separate review areas without adding top-level reports | Standard Script Report filters and report toolbar buttons | Section buttons select Approvals, Flag Reports, or Discrepancy Reports within Requests & Audit while retaining its shared filters, source links, and export. |
 | Invoice amount and printed unit price | `Currency` fields on `Fueling Transaction` | Controller validation must require an amount on new submissions and preserve submitted-record immutability. |
 | Discrepancy observations | A standard `Fueling Discrepancy` DocType linked to `Fueling Transaction` | Controller and permission hooks must set audit fields on the server and enforce the linked transaction's location scope. |
 | Warning status colors | Standard Script Report formatter and Frappe `indicator-pill` CSS | A small client formatter maps the existing Green/Red status values to their matching flag colors; no new CSS or report data is needed. |
+| Full-row warning colour and asset trends | Existing request warning values, transaction interval facts, and Script Report charts | The summary formatter shades transaction detail rows by linked warning; Asset Performance builds monthly litres and valid-interval km/L trends from filtered source records. No schema or historical data change is needed. |
 | Full-fill efficiency | Existing `Fueling Transaction` interval fields and shared interval calculation | The report must select a prior full fill outside the visible period when needed and suppress ratings when the target changed. |
 
 ## Data and migration plan
@@ -97,6 +106,8 @@ Add `invoice_amount` and `printed_unit_price` as optional `Currency` fields in t
 Add the `Fueling Discrepancy` DocType with a link to `Fueling Transaction`, discrepancy type, details, reason, recorded-by user, and recorded-on timestamp. The server sets the audit fields. A discrepancy is its own record; neither adding it nor viewing it changes or amends the transaction. No existing records are changed or backfilled. Existing transactions without a discrepancy entry display “No discrepancy was recorded,” which does not claim that no issue occurred.
 
 The warning color is presentation-only. It reads the stored Green or Red status and uses existing Frappe indicator classes. No records or exports are changed.
+
+The additional sections, row gradient, and vehicle trends require no new fields or data migration. Fueling Summary uses a transaction's linked Fuel Order warning status for row colour; a missing link or warning leaves the row neutral. Monthly total rows are neutral because they can combine different warning statuses. Monthly vehicle efficiency uses existing distance and qualifying-litre values from valid intervals, grouped by the interval's closing month and calculated as total valid interval distance divided by total valid interval qualifying litres. No warning or efficiency data is backfilled.
 
 ## Correctness properties
 
@@ -141,6 +152,18 @@ For every report and export, Fleet Approvers receive only rows from permitted lo
 For every request and fueling submission, the existing approval, evidence, and location checks remain in force.
 
 **Validates: Requirements 5.1**
+
+### Property 8: Flag and discrepancy sections preserve audit detail
+
+Every flagged request appears in Flag Reports with its decision status, warning reason, and source link, while discrepancies remain in their own section and location scope and selected filters still apply.
+
+**Validates: Requirements 3.5, 3.6, 4.1, 4.2**
+
+### Property 9: Warning colours and vehicle trends follow their source facts
+
+Fueling Summary detail-row colours match a linked Green or Red warning, unflagged detail rows and monthly totals remain neutral, and vehicle trend values use only filtered delivered-litre rows and valid full-to-full intervals.
+
+**Validates: Requirements 1.7, 2.1, 2.5, 4.1, 4.2**
 
 ## Errors and permissions
 
