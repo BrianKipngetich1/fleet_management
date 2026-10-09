@@ -18,7 +18,7 @@ it happened, including rounds that reviewed the wider 2026-09-18 scope.
 | Signed off | BrianKipngetich1 — 2026-09-24 (merged PR #2) |
 | Landed in | [PR #2](https://github.com/BrianKipngetich1/fleet_management/pull/2) — merge commit `81754a0` |
 | Covers | AC-01, AC-03, AC-04, AC-05, AC-06, AC-19 |
-| Credential inventory | `verification/CREDENTIALS.md` — local-only, gitignored, mode `0600` |
+| Credential inventory | root `CREDENTIALS.md` — local-only, gitignored, mode `0600` |
 
 ## What this phase makes true
 

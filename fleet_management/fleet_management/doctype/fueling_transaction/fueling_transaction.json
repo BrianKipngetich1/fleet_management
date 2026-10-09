@@ -4,7 +4,9 @@
  "engine": "InnoDB",
  "field_order": [
   "naming_series",
+  "section_break_order_context",
   "fuel_order",
+  "approved_order_context",
   "fuel_order_slip_revision",
   "operational_location",
   "asset",
@@ -16,30 +18,36 @@
   "asset_tank_capacity_snapshot",
   "asset_target_km_per_litre_snapshot",
   "asset_tolerance_percent_snapshot",
-  "actual_station",
-  "fuel_type",
   "approved_station",
   "approved_fuel_type",
   "approved_on",
   "valid_until",
-  "invoice_number",
-  "cu_number",
+  "column_break_actual_receipt",
+  "actual_station",
+  "fuel_type",
   "actual_fueling_datetime",
   "fueling_time_source",
+  "invoice_number",
+  "cu_number",
   "fueling_time_explanation",
   "vehicle_odometer",
   "hour_meter",
   "invoice_litres",
+  "invoice_amount",
+  "printed_unit_price",
   "full_tank_confirmed",
   "attendant_name",
+  "pre_tax_amount",
+  "tax_amount",
+  "invoice_total",
+  "signed_order",
+  "signed_invoice",
   "normalized_invoice_number",
   "normalized_invoice_station_key",
   "normalized_cu_number",
   "active_fuel_order",
-  "section_break_evidence",
-  "signed_invoice",
-  "signed_order",
-  "section_break_efficiency",
+  "section_break_measured_fueling",
+  "litre_variance_status",
   "is_efficiency_baseline",
   "previous_full_fill",
   "closing_full_fill",
@@ -60,12 +68,22 @@
    "reqd": 1
   },
   {
+   "fieldname": "section_break_order_context",
+   "fieldtype": "Section Break",
+   "label": "LPO and Invoice Details"
+  },
+  {
    "fieldname": "fuel_order",
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Fuel Order",
    "options": "Fuel Order",
    "reqd": 1
+  },
+  {
+   "fieldname": "approved_order_context",
+   "fieldtype": "HTML",
+   "label": "Approved Fuel Order Context"
   },
   {
    "fieldname": "fuel_order_slip_revision",
@@ -162,22 +180,6 @@
    "read_only": 1
   },
   {
-   "fieldname": "actual_station",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Actual Station",
-   "no_copy": 1,
-   "options": "Fuel Station"
-  },
-  {
-   "fieldname": "fuel_type",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Fuel Type",
-   "no_copy": 1,
-   "options": "Fuel Type"
-  },
-  {
    "fieldname": "approved_station",
    "fieldtype": "Link",
    "hidden": 1,
@@ -212,6 +214,43 @@
    "read_only": 1
   },
   {
+   "fieldname": "actual_station",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Actual Station",
+   "no_copy": 1,
+   "options": "Fuel Station"
+  },
+  {
+   "fieldname": "fuel_type",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Fuel Type",
+   "no_copy": 1,
+   "options": "Fuel Type"
+  },
+  {
+   "fieldname": "actual_fueling_datetime",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Actual Fueling Datetime",
+   "no_copy": 1,
+   "description": "Use the station fueling time, not the entry or submission time."
+  },
+  {
+   "fieldname": "fueling_time_source",
+   "fieldtype": "Select",
+   "label": "Fueling Time Source",
+   "no_copy": 1,
+   "options": "\nPrinted on invoice\nNot printed on invoice",
+   "description": "Choose whether the invoice prints the fueling time."
+  },
+  {
+   "fieldname": "column_break_actual_receipt",
+   "fieldtype": "Column Break",
+   "label": "Invoice Transaction"
+  },
+  {
    "fieldname": "invoice_number",
    "fieldtype": "Data",
    "label": "Invoice Number",
@@ -224,50 +263,49 @@
    "no_copy": 1
   },
   {
-   "fieldname": "actual_fueling_datetime",
-   "fieldtype": "Datetime",
-   "in_list_view": 1,
-   "label": "Actual Fueling Datetime",
-   "no_copy": 1,
-   "description": "Record when fuel was dispensed. This event time determines Fuel Order validity and KPI ordering. If the invoice has no time, enter the known station time and explain it; never use entry or submission time as a substitute."
-  },
-  {
-   "fieldname": "fueling_time_source",
-   "fieldtype": "Select",
-   "label": "Fueling Time Source",
-   "no_copy": 1,
-   "options": "\nPrinted on invoice\nNot printed on invoice",
-   "description": "Choose whether the invoice prints the fueling time. When it does not, record the known station time and explain how it was established."
-  },
-  {
    "depends_on": "eval:doc.fueling_time_source == 'Not printed on invoice'",
    "fieldname": "fueling_time_explanation",
    "fieldtype": "Small Text",
    "label": "Station Time Explanation",
    "mandatory_depends_on": "eval:doc.fueling_time_source == 'Not printed on invoice'",
    "no_copy": 1,
-   "description": "Required when the invoice does not print a time. Explain how the known station fueling time was established."
+   "description": "Explain how you confirmed the fueling time."
   },
   {
    "fieldname": "vehicle_odometer",
    "fieldtype": "Float",
    "label": "Vehicle Odometer",
    "no_copy": 1,
-   "description": "Authoritative odometer reading at fueling."
+   "description": "Odometer reading at fueling."
   },
   {
    "fieldname": "hour_meter",
    "fieldtype": "Float",
    "label": "Hour Meter",
    "no_copy": 1,
-   "description": "Authoritative generator hour-meter reading at fueling."
+   "description": "Hour meter reading at fueling."
   },
   {
    "fieldname": "invoice_litres",
    "fieldtype": "Float",
    "label": "Invoice Litres",
    "no_copy": 1,
-   "description": "Litres recorded on the fueling invoice."
+   "mandatory_depends_on": "eval:doc.__islocal",
+   "description": "Litres shown on the invoice."
+  },
+  {
+   "fieldname": "invoice_amount",
+   "fieldtype": "Currency",
+   "label": "Invoice Total (KES)",
+   "no_copy": 1,
+   "description": "Total amount recorded on the signed fueling invoice. Required before submission."
+  },
+  {
+   "fieldname": "printed_unit_price",
+   "fieldtype": "Currency",
+   "label": "Printed Unit Price (KES/L)",
+   "no_copy": 1,
+   "description": "Unit price shown on the signed fueling invoice, when present."
   },
   {
    "default": "0",
@@ -275,10 +313,10 @@
    "fieldtype": "Check",
    "label": "Full Tank Confirmed",
    "no_copy": 1,
-   "description": "Marks a vehicle transaction as a qualifying full fill."
+   "description": "Marks a confirmed full tank."
   },
   {
-   "description": "External fuel station attendant who confirmed the fill, as named on the signed invoice. Required at submission.",
+   "description": "Name shown on the signed invoice; required to submit.",
    "fieldname": "attendant_name",
    "fieldtype": "Data",
    "label": "Fuel Attendant Name",
@@ -318,28 +356,53 @@
    "read_only": 1
   },
   {
-   "fieldname": "section_break_evidence",
-   "fieldtype": "Section Break",
-   "label": "Signed Evidence"
+   "fieldname": "pre_tax_amount",
+   "fieldtype": "Currency",
+   "label": "Pre-Tax Fuel Amount (KES)",
+   "mandatory_depends_on": "eval:doc.__islocal",
+   "no_copy": 1,
+   "precision": 2,
+   "description": "Fuel amount before tax, in KES."
   },
   {
-   "fieldname": "signed_invoice",
-   "fieldtype": "Attach",
-   "label": "Signed Invoice",
+   "fieldname": "tax_amount",
+   "fieldtype": "Currency",
+   "label": "Tax at 8% (KES)",
    "no_copy": 1,
-   "description": "Required when the transaction is submitted. Must be a private PDF, JPG, or PNG."
+   "precision": 2,
+   "read_only": 1
+  },
+  {
+   "fieldname": "invoice_total",
+   "fieldtype": "Currency",
+   "label": "Invoice Total (KES)",
+   "no_copy": 1,
+   "precision": 2,
+   "read_only": 1
   },
   {
    "fieldname": "signed_order",
    "fieldtype": "Attach",
    "label": "Signed Fuel Order",
    "no_copy": 1,
-   "description": "Required when the transaction is submitted. Must be a private PDF, JPG, or PNG."
+   "description": "Private PDF, JPG, or PNG; required to submit."
   },
   {
-   "fieldname": "section_break_efficiency",
+   "fieldname": "signed_invoice",
+   "fieldtype": "Attach",
+   "label": "Signed Invoice",
+   "no_copy": 1,
+   "description": "Private PDF, JPG, or PNG; required to submit."
+  },
+  {
+   "fieldname": "section_break_transaction_summary",
    "fieldtype": "Section Break",
-   "label": "Vehicle Efficiency"
+   "label": "Baseline & Efficiency"
+  },
+  {
+   "fieldname": "litre_variance_status",
+   "fieldtype": "HTML",
+   "label": "Litre Variance"
   },
   {
    "default": "0",
@@ -347,7 +410,8 @@
    "fieldtype": "Check",
    "label": "Efficiency Baseline",
    "no_copy": 1,
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "previous_full_fill",
@@ -355,7 +419,8 @@
    "label": "Previous Full Fill",
    "no_copy": 1,
    "options": "Fueling Transaction",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "closing_full_fill",
@@ -363,28 +428,32 @@
    "label": "Closing Full Fill",
    "no_copy": 1,
    "options": "Fueling Transaction",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "distance_km",
    "fieldtype": "Float",
    "label": "Distance (km)",
    "no_copy": 1,
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "qualifying_litres",
    "fieldtype": "Float",
    "label": "Qualifying Litres",
    "no_copy": 1,
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "km_per_litre",
    "fieldtype": "Float",
    "label": "Efficiency (km/L)",
    "no_copy": 1,
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "section_break_submission_audit",
@@ -434,6 +503,7 @@
    "write": 1
   },
   {
+   "export": 1,
    "print": 1,
    "read": 1,
    "report": 1,

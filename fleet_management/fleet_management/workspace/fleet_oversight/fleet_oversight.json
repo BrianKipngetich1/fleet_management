@@ -1,0 +1,65 @@
+{
+ "app": "fleet_management",
+ "charts": [],
+ "content": "[]",
+ "custom_blocks": [],
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "chart",
+ "is_hidden": 0,
+ "label": "Fleet Oversight",
+ "links": [
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Fueling Summary",
+   "link_count": 0,
+   "link_to": "Fueling Summary",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Fueling Transaction",
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Asset Performance",
+   "link_count": 0,
+   "link_to": "Asset Performance",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Fuel Order",
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Requests & Audit",
+   "link_count": 0,
+   "link_to": "Requests & Audit",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Fueling Transaction",
+   "type": "Link"
+  }
+ ],
+ "module": "Fleet Management",
+ "modified": "2026-10-09 00:00:00.000000",
+ "name": "Fleet Oversight",
+ "number_cards": [],
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [
+  {"role": "Fleet Approver"},
+  {"role": "Fleet Admin"}
+ ],
+ "sequence_id": 1.0,
+ "shortcuts": [],
+ "title": "Fleet Oversight",
+ "type": "Workspace"
+}
